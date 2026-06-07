@@ -1,0 +1,25 @@
+{
+  "id": "heartbeat",
+  "name": "异步命令处理",
+  "status": "active",
+  "createdAt": "2026-05-13T11:39:45.039Z",
+  "updatedAt": "2026-05-13T11:39:45.040Z",
+  "agents": [
+    {
+      "id": "agent_8esamf50",
+      "name": "Main Agent",
+      "role": "assistant",
+      "status": "idle",
+      "createdAt": "2026-05-13T11:39:45.039Z",
+      "model": "unknown",
+      "systemPrompt": ""
+    }
+  ],
+  "summary": {
+    "id": "summary_200k6gs9",
+    "title": "异步命令处理",
+    "createdAt": "2026-05-13T11:39:45.040Z",
+    "file": "summary_200k6gs9.md"
+  },
+  "lastMessageCount": 6
+}

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#A9A9A9"/>
+      <stop offset="100%" stop-color="#808080"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 身体 - 灰色 + 横躺 -->
+  <ellipse cx="200" cy="285" rx="125" ry="90" fill="url(#bodyGrad)" transform="rotate(-15 200 285)"/>
+  
+  <!-- 肚皮 - 灰色 -->
+  <ellipse cx="200" cy="295" rx="72" ry="55" fill="#D3D3D3" opacity="0.5" transform="rotate(-15 200 295)"/>
+  
+  <!-- 角 - 折断倒下 -->
+  <path d="M 160 225 L 155 195 L 168 220" fill="#A9A9A9" transform="rotate(-15 160 225)"/>
+  <path d="M 240 225 L 245 195 L 232 220" fill="#A9A9A9" transform="rotate(-15 240 225)"/>
+  
+  <!-- 眼睛 - X_X (死亡) -->
+  <path d="M 152 210 L 182 230" stroke="#333333" stroke-width="6" stroke-linecap="round"/>
+  <path d="M 182 210 L 152 230" stroke="#333333" stroke-width="6" stroke-linecap="round"/>
+  <path d="M 218 210 L 248 230" stroke="#333333" stroke-width="6" stroke-linecap="round"/>
+  <path d="M 248 210 L 218 230" stroke="#333333" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- 腮红 - 无 -->
+  
+  <!-- 嘴巴 - 吐舌头 (可爱死亡) -->
+  <ellipse cx="200" cy="260" rx="12" ry="8" fill="#FF6B6B" transform="rotate(-15 200 260)"/>
+  <path d="M 192 255 Q 200 265 208 255" stroke="#333333" stroke-width="3" fill="none" transform="rotate(-15 200 260)"/>
+  
+  <!-- 十字架标记 (表示死亡) -->
+  <line x1="310" y1="170" x2="310" y2="210" stroke="#333333" stroke-width="8" stroke-linecap="round"/>
+  <line x1="290" y1="190" x2="330" y2="190" stroke="#333333" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- 小幽灵 -->
+  <path d="M 320 230 Q 310 220 320 210 Q 330 220 320 230" fill="#D3D3D3" opacity="0.6"/>
+  <circle cx="317" cy="222" r="2" fill="#333333"/>
+  <circle cx="323" cy="222" r="2" fill="#333333"/>
+  
+  <!-- 手臂 - 僵硬 -->
+  <path d="M 105 270 Q 120 285 135 280" stroke="#808080" stroke-width="18" fill="none" stroke-linecap="round" transform="rotate(-15 120 278)"/>
+  <path d="M 295 270 Q 280 285 265 280" stroke="#808080" stroke-width="18" fill="none" stroke-linecap="round" transform="rotate(-15 280 278)"/>
+  
+  <!-- 脚 - 僵硬 -->
+  <ellipse cx="160" cy="355" rx="28" ry="16" fill="#808080" transform="rotate(-15 160 355)"/>
+  <ellipse cx="240" cy="355" rx="28" ry="16" fill="#808080" transform="rotate(-15 240 355)"/>
+  
+  <!-- 光环 (表示去天堂) -->
+  <circle cx="200" cy="180" r="25" fill="none" stroke="#FFD700" stroke-width="4" opacity="0.6"/>
+</svg>

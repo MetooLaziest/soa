@@ -1,0 +1,25 @@
+{
+  "id": "session-1779683481171-7pebik",
+  "name": "SIP映射+AI潮玩调研",
+  "status": "active",
+  "createdAt": "2026-05-25T04:35:00.410Z",
+  "updatedAt": "2026-05-26T03:36:34.513Z",
+  "agents": [
+    {
+      "id": "agent_ftjspgwc",
+      "name": "rpqpolb2p4jtebn1",
+      "role": "assistant",
+      "status": "idle",
+      "createdAt": "2026-05-25T04:35:00.410Z",
+      "model": "unknown",
+      "systemPrompt": ""
+    }
+  ],
+  "summary": {
+    "id": "summary_v0n47d3d",
+    "title": "SIP映射+AI潮玩调研",
+    "createdAt": "2026-05-25T04:35:00.410Z",
+    "file": "summary_v0n47d3d.md"
+  },
+  "lastMessageCount": 110
+}

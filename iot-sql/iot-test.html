@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT 控制平台测试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group .hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .device-btn {
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .device-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .device-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+        
+        .device-btn .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .device-btn .name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .command-grid {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .command-btn {
+            padding: 12px 24px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            background: white;
+            color: #667eea;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .command-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .result-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .result-box.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .result-box.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .status-badge.online {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-badge.offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .log-table th,
+        .log-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .log-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .log-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .api-url {
+            background: #f0f0f0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin-bottom: 20px;
+            color: #666;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            color: #666;
+            font-weight: 600;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 IoT 控制平台测试工具</h1>
+            <p>ESP32 中控板接口测试与调试</p>
+        </div>
+        
+        <!-- 配置卡片 -->
+        <div class="card">
+            <h2>📋 配置信息</h2>
+            
+            <div class="api-url">
+                API 基础 URL: <strong id="apiUrl">https://soa.laziestlife.com/api/iot</strong>
+            </div>
+            
+            <div class="form-group">
+                <label>主控板 MAC 地址</label>
+                <input type="text" id="deviceMac" placeholder="AA:BB:CC:DD:EE:FF" value="AA:BB:CC:DD:EE:FF">
+                <div class="hint">格式: XX:XX:XX:XX:XX:XX（大写，冒号分隔）</div>
+            </div>
+            
+            <div class="form-group">
+                <label>设备组别（可选）</label>
+                <select id="deviceGroup">
+                    <option value="">全组别</option>
+                    <option value="livingroom">客厅</option>
+                    <option value="bedroom">卧室</option>
+                    <option value="kitchen">厨房</option>
+                    <option value="bathroom">卫生间</option>
+                    <option value="study">书房</option>
+                    <option value="balcony">阳台</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-primary" onclick="checkApiStatus()">
+                🔍 检查接口状态
+            </button>
+            <button class="btn btn-secondary" onclick="loadTemplates()">
+                📥 加载设备模板
+            </button>
+        </div>
+        
+        <!-- 设备控制卡片 -->
+        <div class="card">
+            <h2>🎮 设备控制</h2>
+            
+            <div class="form-group">
+                <label>选择设备类型</label>
+            </div>
+            
+            <div class="device-grid" id="deviceGrid">
+                <div class="device-btn" data-type="light" onclick="selectDevice('light')">
+                    <div class="icon">💡</div>
+                    <div class="name">灯</div>
+                </div>
+                <div class="device-btn" data-type="curtain" onclick="selectDevice('curtain')">
+                    <div class="icon">🪟</div>
+                    <div class="name">窗帘</div>
+                </div>
+                <div class="device-btn" data-type="tv" onclick="selectDevice('tv')">
+                    <div class="icon">📺</div>
+                    <div class="name">电视</div>
+                </div>
+                <div class="device-btn" data-type="vacuum" onclick="selectDevice('vacuum')">
+                    <div class="icon">🤖</div>
+                    <div class="name">扫地机</div>
+                </div>
+                <div class="device-btn" data-type="bath" onclick="selectDevice('bath')">
+                    <div class="icon">🛁</div>
+                    <div class="name">洗澡水</div>
+                </div>
+                <div class="device-btn" data-type="purifier" onclick="selectDevice('purifier')">
+                    <div class="icon">🌬️</div>
+                    <div class="name">净化器</div>
+                </div>
+                <div class="device-btn" data-type="ac" onclick="selectDevice('ac')">
+                    <div class="icon">❄️</div>
+                    <div class="name">空调</div>
+                </div>
+            </div>
+            
+            <div class="command-grid" id="commandGrid" style="display: none;">
+                <!-- 动态生成指令按钮 -->
+            </div>
+            
+            <div class="form-group" style="margin-top: 20px;">
+                <label>指令备注（可选）</label>
+                <input type="text" id="commandNote" placeholder="如: temperature=38">
+            </div>
+            
+            <div id="controlResult" style="display: none;">
+                <h3 style="margin-top: 20px; color: #555;">执行结果</h3>
+                <div class="result-box" id="controlResultBox"></div>
+            </div>
+        </div>
+        
+        <!-- 日志查看卡片 -->
+        <div class="card">
+            <h2>📜 控制日志</h2>
+            
+            <button class="btn btn-primary" onclick="loadLogs()">
+                🔄 刷新日志
+            </button>
+            <button class="btn btn-secondary" onclick="clearLogs()">
+                🗑️ 清空显示
+            </button>
+            
+            <table class="log-table" id="logTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>时间</th>
+                        <th>设备类型</th>
+                        <th>组别</th>
+                        <th>指令</th>
+                        <th>状态</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody id="logBody">
+                </tbody>
+            </table>
+            
+            <div id="noLogs" style="text-align: center; padding: 40px; color: #999;">
+                暂无日志记录，请先执行控制操作
+            </div>
+        </div>
+        
+        <!-- API 测试卡片 -->
+        <div class="card">
+            <h2>🔧 API 手动测试</h2>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('templates')">GET /templates</div>
+                <div class="tab" onclick="switchTab('control')">PUT /control</div>
+                <div class="tab" onclick="switchTab('logs')">GET /logs</div>
+            </div>
+            
+            <div class="tab-content active" id="tab-templates">
+                <p style="color: #666; margin-bottom: 15px;">获取支持的设备类型和指令列表</p>
+                <button class="btn btn-success" onclick="testApi('templates')">
+                    ▶️ 执行请求
+                </button>
+            </div>
+            
+            <div class="tab-content" id="tab-control">
+                <div class="form-group">
+                    <label>请求体 (JSON)</label>
+                    <textarea id="controlBody" style="width: 100%; height: 200px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: monospace; font-size: 14px;">{
+  "deviceMac": "AA:BB:CC:DD:EE:FF",
+  "deviceType": "light",
+  "deviceGroup": "livingroom",
+  "command": "on"
+}</textarea>
+                </div>
+                <button class="btn btn-success" onclick="testApi('control')">
+                    ▶️ 执行请求
+                </button>
+            </div>
+            
+            <div class="tab-content" id="tab-logs">
+                <div class="form-group">
+                    <label>查询参数</label>
+                    <input type="text" id="logsParams" placeholder="limit=10">
+                </div>
+                <button class="btn btn-success" onclick="testApi('logs')">
+                    ▶️ 执行请求
+                </button>
+            </div>
+            
+            <div id="apiResult" style="display: none;">
+                <h3 style="margin-top: 20px; color: #555;">API 响应</h3>
+                <div class="result-box" id="apiResultBox"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://soa.laziestlife.com/api/iot';
+        let selectedDevice = null;
+        let templates = null;
+        
+        // 设备图标映射
+        const deviceIcons = {
+            light: '💡',
+            curtain: '🪟',
+            tv: '📺',
+            vacuum: '🤖',
+            bath: '🛁',
+            purifier: '🌬️',
+            ac: '❄️'
+        };
+        
+        // 设备名称映射
+        const deviceNames = {
+            light: '灯',
+            curtain: '窗帘',
+            tv: '电视',
+            vacuum: '扫地机',
+            bath: '洗澡水',
+            purifier: '净化器',
+            ac: '空调'
+        };
+        
+        // 指令名称映射
+        const commandNames = {
+            on: '开启',
+            off: '关闭',
+            start: '启动',
+            stop: '停止'
+        };
+        
+        // 检查 API 状态
+        async function checkApiStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/templates`);
+                const data = await response.json();
+                
+                if (data.templates) {
+                    alert('✅ API 接口正常！\n\n支持的设备类型: ' + Object.keys(data.templates).join(', '));
+                } else {
+                    alert('❌ API 返回异常');
+                }
+            } catch (error) {
+                alert('❌ API 连接失败: ' + error.message);
+            }
+        }
+        
+        // 加载设备模板
+        async function loadTemplates() {
+            try {
+                const response = await fetch(`${API_BASE}/templates`);
+                templates = await response.json();
+                
+                if (templates.templates) {
+                    alert('✅ 设备模板加载成功！\n\n' + JSON.stringify(templates, null, 2));
+                }
+            } catch (error) {
+                alert('❌ 加载失败: ' + error.message);
+            }
+        }
+        
+        // 选择设备
+        function selectDevice(type) {
+            selectedDevice = type;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.device-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-type="${type}"]`).classList.add('active');
+            
+            // 生成指令按钮
+            const commandGrid = document.getElementById('commandGrid');
+            commandGrid.style.display = 'flex';
+            
+            const commands = {
+                light: ['on', 'off'],
+                curtain: ['on', 'off'],
+                tv: ['on', 'off'],
+                vacuum: ['start', 'stop'],
+                bath: ['start'],
+                purifier: ['on', 'off'],
+                ac: ['on', 'off']
+            };
+            
+            commandGrid.innerHTML = commands[type].map(cmd => `
+                <button class="command-btn" onclick="executeCommand('${cmd}')">
+                    ${commandNames[cmd]}
+                </button>
+            `).join('');
+        }
+        
+        // 执行指令
+        async function executeCommand(command) {
+            const deviceMac = document.getElementById('deviceMac').value.trim();
+            const deviceGroup = document.getElementById('deviceGroup').value;
+            const commandNote = document.getElementById('commandNote').value.trim();
+            
+            if (!deviceMac) {
+                alert('请输入 MAC 地址');
+                return;
+            }
+            
+            if (!selectedDevice) {
+                alert('请选择设备类型');
+                return;
+            }
+            
+            const body = {
+                deviceMac,
+                deviceType: selectedDevice,
+                command
+            };
+            
+            if (deviceGroup) body.deviceGroup = deviceGroup;
+            if (commandNote) body.commandNote = commandNote;
+            
+            try {
+                const response = await fetch(`${API_BASE}/control`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                
+                const result = await response.json();
+                
+                // 显示结果
+                document.getElementById('controlResult').style.display = 'block';
+                const resultBox = document.getElementById('controlResultBox');
+                resultBox.textContent = JSON.stringify(result, null, 2);
+                resultBox.className = 'result-box ' + (result.success ? 'success' : 'error');
+                
+                // 自动刷新日志
+                if (result.success) {
+                    setTimeout(loadLogs, 500);
+                }
+            } catch (error) {
+                document.getElementById('controlResult').style.display = 'block';
+                const resultBox = document.getElementById('controlResultBox');
+                resultBox.textContent = '请求失败: ' + error.message;
+                resultBox.className = 'result-box error';
+            }
+        }
+        
+        // 加载日志
+        async function loadLogs() {
+            const deviceMac = document.getElementById('deviceMac').value.trim();
+            let url = `${API_BASE}/logs?limit=20`;
+            if (deviceMac) url += `&deviceMac=${deviceMac}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.logs && data.logs.length > 0) {
+                    document.getElementById('logTable').style.display = 'table';
+                    document.getElementById('noLogs').style.display = 'none';
+                    
+                    const tbody = document.getElementById('logBody');
+                    tbody.innerHTML = data.logs.map(log => `
+                        <tr>
+                            <td>${log.id}</td>
+                            <td>${new Date(log.created_at).toLocaleString('zh-CN')}</td>
+                            <td>${deviceIcons[log.device_type] || ''} ${deviceNames[log.device_type] || log.device_type}</td>
+                            <td>${log.device_group || '全组别'}</td>
+                            <td><strong>${commandNames[log.command] || log.command}</strong></td>
+                            <td><span class="status-badge ${log.status === 'sent' ? 'online' : 'offline'}">${log.status}</span></td>
+                            <td>${log.command_note || '-'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    document.getElementById('logTable').style.display = 'none';
+                    document.getElementById('noLogs').style.display = 'block';
+                }
+            } catch (error) {
+                alert('加载日志失败: ' + error.message);
+            }
+        }
+        
+        // 清空日志显示
+        function clearLogs() {
+            document.getElementById('logTable').style.display = 'none';
+            document.getElementById('noLogs').style.display = 'block';
+            document.getElementById('logBody').innerHTML = '';
+        }
+        
+        // 切换标签
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`.tab:nth-child(${['templates', 'control', 'logs'].indexOf(tab) + 1})`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+        
+        // 测试 API
+        async function testApi(endpoint) {
+            let url = `${API_BASE}/${endpoint}`;
+            let options = {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+            
+            if (endpoint === 'control') {
+                options.method = 'PUT';
+                const body = document.getElementById('controlBody').value;
+                try {
+                    options.body = body;
+                } catch (e) {
+                    alert('JSON 格式错误');
+                    return;
+                }
+            } else if (endpoint === 'logs') {
+                const params = document.getElementById('logsParams').value.trim();
+                if (params) url += '?' + params;
+            }
+            
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
+                document.getElementById('apiResult').style.display = 'block';
+                const resultBox = document.getElementById('apiResultBox');
+                resultBox.textContent = `HTTP ${response.status}\n\n${JSON.stringify(result, null, 2)}`;
+                resultBox.className = 'result-box ' + (response.ok ? 'success' : 'error');
+            } catch (error) {
+                document.getElementById('apiResult').style.display = 'block';
+                const resultBox = document.getElementById('apiResultBox');
+                resultBox.textContent = '请求失败: ' + error.message;
+                resultBox.className = 'result-box error';
+            }
+        }
+        
+        // 页面加载时自动加载日志
+        window.onload = function() {
+            loadLogs();
+        };
+    </script>
+</body>
+</html>

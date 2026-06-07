@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7ED957"/>
+      <stop offset="100%" stop-color="#5DBF3A"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 身体 -->
+  <ellipse cx="200" cy="250" rx="120" ry="100" fill="url(#bodyGrad)"/>
+  
+  <!-- 肚皮 -->
+  <ellipse cx="200" cy="270" rx="70" ry="60" fill="#F0FFF0" opacity="0.6"/>
+  
+  <!-- 角 -->
+  <path d="M 180 160 L 170 120 L 190 150" fill="#FF6B6B"/>
+  <path d="M 220 160 L 230 120 L 210 150" fill="#FF6B6B"/>
+  
+  <!-- 眼睛 - 眯眼吃东西 -->
+  <path d="M 155 200 Q 170 190 185 200" stroke="#333333" stroke-width="4" fill="none"/>
+  <path d="M 215 200 Q 230 190 245 200" stroke="#333333" stroke-width="4" fill="none"/>
+  
+  <!-- 腮红 -->
+  <ellipse cx="145" cy="230" rx="15" ry="10" fill="#FFB6C1" opacity="0.6"/>
+  <ellipse cx="255" cy="230" rx="15" ry="10" fill="#FFB6C1" opacity="0.6"/>
+  
+  <!-- 嘴巴 - 张开吃东西 -->
+  <ellipse cx="200" cy="245" rx="20" ry="15" fill="#333333"/>
+  <path d="M 185 240 Q 200 250 215 240" stroke="#333333" stroke-width="3" fill="#FF6B6B"/>
+  
+  <!-- 食物 -->
+  <circle cx="200" cy="230" r="12" fill="#FF6B6B"/>
+  <circle cx="210" cy="225" r="8" fill="#FFD700"/>
+  
+  <!-- 手臂 - 拿着食物 -->
+  <path d="M 100 250 Q 120 240 140 250" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  <path d="M 300 250 Q 280 240 260 250" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  
+  <!-- 脚 -->
+  <ellipse cx="160" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+  <ellipse cx="240" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+</svg>

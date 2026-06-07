@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="eggGrad" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F0F0F0"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 蛋壳 - 白色带斑点 -->
+  <ellipse cx="200" cy="250" rx="110" ry="130" fill="url(#eggGrad)" stroke="#E0E0E0" stroke-width="3"/>
+  
+  <!-- 蛋壳斑点 -->
+  <ellipse cx="170" cy="200" rx="12" ry="10" fill="#FFE4E1" opacity="0.6"/>
+  <ellipse cx="220" cy="220" rx="15" ry="12" fill="#FFF0F5" opacity="0.5"/>
+  <ellipse cx="190" cy="280" rx="10" ry="8" fill="#FFE4E1" opacity="0.4"/>
+  <ellipse cx="230" cy="190" rx="8" ry="7" fill="#FFF0F5" opacity="0.55"/>
+  
+  <!-- 裂缝 -->
+  <path d="M 200 140 Q 195 170 205 190 Q 190 210 200 230" stroke="#D3D3D3" stroke-width="3" fill="none" stroke-dasharray="5 3"/>
+  
+  <!-- 从裂缝中露出的小怪兽部分 -->
+  <!-- 角 (从蛋里露出) -->
+  <path d="M 185 155 L 180 135 L 190 150" fill="#FF6B6B" opacity="0.9"/>
+  <path d="M 215 155 L 220 135 L 210 150" fill="#FF6B6B" opacity="0.9"/>
+  
+  <!-- 眼睛 (从蛋里看外面) -->
+  <ellipse cx="185" cy="175" rx="12" ry="14" fill="#FFFFFF" opacity="0.9"/>
+  <ellipse cx="215" cy="175" rx="12" ry="14" fill="#FFFFFF" opacity="0.9"/>
+  <ellipse cx="188" cy="177" rx="7" ry="8" fill="#333333"/>
+  <ellipse cx="218" cy="177" rx="7" ry="8" fill="#333333"/>
+  <circle cx="190" cy="175" r="3" fill="#FFFFFF"/>
+  <circle cx="220" cy="175" r="3" fill="#FFFFFF"/>
+  
+  <!-- 问号 (表示好奇) -->
+  <text x="250" y="160" font-size="40" fill="#FF69B4" opacity="0.8" font-weight="bold">?</text>
+  
+  <!-- 手的轮廓 (从蛋壳里伸出来) -->
+  <ellipse cx="170" cy="250" rx="15" ry="12" fill="#7ED957" opacity="0.7"/>
+  <ellipse cx="230" cy="250" rx="15" ry="12" fill="#7ED957" opacity="0.7"/>
+  
+  <!-- 底部的阴影 -->
+  <ellipse cx="200" cy="385" rx="90" ry="15" fill="#000000" opacity="0.2"/>
+</svg>

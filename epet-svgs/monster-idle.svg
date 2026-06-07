@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7ED957"/>
+      <stop offset="100%" stop-color="#5DBF3A"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 身体 -->
+  <ellipse cx="200" cy="250" rx="120" ry="100" fill="url(#bodyGrad)"/>
+  
+  <!-- 肚皮 -->
+  <ellipse cx="200" cy="270" rx="70" ry="60" fill="#F0FFF0" opacity="0.6"/>
+  
+  <!-- 角 -->
+  <path d="M 180 160 L 170 120 L 190 150" fill="#FF6B6B" stroke="#FF6B6B" stroke-width="2"/>
+  <path d="M 220 160 L 230 120 L 210 150" fill="#FF6B6B" stroke="#FF6B6B" stroke-width="2"/>
+  
+  <!-- 眼睛 - 正常 -->
+  <ellipse cx="170" cy="200" rx="25" ry="30" fill="#FFFFFF"/>
+  <ellipse cx="230" cy="200" rx="25" ry="30" fill="#FFFFFF"/>
+  <ellipse cx="175" cy="205" rx="15" ry="18" fill="#333333"/>
+  <ellipse cx="235" cy="205" rx="15" ry="18" fill="#333333"/>
+  <circle cx="180" cy="200" r="5" fill="#FFFFFF"/>
+  <circle cx="240" cy="200" r="5" fill="#FFFFFF"/>
+  
+  <!-- 腮红 -->
+  <ellipse cx="145" cy="230" rx="15" ry="10" fill="#FFB6C1" opacity="0.6"/>
+  <ellipse cx="255" cy="230" rx="15" ry="10" fill="#FFB6C1" opacity="0.6"/>
+  
+  <!-- 嘴巴 - 微笑 -->
+  <path d="M 175 240 Q 200 260 225 240" stroke="#333333" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- 手臂 -->
+  <path d="M 100 250 Q 80 270 90 290" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  <path d="M 300 250 Q 320 270 310 290" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  
+  <!-- 脚 -->
+  <ellipse cx="160" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+  <ellipse cx="240" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+</svg>

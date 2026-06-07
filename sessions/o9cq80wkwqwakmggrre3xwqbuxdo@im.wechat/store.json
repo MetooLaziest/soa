@@ -1,0 +1,25 @@
+{
+  "id": "o9cq80wkwqwakmggrre3xwqbuxdo@im.wechat",
+  "name": "苏州机器人公司搜索",
+  "status": "active",
+  "createdAt": "2026-05-07T12:58:59.523Z",
+  "updatedAt": "2026-05-12T01:13:41.465Z",
+  "agents": [
+    {
+      "id": "agent_nibdwuy7",
+      "name": "Main Agent",
+      "role": "assistant",
+      "status": "idle",
+      "createdAt": "2026-05-07T12:58:59.523Z",
+      "model": "unknown",
+      "systemPrompt": ""
+    }
+  ],
+  "summary": {
+    "id": "summary_4q485p8e",
+    "title": "苏州机器人公司搜索",
+    "createdAt": "2026-05-07T12:58:59.523Z",
+    "file": "summary_4q485p8e.md"
+  },
+  "lastMessageCount": 62
+}

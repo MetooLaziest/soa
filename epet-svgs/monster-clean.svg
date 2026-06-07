@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7ED957"/>
+      <stop offset="100%" stop-color="#5DBF3A"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 身体 - 清爽 -->
+  <ellipse cx="200" cy="250" rx="120" ry="100" fill="url(#bodyGrad)"/>
+  
+  <!-- 肚皮 - 干净 -->
+  <ellipse cx="200" cy="270" rx="70" ry="60" fill="#F0FFF0" opacity="0.8"/>
+  
+  <!-- 角 - 竖起 -->
+  <path d="M 178 158 L 168 118 L 188 148" fill="#FF6B6B"/>
+  <path d="M 222 158 L 232 118 L 212 148" fill="#FF6B6B"/>
+  
+  <!-- 眼睛 - 清爽 -->
+  <ellipse cx="170" cy="200" rx="24" ry="28" fill="#FFFFFF"/>
+  <ellipse cx="230" cy="200" rx="24" ry="28" fill="#FFFFFF"/>
+  <ellipse cx="175" cy="205" rx="15" ry="17" fill="#333333"/>
+  <ellipse cx="235" cy="205" rx="15" ry="17" fill="#333333"/>
+  <circle cx="180" cy="200" r="5" fill="#FFFFFF"/>
+  <circle cx="240" cy="200" r="5" fill="#FFFFFF"/>
+  <!-- 闪闪发光 -->
+  <circle cx="170" cy="195" r="2" fill="#87CEEB"/>
+  <circle cx="230" cy="195" r="2" fill="#87CEEB"/>
+  
+  <!-- 腮红 - 健康粉红 -->
+  <ellipse cx="145" cy="228" rx="16" ry="10" fill="#FFB6C1" opacity="0.7"/>
+  <ellipse cx="255" cy="228" rx="16" ry="10" fill="#FFB6C1" opacity="0.7"/>
+  
+  <!-- 嘴巴 - 微笑 -->
+  <path d="M 178 242 Q 200 255 222 242" stroke="#333333" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- 泡泡/清洁泡沫 -->
+  <circle cx="130" cy="180" r="12" fill="#FFFFFF" opacity="0.6" stroke="#87CEEB" stroke-width="2"/>
+  <circle cx="150" cy="165" r="8" fill="#FFFFFF" opacity="0.5" stroke="#87CEEB" stroke-width="1.5"/>
+  <circle cx="270" cy="175" r="10" fill="#FFFFFF" opacity="0.55" stroke="#87CEEB" stroke-width="1.8"/>
+  <circle cx="290" cy="160" r="7" fill="#FFFFFF" opacity="0.45" stroke="#87CEEB" stroke-width="1.2"/>
+  
+  <!-- 手臂 - 举起干净 -->
+  <path d="M 100 250 Q 75 230 85 210" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  <path d="M 300 250 Q 325 230 315 210" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  
+  <!-- 脚 - 干净 -->
+  <ellipse cx="160" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+  <ellipse cx="240" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+</svg>

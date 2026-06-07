@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7ED957"/>
+      <stop offset="100%" stop-color="#5DBF3A"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 身体 -->
+  <ellipse cx="200" cy="250" rx="120" ry="100" fill="url(#bodyGrad)"/>
+  
+  <!-- 肚皮 - 瘪了 -->
+  <ellipse cx="200" cy="275" rx="65" ry="50" fill="#F0FFF0" opacity="0.6"/>
+  
+  <!-- 角 -->
+  <path d="M 180 160 L 170 120 L 190 150" fill="#FF6B6B"/>
+  <path d="M 220 160 L 230 120 L 210 150" fill="#FF6B6B"/>
+  
+  <!-- 眼睛 - 流泪 -->
+  <ellipse cx="170" cy="200" rx="25" ry="28" fill="#FFFFFF"/>
+  <ellipse cx="230" cy="200" rx="25" ry="28" fill="#FFFFFF"/>
+  <ellipse cx="175" cy="205" rx="14" ry="16" fill="#333333"/>
+  <ellipse cx="235" cy="205" rx="14" ry="16" fill="#333333"/>
+  <circle cx="180" cy="200" r="5" fill="#FFFFFF"/>
+  <circle cx="240" cy="200" r="5" fill="#FFFFFF"/>
+  
+  <!-- 眼泪 -->
+  <path d="M 170 225 Q 165 235 168 245" stroke="#87CEEB" stroke-width="3" fill="none" opacity="0.7"/>
+  <path d="M 230 225 Q 235 235 232 245" stroke="#87CEEB" stroke-width="3" fill="none" opacity="0.7"/>
+  <circle cx="168" cy="245" r="3" fill="#87CEEB" opacity="0.7"/>
+  <circle cx="232" cy="245" r="3" fill="#87CEEB" opacity="0.7"/>
+  
+  <!-- 腮红 -->
+  <ellipse cx="145" cy="230" rx="15" ry="10" fill="#FFB6C1" opacity="0.6"/>
+  <ellipse cx="255" cy="230" rx="15" ry="10" fill="#FFB6C1" opacity="0.6"/>
+  
+  <!-- 嘴巴 - 撇嘴 -->
+  <path d="M 180 245 Q 200 235 220 245" stroke="#333333" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- 想食物的符号 -->
+  <text x="290" y="180" font-size="35" fill="#FF6B6B" opacity="0.9">🍔</text>
+  
+  <!-- 手臂 - 抱肚子 -->
+  <path d="M 100 250 Q 120 270 140 260" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  <path d="M 300 250 Q 280 270 260 260" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  
+  <!-- 脚 -->
+  <ellipse cx="160" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+  <ellipse cx="240" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+</svg>

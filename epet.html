@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>电子宠物 E-Pet</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+      overflow: hidden;
+    }
+    .container { 
+      max-width: 400px; 
+      margin: 0 auto; 
+      padding: 20px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header { text-align: center; padding: 10px 0; }
+    .header h1 { font-size: 18px; opacity: 0.8; }
+    
+    .pet-display {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .pet-img {
+      width: 200px;
+      height: 200px;
+      object-fit: contain;
+      transition: transform 0.3s ease;
+    }
+    .pet-img.shake {
+      animation: shake 0.5s ease;
+    }
+    @keyframes shake {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-10deg); }
+      75% { transform: rotate(10deg); }
+    }
+    
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      padding: 15px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat-label { font-size: 12px; opacity: 0.6; }
+    .stat-value { font-size: 20px; font-weight: bold; }
+    .stat-value.hunger { color: #f39c12; }
+    .stat-value.feeds { color: #3498db; }
+    .stat-value.poops { color: #9b59b6; }
+    .stat-value.pets { color: #e74c3c; }
+    
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 10px 0;
+    }
+    .btn {
+      padding: 15px 10px;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn-feed { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; }
+    .btn-pet { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; }
+    .btn-clean { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: #fff; }
+    
+    .message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      padding: 15px 30px;
+      border-radius: 25px;
+      font-size: 16px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .message.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🥚 E-Pet</h1>
+    </div>
+    
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">饥饿度</div>
+        <div class="stat-value hunger" id="hunger">100</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">喂食</div>
+        <div class="stat-value feeds" id="feeds">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">铲屎</div>
+        <div class="stat-value poops" id="poops">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">抚摸</div>
+        <div class="stat-value pets" id="pets">0</div>
+      </div>
+    </div>
+    
+    <div class="pet-display">
+      <!-- Placeholder - replace with user's PNG -->
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='80' fill='%23f39c12'/%3E%3Ccircle cx='75' cy='85' r='10' fill='%23333'/%3E%3Ccircle cx='125' cy='85' r='10' fill='%23333'/%3E%3Cpath d='M80 120 Q100 140 120 120' stroke='%23333' stroke-width='5' fill='none'/%3E%3C/svg%3E" 
+           alt="Pet" class="pet-img" id="petImg">
+    </div>
+    
+    <div class="actions">
+      <button class="btn btn-feed" onclick="feed()">🍎 喂食</button>
+      <button class="btn btn-pet" onclick="pet()">✋ 抚摸</button>
+      <button class="btn btn-clean" onclick="clean()">🧹 铲屎</button>
+    </div>
+  </div>
+  
+  <div class="message" id="message"></div>
+
+  <script>
+    const API_BASE = '/api/epet';
+    let petId = new URLSearchParams(location.search).get('id');
+    
+    async function init() {
+      if (!petId) {
+        const res = await fetch(API_BASE + '/init');
+        const data = await res.json();
+        if (data.success) {
+          petId = data.petId;
+          location.href = '?id=' + petId;
+          return;
+        }
+      }
+      await load();
+    }
+    
+    async function load() {
+      if (!petId) return;
+      const res = await fetch(API_BASE + '/' + petId);
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('hunger').textContent = Math.round(data.pet.hunger);
+        document.getElementById('feeds').textContent = data.pet.totalFeeds;
+        document.getElementById('poops').textContent = data.pet.totalPoops;
+        document.getElementById('pets').textContent = data.pet.totalPets;
+      }
+    }
+    
+    async function action(endpoint, msg) {
+      if (!petId) return;
+      const res = await fetch(API_BASE + '/' + petId + endpoint, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showMessage(msg);
+        const img = document.getElementById('petImg');
+        img.classList.add('shake');
+        setTimeout(() => img.classList.remove('shake'), 500);
+        await load();
+      }
+    }
+    
+    function feed() { action('/feed', '已喂食!'); }
+    function pet() { action('/pet', '好痒~'); }
+    function clean() { action('/clean', '已清理!'); }
+    
+    function showMessage(text) {
+      const el = document.getElementById('message');
+      el.textContent = text;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1500);
+    }
+    
+    init();
+    setInterval(load, 30000); // Refresh every 30s
+  </script>
+</body>
+</html>

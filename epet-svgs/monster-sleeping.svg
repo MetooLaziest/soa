@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7ED957"/>
+      <stop offset="100%" stop-color="#5DBF3A"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 身体 - 横躺 -->
+  <ellipse cx="200" cy="280" rx="130" ry="90" fill="url(#bodyGrad)" transform="rotate(-10 200 280)"/>
+  
+  <!-- 肚皮 -->
+  <ellipse cx="200" cy="290" rx="75" ry="55" fill="#F0FFF0" opacity="0.6" transform="rotate(-10 200 290)"/>
+  
+  <!-- 角 - 倒下 -->
+  <path d="M 155 210 L 145 170 L 165 200" fill="#FF6B6B" transform="rotate(-10 155 210)"/>
+  <path d="M 245 210 L 255 170 L 235 200" fill="#FF6B6B" transform="rotate(-10 245 210)"/>
+  
+  <!-- 眼睛 - 闭上 ZZZ -->
+  <path d="M 155 215 Q 170 210 185 215" stroke="#333333" stroke-width="4" fill="none"/>
+  <path d="M 215 215 Q 230 210 245 215" stroke="#333333" stroke-width="4" fill="none"/>
+  
+  <!-- ZZZ 符号 -->
+  <text x="260" y="180" font-size="24" fill="#87CEEB" opacity="0.8" font-weight="bold">Z</text>
+  <text x="275" y="165" font-size="28" fill="#87CEEB" opacity="0.6" font-weight="bold">Z</text>
+  <text x="290" y="150" font-size="32" fill="#87CEEB" opacity="0.4" font-weight="bold">Z</text>
+  
+  <!-- 腮红 -->
+  <ellipse cx="155" cy="235" rx="15" ry="10" fill="#FFB6C1" opacity="0.4" transform="rotate(-10 155 235)"/>
+  <ellipse cx="245" cy="235" rx="15" ry="10" fill="#FFB6C1" opacity="0.4" transform="rotate(-10 245 235)"/>
+  
+  <!-- 嘴巴 - 微微张开 -->
+  <ellipse cx="200" cy="250" rx="8" ry="5" fill="#333333" transform="rotate(-10 200 250)"/>
+  
+  <!-- 手臂 - 放在身上 -->
+  <path d="M 140 270 Q 160 280 180 270" stroke="#5DBF3A" stroke-width="18" fill="none" stroke-linecap="round" transform="rotate(-10 160 270)"/>
+  <path d="M 220 270 Q 240 280 260 270" stroke="#5DBF3A" stroke-width="18" fill="none" stroke-linecap="round" transform="rotate(-10 240 270)"/>
+  
+  <!-- 脚 -->
+  <ellipse cx="155" cy="350" rx="28" ry="18" fill="#5DBF3A" transform="rotate(-10 155 350)"/>
+  <ellipse cx="245" cy="350" rx="28" ry="18" fill="#5DBF3A" transform="rotate(-10 245 350)"/>
+</svg>

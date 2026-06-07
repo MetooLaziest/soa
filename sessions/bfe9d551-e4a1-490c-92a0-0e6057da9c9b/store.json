@@ -1,0 +1,25 @@
+{
+  "id": "bfe9d551-e4a1-490c-92a0-0e6057da9c9b",
+  "name": "AI硬件视频选题调研",
+  "status": "active",
+  "createdAt": "2026-05-12T00:38:19.008Z",
+  "updatedAt": "2026-05-12T00:38:19.008Z",
+  "agents": [
+    {
+      "id": "agent_kw9v94yv",
+      "name": "Main Agent",
+      "role": "assistant",
+      "status": "idle",
+      "createdAt": "2026-05-12T00:38:19.008Z",
+      "model": "unknown",
+      "systemPrompt": ""
+    }
+  ],
+  "summary": {
+    "id": "summary_aqt49mdl",
+    "title": "AI硬件视频选题调研",
+    "createdAt": "2026-05-12T00:38:19.008Z",
+    "file": "summary_aqt49mdl.md"
+  },
+  "lastMessageCount": 21
+}

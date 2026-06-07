@@ -1,0 +1,41 @@
+{
+  "file_id": "DQkpaQWVQb3FORXFR",
+  "sheet_id": "t00i2h",
+  "records": [
+    {
+      "field_values": [
+        {"field": "fHIC5x", "text_value": {"items": [{"text": "AI眼镜细分赛道盘点——骑行、游泳、视障人群的专属智能眼镜", "type": "text"}]}},
+        {"field": "f4dh2H", "text_value": {"items": [{"text": "2026年已亮相31款AI眼镜,细分场景产品(追觅泳镜、京东方骑行眼镜、视障眼镜Luna Glass)鲜有人报道。深度测评3-5款细分场景AI眼镜,对比通用型产品痛点,探讨细分场景商业模式。", "type": "text"}]}},
+        {"field": "fd61I1", "option_value": {"items": [{"text": "未发布"}]}}
+      ]
+    },
+    {
+      "field_values": [
+        {"field": "fHIC5x", "text_value": {"items": [{"text": "AI同传耳机实测——时空壶W4骨声纹技术能解决嘈杂环境吗", "type": "text"}]}},
+        {"field": "f4dh2H", "text_value": {"items": [{"text": "创新技术骨导+气导混合拾音,解决嘈杂环境翻译失准。极限测试:菜市场、酒吧、工地等嘈杂环境下的翻译准确率,对比传统翻译耳机。适合出国旅游、商务会议场景。", "type": "text"}]}},
+        {"field": "fd61I1", "option_value": {"items": [{"text": "未发布"}]}}
+      ]
+    },
+    {
+      "field_values": [
+        {"field": "fHIC5x", "text_value": {"items": [{"text": "Kickstarter/Indiegogo上的AI硬件宝藏——如何发现下一个爆款", "type": "text"}]}},
+        {"field": "f4dh2H", "text_value": {"items": [{"text": "教用户筛选Kickstarter科技项目,解读众筹成功要素,盘点近期值得关注的AI硬件众筹项目。成功案例:iGarden XSeries泳池跑步机众筹破2000万。适合科技尝鲜者、海淘爱好者。", "type": "text"}]}},
+        {"field": "fd61I1", "option_value": {"items": [{"text": "未发布"}]}}
+      ]
+    },
+    {
+      "field_values": [
+        {"field": "fHIC5x", "text_value": {"items": [{"text": "人形机器人走出实验室——2026年具身智能商业化进展", "type": "text"}]}},
+        {"field": "f4dh2H", "text_value": {"items": [{"text": "2026年科技趋势关键词,从实验室演示进入工业筛选与落地。盘点国内具身智能产业链,真实应用场景:工厂里的人形机器人。关键数据:绿的谐波减速器订单排到2027年。", "type": "text"}]}},
+        {"field": "fd61I1", "option_value": {"items": [{"text": "未发布"}]}}
+      ]
+    },
+    {
+      "field_values": [
+        {"field": "fHIC5x", "text_value": {"items": [{"text": "本地化AI崛起——为什么大模型开始往手机上跑", "type": "text"}]}},
+        {"field": "f4dh2H", "text_value": {"items": [{"text": "2026年重要趋势:隐私优先的本地化AI兴起。测评本地运行的大模型,对比云端AI vs 边缘AI的速度、隐私、成本。解读NPU如何改变游戏规则。适合隐私敏感用户、技术从业者。", "type": "text"}]}},
+        {"field": "fd61I1", "option_value": {"items": [{"text": "未发布"}]}}
+      ]
+    }
+  ]
+}

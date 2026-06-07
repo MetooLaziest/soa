@@ -4,5 +4,5 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/admin/',  // 部署到 /admin/ 路径
+  base: '/admin/',  // 部署到 /admin2/ 路径
 })

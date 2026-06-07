@@ -1,0 +1,316 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-26T06:06:51.939Z",
+  "entries": {
+    "memory:memory/2026-05-14.md:63:96": {
+      "key": "memory:memory/2026-05-14.md:63:96",
+      "path": "memory/2026-05-14.md",
+      "startLine": 63,
+      "endLine": 96,
+      "source": "memory",
+      "snippet": "- 根因：之前部署时把 dist/ 复制到 frontend/dist/ 子目录，但 nginx root 指向 /var/www/iot-ai-doll/frontend/（根目录），所以浏览器一直在加载旧的 assets/index-C4SX0xmn.js - 修复：将 dist/index.html 和 dist/assets/* 直接复制到 /var/www/iot-ai-doll/frontend/ 根目录 - 最终新JS：index-DlFmXGNd.js，已部署，nginx 已 reload **部署命令备忘**： ```bash # 构建 cd /tmp/app-97gy5yq4t98h && npx vite build # 部署 cp dist/index.html /var/www/iot-ai-doll/frontend/index.html cp dist/assets/* /var/www/iot-ai-doll/frontend/assets/ # 重载 nginx nginx -t && systemctl reload nginx ``` **服务器信息**： - IP：47.98.103.151 - SSH：root / 123ASDasd!@# - 前端源码：/tmp/app-97gy5yq4t98h/ - Nginx root：/var/www/iot-ai-doll/frontend/ - 管理员账号：15622205445 / admin123 - 域名：soa.laziestlife.com（指向同一服务器） --- #",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.6622975731989214,
+      "maxScore": 0.6622975731989214,
+      "firstRecalledAt": "2026-05-26T06:06:42.795Z",
+      "lastRecalledAt": "2026-05-26T06:06:42.795Z",
+      "queryHashes": [
+        "f06e17ab2884"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "frontend/dist",
+        "var/www/iot-ai-doll/frontend",
+        "assets/index-c4sx0xmn.js",
+        "dist/index.html",
+        "dist/assets",
+        "index-dlfmxgnd.js",
+        "tmp/app-97gy5yq4t98h",
+        "47.98.103.151"
+      ]
+    },
+    "memory:memory/2026-05-15.md:237:278": {
+      "key": "memory:memory/2026-05-15.md:237:278",
+      "path": "memory/2026-05-15.md",
+      "startLine": 237,
+      "endLine": 278,
+      "source": "memory",
+      "snippet": "### 11:49 - ✅ IoT 控制接口域名配置完成 #### 域名配置 - 域名: `soa.laziestlife.com` - 基础 URL: `https://soa.laziestlife.com/api/iot` - SSL 证书: Let's Encrypt，有效期至 2026-08-13 - Nginx 反向代理: 已配置，转发至 localhost:3000 #### 完成的工作 1. ✅ Nginx 配置文件创建 (`/etc/nginx/sites-available/soa.laziestlife.com`) 2. ✅ certbot 申请 SSL 证书成功 3. ✅ HTTPS 接口测试通过 4. ✅ 接口文档更新，使用正确的域名地址 #### 测试命令 ```bash # 获取设备类型模板 curl -s https://soa.laziestlife.com/api/iot/templates # 开灯（客厅） curl -X PUT https://soa.laziestlife.com/api/iot/control \\ -H \"Content-Type: application/json\" \\ -d '{\"deviceMac\":\"AA:BB:CC:DD:EE:FF\",\"deviceType\":\"light\",\"deviceGroup\":\"livingroom\",\"command\":\"on\"}' # 查看控制日志 curl -s https://soa.laziestlife.com/api/iot/logs?limit=",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.4721116483211517,
+      "maxScore": 0.4721116483211517,
+      "firstRecalledAt": "2026-05-26T06:06:42.795Z",
+      "lastRecalledAt": "2026-05-26T06:06:42.795Z",
+      "queryHashes": [
+        "f06e17ab2884"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "soa.laziestlife.com",
+        "soa.laziestlife.com/api/iot",
+        "content-type",
+        "application/json",
+        "soa.laziestlife.com/api/iot/logs",
+        "iot",
+        "控制",
+        "接口"
+      ]
+    },
+    "memory:memory/2026-05-18.md:1:40": {
+      "key": "memory:memory/2026-05-18.md:1:40",
+      "path": "memory/2026-05-18.md",
+      "startLine": 1,
+      "endLine": 40,
+      "source": "memory",
+      "snippet": "# 2026-05-18 记忆日志 ## IoT AI 玩偶控制项目 - 前端登录问题调试 ### 项目信息 - **域名**: https://soa.laziestlife.com - **后端服务器**: 47.98.103.151:3000 (阿里云轻量应用服务器) - **SSH**: root@47.98.103.151, 密码: 123ASDasd!@# - **前端仓库**: /Users/lintingrui/.qclaw/workspace/iot-ai-doll-frontend ### 问题诊断 用户反馈：登录后跳转到主页，但随即又跳回登录页 ### 发现的问题 1. **混合内容问题 (Mixed Content)** - 网站通过 HTTPS (soa.laziestlife.com) 访问 - 但 API 请求发送到 HTTP (http://47.98.103.151:3000/api) - 浏览器会阻止 HTTPS 页面中的 HTTP 请求 2. **API_BASE 硬编码 IP 地址** - `src/api/client.ts`: API_BASE = 'http://47.98.103.151:3000/api' - `src/api/chat.ts`: API_BASE = 'http://47.98.103.151:3000/api' - `vite.config.ts`: proxy target = 'http://47.98.103.151:3000' 3. **authSto",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.46265204846858976,
+      "maxScore": 0.46265204846858976,
+      "firstRecalledAt": "2026-05-26T06:06:42.795Z",
+      "lastRecalledAt": "2026-05-26T06:06:42.795Z",
+      "queryHashes": [
+        "f06e17ab2884"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "soa.laziestlife.com",
+        "47.98.103.151",
+        "users/lintingrui",
+        "3000/api",
+        "api-base",
+        "src/api/client.ts",
+        "src/api/chat.ts",
+        "vite.config.ts"
+      ]
+    },
+    "memory:memory/2026-05-18.md:128:162": {
+      "key": "memory:memory/2026-05-18.md:128:162",
+      "path": "memory/2026-05-18.md",
+      "startLine": 128,
+      "endLine": 162,
+      "source": "memory",
+      "snippet": "### 项目快速参考 | 资源 | 信息 | |------|------| | **网站域名** | https://soa.laziestlife.com | | **后端服务器** | 47.98.103.151:3000（阿里云轻量应用服务器 Ubuntu） | | **SSH** | root / 123ASDasd!@# | | **前端仓库** | `/Users/lintingrui/.qclaw/workspace/iot-ai-doll-frontend` | | **前端代码部署路径** | `/var/www/iot-ai-doll/frontend/dist/` | | **最新构建** | `index-CS42o882.js` (514KB) + `index-skFAC2Xi.css` (48KB) | ### 前端已解决的关键问题 1. **HTTPS → HTTP 混合内容问题**：API_BASE 从硬编码 IP 改为相对路径 `/api` 2. **Tailwind CSS 未加载**：添加 `@import \"tailwindcss\"` 到 index.css 3. **管理后台页面缺失**：已补充 6 个新页面（AI模型、系统配置、用户、设备SN、AI资源、对话风格） ### API 路由参考（后端） | 端点 | 用途 | |------|------| | `/api/auth/login` | 登录 | | `/api/auth/register` | 注册 | | `/api/auth/me` | 获取当前用户 |",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.45710640251636503,
+      "maxScore": 0.45710640251636503,
+      "firstRecalledAt": "2026-05-26T06:06:42.795Z",
+      "lastRecalledAt": "2026-05-26T06:06:42.795Z",
+      "queryHashes": [
+        "f06e17ab2884"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "soa.laziestlife.com",
+        "47.98.103.151",
+        "users/lintingrui",
+        "index-cs42o882.js",
+        "index-skfac2xi.css",
+        "api-base",
+        "index.css",
+        "api/auth/login"
+      ]
+    },
+    "memory:memory/2026-05-17.md:1:41": {
+      "key": "memory:memory/2026-05-17.md:1:41",
+      "path": "memory/2026-05-17.md",
+      "startLine": 1,
+      "endLine": 41,
+      "source": "memory",
+      "snippet": "# 2026-05-17 ## 22:30 - soa.laziestlife.com 登录问题排查 ### 问题描述 用户报告 soa.laziestlife.com 无法登录。 ### 排查过程 1. **前端页面检查** - 页面能正常加载（HTTP 200），前端没问题 2. **后端健康检查** - `GET /api/health` 返回 200，后端运行正常 3. **登录 API 测试** - 第一次测试：用 `phone`/`password` 字段 → 报错\"用户名和密码不能为空\" - 第二次测试：改用 `username`/`password` 字段 → 报错\"用户名或密码错误\" - 结论：API 正常工作，问题在账号/密码 4. **数据库检查** - 用户 `15622205445` 存在于数据库中，role=admin - 密码哈希值：`$2a$10$SBAG7...`（不是 `123456` 的哈希） - 结论：该用户存在，但密码不是 `123456` 5. **后端认证逻辑确认** - 文件：`/var/www/iot-ai-doll/backend/src/routes/auth.js` - 加密库：`bcryptjs`（不是 `bcrypt`） - Salt rounds：10 - 登录字段：`username` + `password` ### 待完成 - [ ] 重置用户 `15622205445` 的密码为 `123456` - [ ] 或用已知密码创建新的",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.45490591824054716,
+      "maxScore": 0.45490591824054716,
+      "firstRecalledAt": "2026-05-26T06:06:42.795Z",
+      "lastRecalledAt": "2026-05-26T06:06:42.795Z",
+      "queryHashes": [
+        "f06e17ab2884"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "soa.laziestlife.com",
+        "api/health",
+        "问题在账号/密码",
+        "soa",
+        "laziestlife",
+        "com",
+        "登录",
+        "问题"
+      ]
+    },
+    "memory:memory/2026-05-18.md:242:279": {
+      "key": "memory:memory/2026-05-18.md:242:279",
+      "path": "memory/2026-05-18.md",
+      "startLine": 242,
+      "endLine": 279,
+      "source": "memory",
+      "snippet": "### 其他管理页面可能存在同样问题（API 路由不匹配） 以下页面在新增/编辑/删除时可能也有类似问题，需逐一检查： - 地点管理 `/admin/locations` - 主剧情框架 `/admin/stories` - 道具管理 `/admin/items` - CG图鉴 `/admin/cgs` - AI模型配置 `/admin/ai-models` - 系统配置 `/admin/sys-config` - 用户列表 `/admin/users` - 设备SN `/admin/devices` - AI资源 `/admin/ai-resources` - 对话风格 `/admin/ai-personality` # 2026-05-18 记忆日志 ## IoT AI 玩偶控制项目 - 前端登录问题调试 ### 项目信息 - **域名**: https://soa.laziestlife.com - **后端服务器**: 47.98.103.151:3000 (阿里云轻量应用服务器) - **SSH**: root@47.98.103.151, 密码: 123ASDasd!@# - **前端仓库**: /Users/lintingrui/.qclaw/workspace/iot-ai-doll-frontend ### 问题诊断 用户反馈：登录后跳转到主页，但随即又跳回登录页 ### 发现的问题 1. **混合内容问题 (Mixed Content)** - 网站通过 HTTPS (soa.laziestlife.com) 访问 - 但 API 请",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.4537470549345016,
+      "maxScore": 0.4537470549345016,
+      "firstRecalledAt": "2026-05-26T06:06:42.795Z",
+      "lastRecalledAt": "2026-05-26T06:06:42.795Z",
+      "queryHashes": [
+        "f06e17ab2884"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "以下页面在新增/编辑/删除时可能也有类似问题",
+        "admin/locations",
+        "admin/stories",
+        "admin/items",
+        "admin/cgs",
+        "admin/ai-models",
+        "admin/sys-config",
+        "admin/users"
+      ]
+    },
+    "memory:memory/2026-05-12.md:1:35": {
+      "key": "memory:memory/2026-05-12.md:1:35",
+      "path": "memory/2026-05-12.md",
+      "startLine": 1,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "# 2026-05-12 Daily Notes ## 产品发布页及子页面样式修复（会话延续自 2026-05-10） ### 背景 用户在 2026-05-10 发现产品发布页 (productsfuture.html) 及子页面的菜单栏显示与首页不一致。 ### 根因 `productsfuture.html` 及所有产品详情页 (product-P001~P022) 都额外加载了 `css/style.css`，该文件是 Blocs 旧模板遗留 CSS，内含大量 `!important` 声明，覆盖了 `global.css` 的正确样式。 ### 修复执行（2026-05-10 完成，今日记录） 1. **产品发布页修复** - 删除 `productsfuture.html` 第7行 `<link rel=\"stylesheet\" href=\"css/style.css\">` - 文件从 304 行变为 303 行 - 已上传至 FTP: `/nginx/html/productsfuture.html` 2. **子页面批量修复** - 批量下载 22 个产品详情页（P001~P022） - 逐文件删除 `style.css` 引用行 - 全部上传回 FTP - 脚本：`/tmp/fix_all_subpages.py` ### 验证 - 用户确认产品发布页修复正确 - 等待用户清除浏览器缓存后验证子页面 ### 技术笔记 - FTP 密码含特殊字符（`;` 和 `'`），使用 Python ftplib 绕过",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.46450022161006926,
+      "maxScore": 0.46450022161006926,
+      "firstRecalledAt": "2026-05-26T06:06:51.939Z",
+      "lastRecalledAt": "2026-05-26T06:06:51.939Z",
+      "queryHashes": [
+        "ec4fd8024fa6"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "productsfuture.html",
+        "product-p001",
+        "css/style.css",
+        "global.css",
+        "nginx/html/productsfuture.html",
+        "style.css",
+        "tmp/fix-all-subpages.py",
+        "产品"
+      ]
+    },
+    "memory:memory/2026-05-12.md:28:60": {
+      "key": "memory:memory/2026-05-12.md:28:60",
+      "path": "memory/2026-05-12.md",
+      "startLine": 28,
+      "endLine": 60,
+      "source": "memory",
+      "snippet": "- FTP 密码含特殊字符（`;` 和 `'`），使用 Python ftplib 绕过 shell 转义问题 - 批量修复比逐页修改更可靠 ### 相关文件 - 任务产物：`/Users/lintingrui/.qclaw/workspace/task-summary_2026-05-10_0145.md` - 记忆更新：`/Users/lintingrui/.qclaw/workspace/memory/2026-05-10.md` # 2026-05-12 Daily Notes ## 产品发布页及子页面样式修复（会话延续自 2026-05-10） ### 背景 用户在 2026-05-10 发现产品发布页 (productsfuture.html) 及子页面的菜单栏显示与首页不一致。 ### 根因 `productsfuture.html` 及所有产品详情页 (product-P001~P022) 都额外加载了 `css/style.css`，该文件是 Blocs 旧模板遗留 CSS，内含大量 `!important` 声明，覆盖了 `global.css` 的正确样式。 ### 修复执行（2026-05-10 完成，今日记录） 1. **产品发布页修复** - 删除 `productsfuture.html` 第7行 `<link rel=\"stylesheet\" href=\"css/style.css\">` - 文件从 304 行变为 303 行 - 已上传至 FTP: `/nginx/html/productsfuture.html`",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.4429639726877212,
+      "maxScore": 0.4429639726877212,
+      "firstRecalledAt": "2026-05-26T06:06:51.939Z",
+      "lastRecalledAt": "2026-05-26T06:06:51.939Z",
+      "queryHashes": [
+        "ec4fd8024fa6"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "users/lintingrui",
+        "productsfuture.html",
+        "product-p001",
+        "css/style.css",
+        "global.css",
+        "nginx/html/productsfuture.html",
+        "ftp",
+        "密码"
+      ]
+    },
+    "memory:memory/2026-05-08.md:1:8": {
+      "key": "memory:memory/2026-05-08.md:1:8",
+      "path": "memory/2026-05-08.md",
+      "startLine": 1,
+      "endLine": 8,
+      "source": "memory",
+      "snippet": "# 2026-05-08 工作日志 ### 21:59 - 产品网页更新 - 删除12个不符合预期的系统性话题，只保留明确的产品 - 对外域名更新为 http://www.metooshow.com/productsfuture.html - 穿搭助手（麦吉衣柜）已发布，视频链接 https://weixin.qq.com/sph/ApNWnijmM3 已更新到文档",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.4397207826375961,
+      "maxScore": 0.4397207826375961,
+      "firstRecalledAt": "2026-05-26T06:06:51.939Z",
+      "lastRecalledAt": "2026-05-26T06:06:51.939Z",
+      "queryHashes": [
+        "ec4fd8024fa6"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "weixin.qq.com/sph/apnwnijmm3",
+        "工作",
+        "日志",
+        "产品",
+        "网页",
+        "更新",
+        "删除",
+        "符合"
+      ]
+    },
+    "memory:memory/2026-05-12.md:51:87": {
+      "key": "memory:memory/2026-05-12.md:51:87",
+      "path": "memory/2026-05-12.md",
+      "startLine": 51,
+      "endLine": 87,
+      "source": "memory",
+      "snippet": "- 批量下载 22 个产品详情页（P001~P022） - 逐文件删除 `style.css` 引用行 - 全部上传回 FTP - 脚本：`/tmp/fix_all_subpages.py` ### 验证 - 用户确认产品发布页修复正确 - 等待用户清除浏览器缓存后验证子页面 ### 技术笔记 - FTP 密码含特殊字符（`;` 和 `'`），使用 Python ftplib 绕过 shell 转义问题 - 批量修复比逐页修改更可靠 ### 相关文件 - 任务产物：`/Users/lintingrui/.qclaw/workspace/task-summary_2026-05-10_0145.md` - 记忆更新：`/Users/lintingrui/.qclaw/workspace/memory/2026-05-10.md` --- ## 苏州机器人公司搜索（09:08） ### 用户请求 用户：「幫我查詢一下在蘇州有哪些做機器人的公司」 ### 执行过程 1. 加载 **online-search** 技能（读取 SKILL.md） 2. 使用 ProSearch 搜索引擎，关键词：`苏州机器人公司` 3. 成功返回 10 条结果（展示前 5 条） ### 主要搜索结果 **头部企业（按人气排序）：** - 追觅科技（苏州）有限公司 — 智能生活家电、商用服务机器人 - MOVA、科瑞恩、科沃斯 — 家庭服务机器人（扫地机器人等） - 天准科技、宝时得 — 工业自动化、机器视觉 - 灵猴机器人（博众精工子公司）— 工业机器人、AGV",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.42807786762714384,
+      "maxScore": 0.42807786762714384,
+      "firstRecalledAt": "2026-05-26T06:06:51.939Z",
+      "lastRecalledAt": "2026-05-26T06:06:51.939Z",
+      "queryHashes": [
+        "ec4fd8024fa6"
+      ],
+      "recallDays": [
+        "2026-05-26"
+      ],
+      "conceptTags": [
+        "style.css",
+        "tmp/fix-all-subpages.py",
+        "users/lintingrui",
+        "online-search",
+        "skill.md",
+        "批量",
+        "下载",
+        "产品"
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7ED957"/>
+      <stop offset="100%" stop-color="#5DBF3A"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 身体 - 稍微跳跃 -->
+  <ellipse cx="200" cy="245" rx="120" ry="100" fill="url(#bodyGrad)"/>
+  
+  <!-- 肚皮 -->
+  <ellipse cx="200" cy="265" rx="70" ry="60" fill="#F0FFF0" opacity="0.6"/>
+  
+  <!-- 角 -->
+  <path d="M 180 155 L 170 115 L 190 145" fill="#FF6B6B"/>
+  <path d="M 220 155 L 230 115 L 210 145" fill="#FF6B6B"/>
+  
+  <!-- 眼睛 - 开心眯眼 -->
+  <path d="M 150 195 Q 170 180 190 195" stroke="#333333" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M 210 195 Q 230 180 250 195" stroke="#333333" stroke-width="5" fill="none" stroke-linecap="round"/>
+  
+  <!-- 腮红 - 更红 -->
+  <ellipse cx="145" cy="225" rx="18" ry="12" fill="#FFB6C1" opacity="0.8"/>
+  <ellipse cx="255" cy="225" rx="18" ry="12" fill="#FFB6C1" opacity="0.8"/>
+  
+  <!-- 嘴巴 - 大笑 -->
+  <path d="M 170 235 Q 200 270 230 235" stroke="#333333" stroke-width="5" fill="#FF6B6B" stroke-linecap="round"/>
+  
+  <!-- 星星特效 -->
+  <text x="120" y="150" font-size="30" fill="#FFD700">✦</text>
+  <text x="270" y="160" font-size="25" fill="#FFD700">✧</text>
+  
+  <!-- 手臂 - 举起 -->
+  <path d="M 100 250 Q 70 220 80 200" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  <path d="M 300 250 Q 330 220 320 200" stroke="#5DBF3A" stroke-width="20" fill="none" stroke-linecap="round"/>
+  
+  <!-- 脚 -->
+  <ellipse cx="160" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+  <ellipse cx="240" cy="340" rx="30" ry="20" fill="#5DBF3A"/>
+</svg>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#90EE90"/>
+      <stop offset="100%" stop-color="#6CBF6C"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 身体 - 苍白 + 无力 -->
+  <ellipse cx="200" cy="255" rx="120" ry="95" fill="url(#bodyGrad)"/>
+  
+  <!-- 肚皮 -->
+  <ellipse cx="200" cy="275" rx="70" ry="58" fill="#F0FFF0" opacity="0.5"/>
+  
+  <!-- 角 - 垂下 -->
+  <path d="M 182 162 L 174 128 L 190 152" fill="#FF8C8C"/>
+  <path d="M 218 162 L 226 128 L 210 152" fill="#FF8C8C"/>
+  
+  <!-- 眼睛 - 生病 X_X -->
+  <path d="M 155 195 L 185 210" stroke="#333333" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 185 195 L 155 210" stroke="#333333" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 215 195 L 245 210" stroke="#333333" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 245 195 L 215 210" stroke="#333333" stroke-width="5" stroke-linecap="round"/>
+  
+  <!-- 腮红 - 无 -->
+  
+  <!-- 嘴巴 - 下垂 -->
+  <path d="M 185 252 Q 200 245 215 252" stroke="#333333" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- 温度计 -->
+  <rect x="275" y="170" width="12" height="60" rx="6" fill="#FF6347" opacity="0.8"/>
+  <circle cx="281" cy="240" r="12" fill="#FF6347" opacity="0.8"/>
+  <rect x="277" y="200" width="8" height="35" rx="4" fill="#FF0000" opacity="0.9"/>
+  <text x="260" y="165" font-size="14" fill="#333333" opacity="0.7">39.5°C</text>
+  
+  <!-- 额头上的点 (表示发烧) -->
+  <circle cx="200" cy="175" r="4" fill="#FF4500" opacity="0.7"/>
+  <circle cx="210" cy="172" r="3" fill="#FF4500" opacity="0.5"/>
+  
+  <!-- 手臂 - 无力下垂 -->
+  <path d="M 100 255 Q 80 275 90 295" stroke="#6CBF6C" stroke-width="20" fill="none" stroke-linecap="round"/>
+  <path d="M 300 255 Q 320 275 310 295" stroke="#6CBF6C" stroke-width="20" fill="none" stroke-linecap="round"/>
+  
+  <!-- 脚 -->
+  <ellipse cx="160" cy="345" rx="30" ry="18" fill="#6CBF6C"/>
+  <ellipse cx="240" cy="345" rx="30" ry="18" fill="#6CBF6C"/>
+</svg>

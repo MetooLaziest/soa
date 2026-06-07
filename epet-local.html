@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>电子宠物 E-Pet</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+      touch-action: manipulation;
+    }
+    .container { max-width: 420px; margin: 0 auto; padding: 15px; min-height: 100vh; display: flex; flex-direction: column; }
+    .header { text-align: center; padding: 10px 0; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    
+    .pet-display {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+    }
+    .pet-img {
+      width: 220px;
+      height: 220px;
+      object-fit: contain;
+      transition: transform 0.15s ease;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pet-img.shake { animation: shake 0.4s ease; }
+    @keyframes shake {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-8deg) scale(1.05); }
+      75% { transform: rotate(8deg) scale(1.05); }
+    }
+    .pet-img.eat { animation: pulse 0.3s ease; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      padding: 12px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      margin-bottom: 12px;
+    }
+    .stat { text-align: center; }
+    .stat-label { font-size: 11px; opacity: 0.5; margin-bottom: 4px; }
+    .stat-value { font-size: 22px; font-weight: 700; }
+    .stat-value.hunger { color: #f39c12; }
+    .stat-value.feeds { color: #e74c3c; }
+    .stat-value.poops { color: #9b59b6; }
+    .stat-value.pets { color: #3498db; }
+    
+    .bar-container {
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      height: 12px;
+      margin: 10px 0 20px;
+      overflow: hidden;
+    }
+    .bar {
+      height: 100%;
+      background: linear-gradient(90deg, #f39c12, #e67e22);
+      transition: width 0.5s ease;
+      border-radius: 8px;
+    }
+    .bar.low { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+    
+    .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .btn {
+      padding: 16px 8px;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .btn:active { transform: scale(0.94); opacity: 0.9; }
+    .btn span:last-child { font-size: 12px; opacity: 0.8; }
+    .btn-feed { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; }
+    .btn-pet { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; }
+    .btn-clean { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: #fff; }
+    
+    .tip { text-align: center; font-size: 12px; opacity: 0.4; padding: 10px 0; }
+    
+    .toast {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: rgba(0,0,0,0.85);
+      padding: 16px 32px;
+      border-radius: 30px;
+      font-size: 17px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🐱 我的电子宠物</h1>
+    </div>
+    
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">饥饿度</div>
+        <div class="stat-value hunger" id="hungerVal">100</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">喂食</div>
+        <div class="stat-value feeds" id="feedsVal">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">铲屎</div>
+        <div class="stat-value poops" id="poopsVal">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">抚摸</div>
+        <div class="stat-value pets" id="petsVal">0</div>
+      </div>
+    </div>
+    
+    <div class="bar-container">
+      <div class="bar" id="hungerBar" style="width: 100%"></div>
+    </div>
+    
+    <div class="pet-display">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3CradialGradient id='g' cx='50%25' cy='50%25' r='50%25'%3E%3Cstop offset='0%25' stop-color='%23ffeaa7'/%3E%3Cstop offset='100%25' stop-color='%23f39c12'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='100' cy='100' r='85' fill='url(%23g)'/%3E%3Cellipse cx='70' cy='80' rx='12' ry='15' fill='%23333'/%3E%3Cellipse cx='130' cy='80' rx='12' ry='15' fill='%23333'/%3E%3Cellipse cx='75' cy='78' rx='4' ry='5' fill='%23fff'/%3E%3Cellipse cx='135' cy='78' rx='4' ry='5' fill='%23fff'/%3E%3Cpath d='M65 120 Q100 155 135 120' stroke='%23333' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3Cellipse cx='55' cy='100' rx='8' ry='12' fill='%23f39c12' opacity='0.6'/%3E%3Cellipse cx='145' cy='100' rx='8' ry='12' fill='%23f39c12' opacity='0.6'/%3E%3C/svg%3E" 
+           alt="Pet" class="pet-img" id="petImg" onclick="pet()">
+    </div>
+    
+    <div class="actions">
+      <button class="btn btn-feed" onclick="feed()">
+        🍎 <span>喂食</span>
+      </button>
+      <button class="btn btn-pet" onclick="pet()">
+        ✋ <span>抚摸</span>
+      </button>
+      <button class="btn btn-clean" onclick="clean()">
+        🧹 <span>铲屎</span>
+      </button>
+    </div>
+    
+    <div class="tip">点击猫咪头像抚摸 · 饥饿度每10分钟-7</div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Storage key with pet ID
+    const getKey = () => `epet_${localStorage.getItem('epet_id') || 'default'}`;
+    const getPetId = () => localStorage.getItem('epet_id');
+    
+    // Initialize pet
+    function initPet() {
+      let id = getPetId();
+      if (!id) {
+        id = Math.random().toString(36).substr(2, 8);
+        localStorage.setItem('epet_id', id);
+      }
+      
+      const data = JSON.parse(localStorage.getItem(getKey()) || '{}');
+      if (!data.hunger) {
+        localStorage.setItem(getKey(), JSON.stringify({
+          hunger: 100,
+          feeds: 0,
+          poops: 0,
+          pets: 0,
+          lastDecay: Date.now()
+        }));
+      }
+    }
+    
+    // Load and calculate current hunger
+    function loadPet() {
+      const data = JSON.parse(localStorage.getItem(getKey())) || {};
+      
+      if (data.lastDecay) {
+        // Decay: -7 hunger per 10 minutes
+        const minutes = (Date.now() - data.lastDecay) / 60000;
+        const decay = Math.floor(minutes / 10) * 7;
+        data.hunger = Math.max(0, data.hunger - decay);
+        data.lastDecay = Date.now();
+      }
+      
+      return data;
+    }
+    
+    // Save pet data
+    function savePet(data) {
+      data.lastDecay = Date.now();
+      localStorage.setItem(getKey(), JSON.stringify(data));
+    }
+    
+    // Update UI
+    function updateUI() {
+      const data = loadPet();
+      
+      document.getElementById('hungerVal').textContent = data.hunger;
+      document.getElementById('feedsVal').textContent = data.feeds || 0;
+      document.getElementById('poopsVal').textContent = data.poops || 0;
+      document.getElementById('petsVal').textContent = data.pets || 0;
+      
+      const bar = document.getElementById('hungerBar');
+      bar.style.width = data.hunger + '%';
+      bar.className = 'bar' + (data.hunger < 30 ? ' low' : '');
+    }
+    
+    // Animations
+    function animate(type) {
+      const img = document.getElementById('petImg');
+      img.classList.remove('shake', 'eat');
+      void img.offsetWidth; // Force reflow
+      img.classList.add(type);
+      setTimeout(() => img.classList.remove(type), 400);
+    }
+    
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1200);
+    }
+    
+    // Actions
+    function feed() {
+      const data = loadPet();
+      if (data.hunger >= 100) {
+        toast('已经吃饱了!');
+        return;
+      }
+      data.hunger = 100;
+      data.feeds = (data.feeds || 0) + 1;
+      savePet(data);
+      updateUI();
+      animate('eat');
+      toast('🍎 好吃!');
+    }
+    
+    function pet() {
+      const data = loadPet();
+      data.pets = (data.pets || 0) + 1;
+      savePet(data);
+      updateUI();
+      animate('shake');
+      toast('好痒~ (*^ω^)');
+    }
+    
+    function clean() {
+      const data = loadPet();
+      data.poops = (data.poops || 0) + 1;
+      savePet(data);
+      updateUI();
+      toast('💩 已清理!');
+    }
+    
+    // Auto decay every 10 seconds
+    initPet();
+    updateUI();
+    setInterval(updateUI, 10000);
+  </script>
+</body>
+</html>

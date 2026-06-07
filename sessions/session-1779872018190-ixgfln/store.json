@@ -1,0 +1,25 @@
+{
+  "id": "session-1779872018190-ixgfln",
+  "name": "智能硬件调研",
+  "status": "active",
+  "createdAt": "2026-05-27T09:00:07.049Z",
+  "updatedAt": "2026-05-27T09:00:07.049Z",
+  "agents": [
+    {
+      "id": "agent_nznvfo7e",
+      "name": "irfnf4l86a7w0aii",
+      "role": "assistant",
+      "status": "idle",
+      "createdAt": "2026-05-27T09:00:07.049Z",
+      "model": "unknown",
+      "systemPrompt": ""
+    }
+  ],
+  "summary": {
+    "id": "summary_f01zm3pk",
+    "title": "智能硬件调研",
+    "createdAt": "2026-05-27T09:00:07.049Z",
+    "file": "summary_f01zm3pk.md"
+  },
+  "lastMessageCount": 32
+}
