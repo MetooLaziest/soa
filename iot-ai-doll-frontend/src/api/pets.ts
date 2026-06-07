@@ -119,3 +119,8 @@ export async function createDevice(device_sn: string, model_id: number, display_
 export async function deleteDevice(device_sn: string): Promise<void> {
   await client.delete(`/admin/devices/${device_sn}`);
 }
+
+/** 更新设备 SN（model_id / is_visible / display_name）*/
+export async function updateDevice(nfc: string, data: { model_id?: number; is_visible?: boolean; display_name?: string }): Promise<void> {
+  await client.put(`/admin/devices/${nfc}`, data);
+}

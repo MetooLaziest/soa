@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import type { DeviceModel, Device } from '../../api/pets';
-import { getAvailableModels, getDevices, createDevice, deleteDevice } from '../../api/pets';
+import { getAvailableModels, getDevices, createDevice, deleteDevice, updateDevice } from '../../api/pets';
 
 export default function DeviceSN() {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -18,6 +18,7 @@ export default function DeviceSN() {
   const [newDisplayName, setNewDisplayName] = useState('');
   const [bulkText, setBulkText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingSN, setEditingSN] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -82,6 +83,22 @@ export default function DeviceSN() {
   };
 
   const modelName = (id: number) => models.find(m => m.model_id === id)?.name || `型号${id}`;
+
+  const handleModelChange = async (deviceSn: string, modelId: number) => {
+    try {
+      await updateDevice(deviceSn, { model_id: modelId });
+      setDevices(ds => ds.map(d => d.device_sn === deviceSn ? { ...d, model_id: modelId } : d));
+    } catch { alert('更新模板失败'); }
+    setEditingSN(null);
+  };
+
+
+  const handleVisibleToggle = async (deviceSn: string, current: boolean) => {
+    try {
+      await updateDevice(deviceSn, { is_visible: !current });
+      setDevices(ds => ds.map(d => d.device_sn === deviceSn ? { ...d, is_visible: !current } : d));
+    } catch { alert('更新状态失败'); }
+  };
 
   return (
     <div className="p-6 space-y-5">
@@ -149,17 +166,37 @@ export default function DeviceSN() {
                 <tr key={d.device_sn} className="border-b border-white/5 transition hover:bg-white/5">
                   <td className="px-4 py-3 font-mono text-sm text-white">{d.device_sn}</td>
                   <td className="px-4 py-3">
-                    <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">
-                      {modelName(d.model_id)}
-                    </span>
+                    {editingSN === d.device_sn ? (
+                      <select
+                        value={d.model_id}
+                        onChange={e => handleModelChange(d.device_sn, parseInt(e.target.value))}
+                        onBlur={() => setEditingSN(null)}
+                        autoFocus
+                        className="rounded border border-purple-500/50 bg-slate-700 px-2 py-1 text-xs text-white"
+                      >
+                        {models.map(m => <option key={m.model_id} value={m.model_id}>{m.name}</option>)}
+                      </select>
+                    ) : (
+                      <button
+                        onClick={() => setEditingSN(d.device_sn)}
+                        className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300 hover:bg-blue-500/30 cursor-pointer"
+                        title="点击修改模板"
+                      >
+                        {modelName(d.model_id)} ▾
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-300">{d.display_name || '-'}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${
-                      d.is_visible ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
-                    }`}>
-                      {d.is_visible ? '已激活' : '未激活'}
-                    </span>
+                    <button
+                      onClick={() => handleVisibleToggle(d.device_sn, d.is_visible)}
+                      className={`rounded-full px-2 py-0.5 text-xs cursor-pointer transition ${
+                        d.is_visible ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                      }`}
+                      title="点击切换状态"
+                    >
+                      {d.is_visible ? '已激活' : '未激活'} ↺
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500">
                     {new Date(d.created_at).toLocaleDateString('zh-CN')}
