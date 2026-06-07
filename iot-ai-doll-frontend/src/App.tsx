@@ -22,6 +22,11 @@ import DeviceSN from './pages/admin/DeviceSN';
 import Users from './pages/admin/Users';
 import SystemConfig from './pages/admin/SystemConfig';
 import MiniGameAssets from './pages/admin/MiniGameAssets';
+import PetEntities from './pages/admin/PetEntities';
+import CompanionEdit from './pages/admin/CompanionEdit';
+import CompanionRAG from './pages/admin/CompanionRAG';
+import RAGList from './pages/admin/RAGKnowledgeBases';
+import RAGEdit from './pages/admin/RAGEdit';
 
 /** 需要登录才能访问的路由包装器 */
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -78,6 +83,12 @@ export default function App() {
           <Route path="users" element={<Users />} />
           <Route path="sys-config" element={<SystemConfig />} />
           <Route path="minigame-assets" element={<MiniGameAssets />} />
+          <Route path="pets" element={<PetEntities />} />
+          <Route path="companions/:id/edit" element={<CompanionEdit />} />
+          <Route path="companions/:id/rag" element={<CompanionRAG />} />
+          <Route path="rag" element={<RAGList />} />
+          <Route path="rag/new" element={<RAGEdit />} />
+          <Route path="rag/:id/edit" element={<RAGEdit />} />
         </Route>
 
         {/* 兜底 */}

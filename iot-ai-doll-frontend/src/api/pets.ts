@@ -1,0 +1,82 @@
+/**
+ * 宠物实体管理 API
+ * pets 表 CRUD + RAG 关联
+ */
+import client from './client';
+
+export interface PetSystemPrompt {
+  identity_anchor?: string;
+  core_personality?: string;
+  behavior_rules?: string;
+  skill_layer?: string;
+  [key: string]: any;
+}
+
+export interface Pet {
+  nfc: string;
+  display_name: string;
+  monster_type: string;
+  model_id: number;
+  hunger: number;
+  is_visible: boolean;
+  display_order: number;
+  last_interact_at: string;
+  last_feed_at: string;
+  total_feeds: number;
+  total_pets: number;
+  total_poops: number;
+  total_cleans: number;
+  system_prompt: string;
+  rag_kb_ids?: number[];
+  model_name?: string;
+  model_temperature?: number;
+}
+
+export interface Model {
+  model_id: number;
+  name: string;
+  description: string;
+  system_prompt: string;
+  temperature?: number;
+  rag_kb_ids?: number[];
+}
+
+/** 获取所有宠物实体列表 */
+export async function getPets(): Promise<{ pets: Pet[] }> {
+  const res = await client.get('/admin/pets');
+  return res.data;
+}
+
+/** 获取单个宠物详情 */
+export async function getPet(nfc: string): Promise<{ pet: Pet }> {
+  const res = await client.get(`/admin/pets/${nfc}`);
+  return res.data;
+}
+
+/** 更新宠物 system_prompt */
+export async function updatePetSystemPrompt(nfc: string, layers: PetSystemPrompt): Promise<void> {
+  await client.put(`/admin/pets/${nfc}`, { system_prompt_layers: layers });
+}
+
+/** 获取宠物 RAG 关联 */
+export async function getPetRAGs(nfc: string): Promise<{ data: Array<{ id: number; name: string }> }> {
+  const res = await client.get(`/admin/pets/${nfc}/rags`);
+  return res.data;
+}
+
+/** 更新宠物 RAG 关联 */
+export async function updatePetRAGs(nfc: string, ragIds: number[]): Promise<void> {
+  await client.post(`/admin/pets/${nfc}/rags`, { rag_ids: ragIds });
+}
+
+/** 获取所有 RAG 知识库列表 */
+export async function getRAGKnowledgeBases(): Promise<{ data: Array<{ id: number; name: string; description?: string }>; count: number }> {
+  const res = await client.get('/admin/rag-kbs');
+  return res.data;
+}
+
+/** 获取所有宠物型号（models） */
+export async function getModels(): Promise<{ models: Model[] }> {
+  const res = await client.get('/admin/models');
+  return res.data;
+}

@@ -15,6 +15,8 @@ const navItems = [
   { key: 'devices', label: '设备SN录入', icon: '📱', path: '/admin/devices' },
   { key: 'users', label: '用户列表', icon: '👥', path: '/admin/users' },
   { key: 'sys-config', label: '系统配置', icon: '⚙️', path: '/admin/sys-config' },
+  { key: 'pets', label: '宠物实体管理', icon: '🐾', path: '/admin/pets' },
+  { key: 'rag', label: 'RAG 知识库管理', icon: '📚', path: '/admin/rag' },
   { key: 'minigame-assets', label: '小游戏素材管理', icon: '🎮', path: '/admin/minigame-assets' },
 ];
 
