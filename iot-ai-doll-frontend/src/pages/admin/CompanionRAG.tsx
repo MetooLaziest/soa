@@ -1,6 +1,7 @@
 /**
- * 宠物 RAG 关联管理
+ * 模板 RAG 关联管理（操作 models 表的 model_rag_kbs）
  * 路径: /admin/companions/:id/rag
+ * 此关联在模板级别，所有基于此模板的实体共享
  */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -9,7 +10,7 @@ import client from '../../api/client';
 export default function CompanionRAG() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [pet, setPet] = useState<any>(null);
+  const [model, setModel] = useState<any>(null);
   const [ragList, setRagList] = useState<any[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,15 +20,15 @@ export default function CompanionRAG() {
 
   const loadData = async () => {
     try {
-      const [ragRes, petRes] = await Promise.all([
+      const [ragRes, modelRes] = await Promise.all([
         client.get('/admin/rag-kbs').catch(() => ({ data: { data: [] } })),
-        client.get(`/admin/pets/${id}`).catch(() => ({ data: { success: false } }))
+        client.get(`/admin/models/${id}`).catch(() => ({ data: { success: false } }))
       ]);
 
       setRagList(ragRes.data?.data || []);
-      if (petRes.data?.success) {
-        setPet(petRes.data.pet);
-        setSelected(petRes.data.pet?.rag_kb_ids || []);
+      if (modelRes.data?.success) {
+        setModel(modelRes.data.data);
+        setSelected(modelRes.data.data?.rag_kb_ids || []);
       }
     } catch (e) {
       console.error('加载失败', e);
@@ -39,12 +40,13 @@ export default function CompanionRAG() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await client.post(`/admin/pets/${id}/rags`, { rag_ids: selected });
+      await client.put(`/admin/models/${id}`, {
+        rag_kb_ids: selected
+      });
       alert('保存成功');
-      navigate('/admin/pets');
-    } catch (err) {
-      console.error('保存失败', err);
-      alert('保存失败');
+      navigate('/admin/companions');
+    } catch (err: any) {
+      alert(err?.response?.data?.message || '保存失败');
     } finally {
       setSaving(false);
     }
@@ -59,17 +61,17 @@ export default function CompanionRAG() {
       {/* 头部 */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate('/admin/pets')}
+          onClick={() => navigate('/admin/companions')}
           className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-slate-600"
         >
           ← 返回
         </button>
         <div>
           <h2 className="text-base font-semibold text-white">
-            RAG 知识库关联 — {pet?.display_name || id}
+            RAG 知识库关联 — {model?.name || `模板${id}`}
           </h2>
           <p className="text-xs text-gray-500">
-            NFC: {id} · 选择该宠物对话时可检索的知识库
+            模板ID: {id} · 此关联在模板级别，所有基于此模板的实体共享
           </p>
         </div>
       </div>
@@ -77,15 +79,15 @@ export default function CompanionRAG() {
       {/* 说明 */}
       <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
         <p className="text-sm text-gray-400">
-          关联知识库后，AI 在对话时会根据对话内容自动判断是否检索这些知识库，为回复补充宠物相关背景信息。
-          可关联多个知识库，AI 会综合多个知识库的内容生成更丰富的回答。
+          关联知识库后，AI 在对话时会根据对话内容自动判断是否检索这些知识库，为回复补充背景信息。
+          此关联在模板级别，所有基于此模板的宠物实体都会共享相同的知识库配置。
         </p>
       </div>
 
       {/* RAG 列表 */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3">
         <h3 className="text-sm font-medium text-gray-300">
-          知识库列表（{ragList.length} 个）
+          知识库列表（{ragList.length} 个，已选 {selected.length} 个）
         </h3>
 
         {ragList.length === 0 ? (
@@ -128,17 +130,10 @@ export default function CompanionRAG() {
         )}
       </div>
 
-      {/* 已选统计 */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-400">
-          已选择 <span className="text-purple-400 font-medium">{selected.length}</span> 个知识库
-        </span>
-      </div>
-
       {/* 保存 */}
       <div className="flex justify-end gap-3">
         <button
-          onClick={() => navigate('/admin/pets')}
+          onClick={() => navigate('/admin/companions')}
           className="rounded-lg bg-slate-700 px-5 py-2 text-sm text-gray-300 hover:bg-slate-600"
         >
           取消

@@ -1,9 +1,9 @@
 {
   "id": "main",
-  "name": "会话摘要",
+  "name": "Admin后台合并",
   "status": "active",
   "createdAt": "2026-05-07T14:40:39.559Z",
-  "updatedAt": "2026-06-07T08:05:39.295Z",
+  "updatedAt": "2026-06-07T09:59:57.802Z",
   "agents": [
     {
       "id": "agent_du9k8gge",
@@ -17,9 +17,9 @@
   ],
   "summary": {
     "id": "summary_eqybnyr0",
-    "title": "会话摘要",
+    "title": "Admin后台合并",
     "createdAt": "2026-05-07T14:40:39.559Z",
     "file": "summary_eqybnyr0.md"
   },
-  "lastMessageCount": 206
+  "lastMessageCount": 75
 }

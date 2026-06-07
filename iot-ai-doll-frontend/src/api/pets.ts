@@ -80,3 +80,42 @@ export async function getModels(): Promise<{ models: Model[] }> {
   const res = await client.get('/admin/models');
   return res.data;
 }
+
+
+// ============ 设备 SN（模板选择 → 创建实体）======== ====
+export interface DeviceModel {
+  model_id: number;
+  name: string;
+  description: string;
+}
+
+export interface Device {
+  device_sn: string;
+  model_id: number;
+  display_name: string;
+  model_name: string;
+  is_visible: boolean;
+  created_at: string;
+}
+
+/** 获取可选模板列表 */
+export async function getAvailableModels(): Promise<DeviceModel[]> {
+  const res = await client.get('/admin/devices/models');
+  return res.data.models || [];
+}
+
+/** 获取设备 SN 列表 */
+export async function getDevices(): Promise<Device[]> {
+  const res = await client.get('/admin/devices');
+  return res.data.devices || [];
+}
+
+/** 创建设备 SN（= 创建宠物实体）*/
+export async function createDevice(device_sn: string, model_id: number, display_name?: string): Promise<void> {
+  await client.post('/admin/devices', { device_sn, model_id, display_name });
+}
+
+/** 删除设备 SN */
+export async function deleteDevice(device_sn: string): Promise<void> {
+  await client.delete(`/admin/devices/${device_sn}`);
+}

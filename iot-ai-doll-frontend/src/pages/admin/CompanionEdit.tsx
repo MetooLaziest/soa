@@ -1,5 +1,5 @@
 /**
- * 宠物人设编辑器 - 4层提示词编辑
+ * 机伴模板编辑器 - 4层提示词编辑（操作 models 表）
  * 路径: /admin/companions/:id/edit
  * L1 身份 / L2 性格 / L3 准则 / L4 知识库策略
  */
@@ -21,7 +21,7 @@ export default function CompanionEdit() {
   const location = useLocation();
   const isNew = location.pathname.endsWith('/companions/new');
 
-  const [pet, setPet] = useState<any>(null);
+  const [model, setModel] = useState<any>(null);
   const [ragList, setRagList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,32 +35,27 @@ export default function CompanionEdit() {
   const [selectedRags, setSelectedRags] = useState<number[]>([]);
   const [temperature, setTemperature] = useState(0.3);
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+  useEffect(() => { loadData(); }, [id]);
 
   const loadData = async () => {
     try {
       // 加载 RAG 列表
       try {
         const ragRes = await client.get('/admin/rag-kbs');
-        if (ragRes.data?.data) setRagList(ragRes.data.data);
-        else if (Array.isArray(ragRes.data)) setRagList(ragRes.data);
+        const ragData = ragRes.data?.data || ragRes.data || [];
+        setRagList(Array.isArray(ragData) ? ragData : ragData.data || []);
       } catch (e) { console.error('RAG列表加载失败', e); }
 
       if (!id || isNew) { setLoading(false); return; }
 
-      // 加载宠物数据
-      const res = await client.get(`/admin/pets/${id}`);
-      if (res.data?.success && res.data.pet) {
-        const p = res.data.pet;
-        setPet(p);
-        setSelectedRags(p.rag_kb_ids || []);
-        setTemperature(p.model_temperature ?? 0.3);
-
-        // 解析 system_prompt 中的 4 层
-        const prompt = p.system_prompt || '';
-        const parsed = parseLayers(prompt);
+      // 加载型号数据（models 表）
+      const res = await client.get(`/admin/models/${id}`);
+      if (res.data?.success && res.data.data) {
+        const m = res.data.data;
+        setModel(m);
+        setSelectedRags(m.rag_kb_ids || []);
+        setTemperature(m.temperature ?? 0.3);
+        const parsed = parseLayers(m.system_prompt || '');
         setLayers(parsed);
       }
     } catch (err) {
@@ -98,12 +93,13 @@ export default function CompanionEdit() {
     setSaving(true);
     setError('');
     try {
-      await client.put(`/admin/pets/${id}`, {
+      await client.put(`/admin/models/${id}`, {
         system_prompt: mergeLayers(layers),
+        temperature,
         rag_kb_ids: selectedRags
       });
       alert('保存成功');
-      navigate('/admin/pets');
+      navigate('/admin/companions');
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || '保存失败');
     } finally {
@@ -112,11 +108,16 @@ export default function CompanionEdit() {
   };
 
   const handleTestChat = async () => {
-    if (!testMsg.trim()) return;
+    if (!testMsg.trim() || !id) return;
     setTesting(true);
     setTestResp('');
     try {
-      const res = await client.post(`/epet/${id}/chat`, { message: testMsg });
+      // 用第一个已有实体的 nfc 测试（如果有的话）
+      const petsRes = await client.get('/admin/pets');
+      const pets = petsRes.data?.pets || [];
+      const testPet = pets.find((p: any) => String(p.model_id) === String(id)) || pets[0];
+      if (!testPet) { setTestResp('无可用宠物实体进行测试'); setTesting(false); return; }
+      const res = await client.post(`/epet/${testPet.nfc}/chat`, { message: testMsg });
       setTestResp(res.data?.reply || res.data?.message || '无响应');
     } catch (err: any) {
       setTestResp('请求失败: ' + (err?.message || '未知错误'));
@@ -131,12 +132,12 @@ export default function CompanionEdit() {
 
   if (isNew) return (
     <div className="flex h-64 items-center justify-center text-gray-400">
-      新建宠物请通过宠物实体页面创建
+      新建模板请在「机伴管理」中操作
     </div>
   );
 
-  if (!pet) return (
-    <div className="flex h-64 items-center justify-center text-red-400">宠物不存在</div>
+  if (!model) return (
+    <div className="flex h-64 items-center justify-center text-red-400">模板不存在</div>
   );
 
   return (
@@ -144,17 +145,17 @@ export default function CompanionEdit() {
       {/* 页面头部 */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate('/admin/pets')}
+          onClick={() => navigate('/admin/companions')}
           className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-slate-600"
         >
           ← 返回
         </button>
         <div>
           <h2 className="text-base font-semibold text-white">
-            {isNew ? '新建宠物' : `编辑 ${pet.display_name || pet.nfc} 的人设`}
+            编辑模板人设 — {model.name}
           </h2>
           <p className="text-xs text-gray-500">
-            NFC: {pet.nfc} · {pet.model_name || `型号${pet.model_id}`} · L1-L4，L5状态由系统动态注入
+            模板ID: {id} · L1-L4，L5 实时状态系统动态注入 · 保存后所有基于此模板的实体共享此人设
           </p>
         </div>
       </div>
@@ -188,7 +189,7 @@ export default function CompanionEdit() {
           </div>
         ))}
 
-        {/* RAG 知识库 */}
+        {/* RAG 知识库选择 */}
         <div className="border-t border-white/10 pt-4">
           <h4 className="text-sm font-medium text-gray-300 mb-3">关联知识库（RAG）</h4>
           {ragList.length === 0 ? (
@@ -233,9 +234,6 @@ export default function CompanionEdit() {
           <span className="text-xs text-gray-400 font-mono w-32">
             {temperature} — {temperature <= 0.3 ? '稳定' : temperature <= 0.7 ? '平衡' : '随机'}
           </span>
-          <span className="text-xs text-gray-600 w-28">
-            参考型号设置
-          </span>
         </div>
       </div>
 
@@ -270,7 +268,7 @@ export default function CompanionEdit() {
 
       <div className="flex justify-end gap-3">
         <button
-          onClick={() => navigate('/admin/pets')}
+          onClick={() => navigate('/admin/companions')}
           className="rounded-lg bg-slate-700 px-5 py-2 text-sm text-gray-300 hover:bg-slate-600"
         >
           取消

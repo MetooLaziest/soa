@@ -101,7 +101,7 @@ export default function PetEntities() {
         <div>
           <h2 className="text-lg font-semibold text-white">宠物实体管理</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            管理 E-Pet 数字宠物的状态。提示词编辑请点「编辑人设」按钮。
+            管理已创建的宠物实体（状态、饱腹度、显示）。人设/RAG在「机伴管理」中编辑。
           </p>
         </div>
         <button
@@ -164,16 +164,18 @@ export default function PetEntities() {
               {/* 操作按钮 */}
               <div className="flex gap-2 pt-1">
                 <button
-                  onClick={() => navigate(`/admin/companions/${pet.nfc}/rag`)}
+                  onClick={() => navigate(`/admin/companions/${pet.model_id}/edit`)}
                   className="flex-1 rounded-lg bg-purple-500/20 border border-purple-500/40 px-2 py-1.5 text-xs text-purple-300 hover:bg-purple-500/30"
+                  title={`编辑模板「${pet.model_name || `型号${pet.model_id}`}」的人设和RAG`}
                 >
-                  RAG关联
+                  📝 编辑模板人设
                 </button>
                 <button
-                  onClick={() => navigate(`/admin/companions/${pet.nfc}/edit`)}
+                  onClick={() => navigate(`/admin/companions/${pet.model_id}/rag`)}
                   className="flex-1 rounded-lg bg-blue-500/20 border border-blue-500/40 px-2 py-1.5 text-xs text-blue-300 hover:bg-blue-500/30"
+                  title={`管理模板「${pet.model_name || `型号${pet.model_id}`}」的知识库关联`}
                 >
-                  编辑人设
+                  📚 RAG关联
                 </button>
                 <button
                   onClick={() => setEditingPet({ ...pet, current_poops: pet.current_poops || 0 })}
