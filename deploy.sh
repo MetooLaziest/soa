@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================
-#  SOA 统一构建部署脚本 (v7.1)
+#  SOA 统一构建部署脚本 (v7.2)
 #  路径: /var/www/iot-ai-doll/repo/deploy.sh
 #
 #  部署目标:
@@ -11,6 +11,7 @@
 #
 #  关键：根和 admin 是同一项目但不同 base 独立构建，互不覆盖。
 #  v7.1: 修复 cp -r 展开问题，使用 mktemp -d 临时目录。
+#  v7.2: 保护上传的素材 - rm dist 前备份 dist/epet/assets，部署后还原
 # ==============================================
 set -e
 
@@ -19,6 +20,7 @@ export NODE_OPTIONS="--max-old-space-size=4096"
 
 SCRIPT_DIR="/var/www/iot-ai-doll/repo"
 DIST_DIR="/var/www/iot-ai-doll/frontend/dist"
+EPET_ASSETS_BACKUP_DIR="/var/www/iot-ai-doll/.deploy-assets-backup"
 
 LOG_DIR="$SCRIPT_DIR/.deploy-logs"
 TS=$(date +%Y%m%d_%H%M%S)
@@ -38,7 +40,7 @@ trap cleanup EXIT
 mkdir -p "$LOG_DIR"
 
 log "${YELLOW}===============================================${NC}"
-log "${YELLOW}  SOA 部署脚本 v7.1 - $TS${NC}"
+log "${YELLOW}  SOA 部署脚本 v7.2 - $TS${NC}"
 log "${YELLOW}===============================================${NC}"
 log "Node: $(node --version)"
 
@@ -51,10 +53,21 @@ git pull --rebase 2>&1 | tee -a "$LOG_FILE" || log "${RED}⚠️ git pull 失败
 git stash pop 2>/dev/null || true
 log "${GREEN}✅ 代码同步完成${NC}"
 
-# 2. 备份当前 dist
+# 2. 备份上传的素材 (v7.2 新增)
 log ""
 log "${YELLOW}💾 步骤2: 备份当前 dist${NC}"
-[ -d "$DIST_DIR" ] && cp -r "$DIST_DIR" "$DIST_DIR.backup_$TS" && log "${GREEN}✅ 备份完成${NC}" || log "${YELLOW}⚠️ 跳过备份（目录不存在）${NC}"
+[ -d "$DIST_DIR" ] && cp -r "$DIST_DIR" "$DIST_DIR.backup_$TS" && log "${GREEN}✅ 完整 dist 备份完成${NC}" || log "${YELLOW}⚠️ 跳过备份（目录不存在）${NC}"
+
+# 2.1 额外备份 epet 素材到持久化位置（防 rm 误删）
+if [ -d "$DIST_DIR/epet/assets" ]; then
+    rm -rf "$EPET_ASSETS_BACKUP_DIR"
+    mkdir -p "$EPET_ASSETS_BACKUP_DIR"
+    cp -r "$DIST_DIR/epet/assets/." "$EPET_ASSETS_BACKUP_DIR/"
+    # 也备份 yard-bg.png（用户设置的庭院背景）
+    [ -f "$DIST_DIR/epet/yard-bg.png" ] && cp "$DIST_DIR/epet/yard-bg.png" "$EPET_ASSETS_BACKUP_DIR/"
+    asset_count=$(find "$EPET_ASSETS_BACKUP_DIR" -type f | wc -l)
+    log "${GREEN}✅ 备份 $asset_count 个素材文件到 $EPET_ASSETS_BACKUP_DIR${NC}"
+fi
 
 # 3. 构建
 mkdir -p "$TEMP_BUILD"
@@ -120,6 +133,16 @@ cp -r "$TEMP_BUILD/root/." "$DIST_DIR/"
 cp -r "$TEMP_BUILD/admin" "$DIST_DIR/admin"
 cp -r "$TEMP_BUILD/epet" "$DIST_DIR/epet"
 cp "$SCRIPT_DIR/iot-sql/iot-test.html" "$DIST_DIR/iot-test.html" 2>/dev/null || true
+
+# 4.1 还原上传的素材 (v7.2 新增)
+if [ -d "$EPET_ASSETS_BACKUP_DIR" ] && [ "$(ls -A $EPET_ASSETS_BACKUP_DIR)" ]; then
+    mkdir -p "$DIST_DIR/epet/assets"
+    cp -r "$EPET_ASSETS_BACKUP_DIR/." "$DIST_DIR/epet/assets/"
+    # 还原 yard-bg.png
+    [ -f "$EPET_ASSETS_BACKUP_DIR/yard-bg.png" ] && cp "$EPET_ASSETS_BACKUP_DIR/yard-bg.png" "$DIST_DIR/epet/yard-bg.png"
+    restored_count=$(find "$DIST_DIR/epet/assets" -type f | wc -l)
+    log "${GREEN}✅ 还原 $restored_count 个素材文件${NC}"
+fi
 log "${GREEN}✅ 文件部署完成${NC}"
 
 # 5. 校验
@@ -152,6 +175,7 @@ check_file "assets/index.css" "根 assets/css"
 check_file "admin/index.html" "admin/index.html"
 check_file "admin/assets/index.css" "admin assets/css"
 check_file "epet/index.html" "epet/index.html"
+[ -f "$DIST_DIR/epet/yard-bg.png" ] && log "${GREEN}✅ 庭院背景图保留${NC}" || log "${YELLOW}⚠️ 庭院背景图未设置（首次部署正常）${NC}"
 
 check_contains "index.html" "/assets/" "根 index.html 指向 /assets/" "根 index.html 未指向 /assets/"
 check_contains "admin/index.html" "/admin/assets/" "admin/index.html 指向 /admin/assets/" "admin 未指向 /admin/assets/"
@@ -161,6 +185,9 @@ check_contains "epet/index.html" "/epet/assets/" "epet/index.html 指向 /epet/a
 log ""
 log "${YELLOW}🔄 步骤6: nginx 检查${NC}"
 nginx -t 2>&1 | tee -a "$LOG_FILE" | tail -2 && log "${GREEN}✅ nginx 正常${NC}"
+
+# 清理
+rm -rf "$EPET_ASSETS_BACKUP_DIR"
 
 log ""
 log "${YELLOW}===============================================${NC}"
