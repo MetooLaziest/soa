@@ -57,6 +57,11 @@ function getPetImage(modelId: number): string {
   return PET_IMAGES[modelId] || '/assets/pets/placeholder.png';
 }
 
+// 统一获取宠物立绘: 优先用 DB image_url (用户上传的 portrait), fallback 静态 PET_IMAGES
+function getPetPortrait(pet: any): string {
+  return pet?.image_url || getPetImage(pet?.pet_model_id);
+}
+
 // ─── Emoji 映射 ──────────────────────────────────────────────
 const RARITY_EMOJI: Record<string, string> = { N: '📭', R: '💌', SR: '🎀', SSR: '🌟', UR: '🏅' };
 
@@ -164,7 +169,7 @@ function CollectionModal({ onClose }: { onClose: () => void }) {
                   }}
                 >
                   <div className="collection-card-img">
-                    <img src={getPetImage(pet.pet_model_id)} alt={pet.nickname} />
+                    <img src={getPetPortrait(pet)} alt={pet.nickname} />
                     {isTraveling && <div className="collection-travel-badge">✈️</div>}
                     {!isTraveling && isInYard && <div className="collection-check">✓</div>}
                   </div>
@@ -263,7 +268,7 @@ function TravelModal({ onClose }: { onClose: () => void }) {
             <div className="travel-pet-list">
               {yardPets.map((pet) => (
                 <div key={pet.id} className="travel-pet-item">
-                  <img src={getPetImage(pet.pet_model_id)} alt={pet.nickname} />
+                  <img src={getPetPortrait(pet)} alt={pet.nickname} />
                   <div className="travel-pet-info">
                     <div className="travel-pet-name">{pet.nickname}</div>
                     <div className="travel-pet-level">Lv.{pet.growth_level}</div>
@@ -816,7 +821,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
       <div className="chat-pet-area" onClick={handlePetTouch}>
         <img
           className="chat-pet-img"
-          src={getPetImage(pet.pet_model_id)}
+          src={getPetPortrait(pet)}
           alt={pet.nickname}
         />
         <div className="chat-pet-hint">👆 点击宠物不同部位互动</div>
@@ -831,7 +836,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
           <div key={i} className={`chat-bubble ${m.role}`}>
             {m.role === 'assistant' && (
               <div className="chat-bubble-avatar">
-                <img src={getPetImage(pet.pet_model_id)} alt="" />
+                <img src={getPetPortrait(pet)} alt="" />
               </div>
             )}
             <div className="chat-bubble-text">{m.content}</div>
@@ -840,7 +845,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
         {sending && (
           <div className="chat-bubble assistant">
             <div className="chat-bubble-avatar">
-              <img src={getPetImage(pet.pet_model_id)} alt="" />
+              <img src={getPetPortrait(pet)} alt="" />
             </div>
             <div className="chat-bubble-text chat-bubble-typing">
               <span className="dot" /><span className="dot" /><span className="dot" />
