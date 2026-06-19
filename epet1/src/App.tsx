@@ -611,6 +611,7 @@ function HomePanel() {
           modelId: p.pet_model_id,
           nickname: p.nickname,
           imageUrl: (p as any).image_url || getPetImage(p.pet_model_id),
+          animations: (p as any).animations || {},
         });
       }
     });

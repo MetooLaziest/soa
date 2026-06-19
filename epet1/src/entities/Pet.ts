@@ -9,6 +9,7 @@ export class PetEntity {
   displayName: string;
   nickname: string;
   imageUrl: string = '';
+  animations: Record<string, string[]> = {};
   fullness: number;
   lastFeedAt: string;
   lastInteractAt: string;
@@ -123,7 +124,16 @@ export class PetEntity {
   }
 
   getImageName(): string {
+    // 优先用 sprite 动画 (庭院行走图)
+    if (this.animations) {
+      const walk = this.animations.walk?.[0];
+      if (walk) return walk;
+      const idle = this.animations.idle?.[0];
+      if (idle) return idle;
+    }
+    // fallback 立绘 (用户上传的 portrait)
     if (this.imageUrl) return this.imageUrl;
+    // fallback 静态占位
     const colorMap: Record<string, string> = {
       white: 'pet-white.png',
       blue: 'pet-blue.png',

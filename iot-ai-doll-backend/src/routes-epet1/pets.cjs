@@ -102,7 +102,7 @@ module.exports = (pool) => {
   router.get('/instances/:userId', async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity, pm.nfc_range_start, pm.nfc_range_end,
+        `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity, pm.animations, pm.nfc_range_start, pm.nfc_range_end,
                 yp.position as yard_position, yp.is_active as yard_active
          FROM pet_instances pi
          JOIN pet_models pm ON pm.id = pi.pet_model_id
@@ -121,7 +121,7 @@ module.exports = (pool) => {
   router.get('/yard/:userId', async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity,
+        `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity, pm.animations,
                 pm.personality_template, pm.mbti, pm.nfc_range_start, pm.nfc_range_end,
                 yp.position, yp.is_active, yp.added_at
          FROM yard_pets yp

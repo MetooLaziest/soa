@@ -108,7 +108,7 @@ export class Game {
     petId: string,
     monsterType: string,
     displayName: string = '',
-    opts?: { modelId?: number; nickname?: string; x?: number; y?: number; imageUrl?: string },
+    opts?: { modelId?: number; nickname?: string; x?: number; y?: number; imageUrl?: string; animations?: Record<string, string[]> },
   ): Promise<void> {
     if (this.petEntities.has(petId)) return;
     if (!this.app || !this.petContainer) return;
@@ -134,6 +134,7 @@ export class Game {
       nickname: opts?.nickname ?? displayName,
     } as any);
     entity.imageUrl = opts?.imageUrl || '';
+    entity.animations = opts?.animations || {};
 
     const { W, H } = getViewport();
     entity.setWalkBounds(WALK_BOUNDS);
