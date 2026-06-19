@@ -1,222 +1,203 @@
+/**
+ * 宠物实体管理 - 改读 epet1 schema (2026-06-19)
+ *
+ * 数据源切换:
+ *   - 老 epet.pets (iot-backend) → 100% 删
+ *   - 新 epet1.pet_models + pet_instances (设计正确, model 性格 + entity 记忆分层)
+ *
+ * 路由:
+ *   GET  /         - 列出全部实体 (JOIN pet_models), 按 model 分组
+ *   GET  /:id      - 单个实体详情
+ *   PUT  /:id      - 更新实体 (nickname, growth_level, growth_exp 等 entity 字段)
+ *   POST /         - 创建新实体 (nfc_id 唯一, pet_model_id 必填)
+ *   DELETE /:id    - 删除实体
+ *   GET  /:id/rags - 实体关联的 RAG 知识库列表 (预留, 待 epet1 schema 扩展)
+ */
 import express from 'express';
-import { Pool } from 'pg';
+import { poolEpet1 } from '../lib/db.js';
 
 const router = express.Router();
 
-const pool = new Pool({
-  host: 'localhost',
-  database: 'epet',
-  user: 'postgres',
-  password: 'iot2026pass',
-});
-
-// ==================== 宠物实体管理（nfc = 实体ID）====================
-
-// 1. 获取所有宠物实体（包含 rag_kb_ids 和模板信息）
-router.get('/', async (req, res) => {
+// ─── 列出全部实体 (按 model 分组) ───
+// 返回: { success, pets: [...], models: [{ model, instances: [...] }] }
+router.get('/', async (_req, res) => {
   try {
-    const petsResult = await pool.query(
-      `SELECT p.*, m.name as model_name, m.temperature as model_temperature
-       FROM pets p
-       LEFT JOIN models m ON p.model_id = m.model_id
-       ORDER BY p.created_at DESC`
+    // 1) 全部 active models
+    const modelsRes = await poolEpet1.query(
+      `SELECT id, name, description, image_url, rarity, mbti,
+              personality_template, display_order, is_active
+       FROM pet_models
+       WHERE is_active = true
+       ORDER BY display_order`
     );
 
-    // 获取每个 pet 的 rag_kb_ids
-    const pets = [];
-    for (const pet of petsResult.rows) {
-      const ragResult = await pool.query(
-        'SELECT rag_kb_id FROM pet_rag_kbs WHERE pet_nfc = $1',
-        [pet.nfc]
-      );
-      pets.push({
-        ...pet,
-        rag_kb_ids: ragResult.rows.map(r => r.rag_kb_id),
-        temperature: pet.temperature ?? pet.model_temperature ?? 0.3
-      });
-    }
-
-    res.json({ success: true, pets });
-  } catch (error) {
-    console.error('获取宠物列表失败:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// 2. 获取单个宠物实体
-router.get('/:nfc', async (req, res) => {
-  try {
-    const { nfc } = req.params;
-
-    const petResult = await pool.query(
-      `SELECT p.*, m.name as model_name, m.temperature as model_temperature
-       FROM pets p
-       LEFT JOIN models m ON p.model_id = m.model_id
-       WHERE p.nfc = $1`,
-      [nfc]
+    // 2) 全部 instances JOIN user
+    const instRes = await poolEpet1.query(
+      `SELECT pi.id, pi.user_id, pi.pet_model_id, pi.nfc_id, pi.nickname,
+              pi.growth_level, pi.growth_exp, pi.total_interactions,
+              pi.total_travels, pi.total_postcards, pi.created_at, pi.updated_at,
+              u.nickname as user_nickname,
+              pm.name as model_name, pm.image_url as model_image,
+              yp.position as yard_position, yp.is_active as in_yard
+       FROM pet_instances pi
+       JOIN pet_models pm ON pm.id = pi.pet_model_id
+       LEFT JOIN users u ON u.id = pi.user_id
+       LEFT JOIN yard_pets yp ON yp.pet_instance_id = pi.id AND yp.is_active = true
+       ORDER BY pi.user_id, pm.display_order, pi.id`
     );
 
-    if (!petResult.rows.length) {
-      return res.status(404).json({ success: false, error: '宠物不存在' });
-    }
-
-    const pet = petResult.rows[0];
-
-    const ragResult = await pool.query(
-      'SELECT rag_kb_id FROM pet_rag_kbs WHERE pet_nfc = $1',
-      [nfc]
-    );
+    // 3) 按 model 分组
+    const byModel = modelsRes.rows.map((m) => ({
+      model: m,
+      instances: instRes.rows.filter((i) => i.pet_model_id === m.id),
+    }));
 
     res.json({
       success: true,
-      pet: {
-        ...pet,
-        rag_kb_ids: ragResult.rows.map(r => r.rag_kb_id),
-        temperature: pet.temperature ?? pet.model_temperature ?? 0.3
-      }
+      pets: instRes.rows,           // 平面列表 (兼容老前端)
+      models: byModel,              // 按 model 分组
+      summary: {
+        totalModels: modelsRes.rowCount,
+        totalInstances: instRes.rowCount,
+        modelsWithInstances: byModel.filter((g) => g.instances.length > 0).length,
+      },
     });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (err) {
+    console.error('admin/pets GET / error:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 3. 更新宠物实体（system_prompt, temperature, rag_kb_ids, display_name 等）
-router.put('/:nfc', async (req, res) => {
-  const client = await pool.connect();
+// ─── 单个实体详情 ───
+router.get('/:id', async (req, res) => {
   try {
-    const { nfc } = req.params;
-    const { display_name, system_prompt, temperature, rag_kb_ids, hunger, is_visible } = req.body;
+    const { id } = req.params;
+    const r = await poolEpet1.query(
+      `SELECT pi.*, pm.name as model_name, pm.image_url as model_image,
+              pm.rarity, pm.mbti, pm.personality_template, pm.display_order,
+              u.nickname as user_nickname,
+              yp.position as yard_position
+       FROM pet_instances pi
+       JOIN pet_models pm ON pm.id = pi.pet_model_id
+       LEFT JOIN users u ON u.id = pi.user_id
+       LEFT JOIN yard_pets yp ON yp.pet_instance_id = pi.id AND yp.is_active = true
+       WHERE pi.id = $1`,
+      [id]
+    );
+    if (r.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Pet instance not found' });
+    }
+    res.json({ success: true, pet: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-    await client.query('BEGIN');
+// ─── 更新实体 (entity 级别字段) ───
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nickname, growth_level, growth_exp, total_interactions } = req.body;
 
-    // 更新 pets 表
-    const fields = [];
-    const values = [];
-    let idx = 1;
+    // 只允许改 entity 级别字段 (model 性格/提示词在 pet_models 表)
+    const sets = [];
+    const vals = [];
+    let i = 1;
+    if (nickname !== undefined) { sets.push(`nickname = $${i++}`); vals.push(nickname); }
+    if (growth_level !== undefined) { sets.push(`growth_level = $${i++}`); vals.push(growth_level); }
+    if (growth_exp !== undefined) { sets.push(`growth_exp = $${i++}`); vals.push(growth_exp); }
+    if (total_interactions !== undefined) { sets.push(`total_interactions = $${i++}`); vals.push(total_interactions); }
+    if (sets.length === 0) {
+      return res.status(400).json({ success: false, error: 'No fields to update' });
+    }
+    sets.push(`updated_at = NOW()`);
+    vals.push(id);
 
-    if (display_name !== undefined) { fields.push(`display_name = $${idx++}`); values.push(display_name); }
-    if (system_prompt !== undefined) { fields.push(`system_prompt = $${idx++}`); values.push(system_prompt || null); }
-    if (hunger !== undefined) { fields.push(`hunger = $${idx++}`); values.push(hunger); }
-    if (is_visible !== undefined) { fields.push(`is_visible = $${idx++}`); values.push(is_visible); }
+    const r = await poolEpet1.query(
+      `UPDATE pet_instances SET ${sets.join(', ')} WHERE id = $${i} RETURNING *`,
+      vals
+    );
+    res.json({ success: true, pet: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-    if (fields.length > 0) {
-      values.push(nfc);
-      await client.query(
-        `UPDATE pets SET ${fields.join(', ')} WHERE nfc = $${idx}`,
-        values
-      );
+// ─── 创建新实体 ───
+router.post('/', async (req, res) => {
+  const client = await poolEpet1.connect();
+  try {
+    const { nfc_id, pet_model_id, user_id, nickname } = req.body;
+    if (!nfc_id || !pet_model_id || !user_id) {
+      return res.status(400).json({ success: false, error: 'nfc_id / pet_model_id / user_id 必填' });
+    }
+    // 检查 nfc_id 是否已存在
+    const exist = await client.query('SELECT id FROM pet_instances WHERE nfc_id = $1', [nfc_id]);
+    if (exist.rowCount > 0) {
+      return res.status(409).json({ success: false, error: `nfc_id=${nfc_id} 已存在 (id=${exist.rows[0].id})` });
+    }
+    // 检查 model 范围
+    const modelRow = await client.query('SELECT name, nfc_range_start, nfc_range_end FROM pet_models WHERE id = $1', [pet_model_id]);
+    if (modelRow.rowCount === 0) {
+      return res.status(400).json({ success: false, error: `pet_model_id=${pet_model_id} 不存在` });
+    }
+    const m = modelRow.rows[0];
+    const nfcNum = Number(nfc_id);
+    if (nfcNum < Number(m.nfc_range_start) || nfcNum > Number(m.nfc_range_end)) {
+      return res.status(400).json({
+        success: false,
+        error: `nfc_id ${nfc_id} 不在 model "${m.name}" 的范围 [${m.nfc_range_start}, ${m.nfc_range_end}]`
+      });
+    }
+    // 每个用户每个 model 最多 1 只
+    const dup = await client.query(
+      'SELECT id FROM pet_instances WHERE user_id = $1 AND pet_model_id = $2',
+      [user_id, pet_model_id]
+    );
+    if (dup.rowCount > 0) {
+      return res.status(409).json({ success: false, error: `user=${user_id} 已有 model=${pet_model_id} 的实体 (id=${dup.rows[0].id})` });
     }
 
-    // 更新 temperature（写到 pets 表，如果字段存在的话）
-    if (temperature !== undefined) {
-      // 先检查 pets 表是否有 temperature 字段
-      const colCheck = await client.query(
-        "SELECT 1 FROM information_schema.columns WHERE table_name='pets' AND column_name='temperature'"
-      );
-      if (colCheck.rows.length) {
-        await client.query('UPDATE pets SET temperature = $1 WHERE nfc = $2', [temperature, nfc]);
-      } else {
-        // 没有 temperature 字段，跳过（temperature 从 models 读取）
-      }
-    }
-
-    // 同步 rag_kb_ids
-    if (rag_kb_ids !== undefined) {
-      // 删除旧关联
-      await client.query('DELETE FROM pet_rag_kbs WHERE pet_nfc = $1', [nfc]);
-      // 插入新关联
-      for (const ragId of rag_kb_ids) {
-        await client.query(
-          'INSERT INTO pet_rag_kbs (pet_nfc, rag_kb_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-          [nfc, ragId]
-        );
-      }
-    }
-
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('更新宠物失败:', error);
-    res.status(500).json({ success: false, error: error.message });
+    const r = await client.query(
+      `INSERT INTO pet_instances (user_id, pet_model_id, nfc_id, nickname)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [user_id, pet_model_id, nfc_id, nickname || null]
+    );
+    res.json({ success: true, pet: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   } finally {
     client.release();
   }
 });
 
-// 4. 创建宠物实体
-router.post('/', async (req, res) => {
+// ─── 删除实体 ───
+router.delete('/:id', async (req, res) => {
   try {
-    const { nfc, model_id, user_id, display_name, monster_type } = req.body;
-
-    if (!nfc) {
-      return res.status(400).json({ success: false, error: 'NFC ID 必填' });
+    const { id } = req.params;
+    // 先从 yard 移出
+    await poolEpet1.query('DELETE FROM yard_pets WHERE pet_instance_id = $1', [id]);
+    const r = await poolEpet1.query('DELETE FROM pet_instances WHERE id = $1 RETURNING *', [id]);
+    if (r.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Pet instance not found' });
     }
-
-    await pool.query(
-      `INSERT INTO pets (nfc, model_id, user_id, display_name, monster_type, last_interact_at, last_feed_at)
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-      [nfc, model_id || 1, user_id || 1, display_name || '', monster_type || 'white']
-    );
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('创建宠物失败:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, deleted: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 5. 删除宠物实体
-router.delete('/:nfc', async (req, res) => {
-  try {
-    const { nfc } = req.params;
-    await pool.query('DELETE FROM pets WHERE nfc = $1', [nfc]);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+// ─── (预留) 实体 RAG 关联列表 - epet1 schema 暂未实现 ───
+router.get('/:id/rags', async (req, res) => {
+  res.json({ success: true, rag_kb_ids: [], message: 'epet1 schema 暂无实体级 RAG 关联, 暂返回空' });
 });
 
-
-// 获取宠物关联的 RAG 知识库列表
-router.get('/:nfc/rags', async (req, res) => {
-  try {
-    const { nfc } = req.params;
-    const result = await pool.query(
-      `SELECT r.* FROM rag_knowledge_bases r
-       INNER JOIN pet_rag_kbs pr ON r.id = pr.rag_kb_id
-       WHERE pr.pet_nfc = $1
-       ORDER BY r.id`,
-      [nfc]
-    );
-    res.json({ success: true, data: result.rows });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+router.post('/:id/rags/:ragId', async (req, res) => {
+  res.json({ success: true, message: 'TODO: epet1 schema 暂未实现' });
 });
 
-// 更新宠物 RAG 关联（POST=添加关联，DELETE=删除关联）
-router.post('/:nfc/rags/:ragId', async (req, res) => {
-  try {
-    const { nfc, ragId } = req.params;
-    await pool.query(
-      'INSERT INTO pet_rag_kbs (pet_nfc, rag_kb_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [nfc, ragId]
-    );
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-router.delete('/:nfc/rags/:ragId', async (req, res) => {
-  try {
-    const { nfc, ragId } = req.params;
-    await pool.query('DELETE FROM pet_rag_kbs WHERE pet_nfc = $1 AND rag_kb_id = $2', [nfc, ragId]);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+router.delete('/:id/rags/:ragId', async (req, res) => {
+  res.json({ success: true, message: 'TODO: epet1 schema 暂未实现' });
 });
 
 export default router;
