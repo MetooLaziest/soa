@@ -19,7 +19,8 @@ const ASSET_TYPES = [
   { id: 'pets', name: '🐾 宠物形象', desc: '各状态宠物立绘', color: 'from-amber-500/20 to-orange-500/20' },
   { id: 'ui', name: '🎯 UI元素', desc: '按钮、图标、弹窗', color: 'from-green-500/20 to-emerald-500/20' },
   { id: 'fx', name: '✨ 特效', desc: '粒子、光效、动画', color: 'from-purple-500/20 to-violet-500/20' },
-  { id: 'game-assets', name: '🎮 小游戏', desc: '小游戏专用素材', color: 'from-indigo-500/20 to-blue-500/20' },
+  { id: 'chat-bgs', name: '💬 互动背景', desc: '聊天互动页背景池(可设当前使用)', color: 'from-rose-500/20 to-pink-500/20' },
+  { id: 'game-assets', name: '🎨 美术素材', desc: '小游戏、UI、特效等通用美术素材', color: 'from-indigo-500/20 to-blue-500/20' },
 ];
 
 const GAMES = [
@@ -44,6 +45,7 @@ export default function MiniGameAssets() {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [yardBgUrl, setYardBgUrl] = useState<string>('/epet/yard-bg.png');
+  const [chatBgUrl, setChatBgUrl] = useState<string>('/epet/chat-bg.png');
   const fileRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<HTMLDivElement>(null);
 
@@ -111,6 +113,25 @@ export default function MiniGameAssets() {
     } finally {
       setUploading(false);
     }
+  };
+
+  // 设为互动页背景
+  const setAsChatBg = async (url: string) => {
+    if (!confirm('将此图设为互动页背景?\n(会替换当前的 chat-bg.png)')) return;
+    try {
+      const filename = url.split('/').pop();
+      // 强制 type='chat-bgs', set-chat-bg 期望文件在 assets/chat-bgs/ 下
+      await client.post('/game-assets/set-chat-bg', { filename, type: 'chat-bgs' });
+      alert('已设为互动页背景! 刷新 epet 互动页即可看到新背景');
+      refreshChatBg();
+    } catch (err: any) {
+      alert('设置失败: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // 刷新当前互动页背景缩略图
+  const refreshChatBg = () => {
+    setChatBgUrl(`/epet/chat-bg.png?t=${Date.now()}`);
   };
 
   // 设为庭院背景
@@ -181,6 +202,33 @@ export default function MiniGameAssets() {
           </div>
           <p className="mt-2 text-xs text-gray-500">
             路径: /epet/yard-bg.png | 上传新背景图后点击"设为庭院背景"即可替换
+          </p>
+        </div>
+      )}
+
+      {/* 互动页背景 - 当前使用预览 (chat-bgs tab 时显示) */}
+      {activeType === 'chat-bgs' && (
+        <div className="mb-6 rounded-xl border border-rose-500/20 bg-card p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-sm font-semibold text-rose-300">💬 当前互动页背景</span>
+            <span className="text-xs text-gray-500">(用户进入聊天互动页时显示)</span>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-white/10">
+            <img
+              src={chatBgUrl}
+              alt="当前互动页背景"
+              className="w-full object-cover object-top"
+              style={{ maxHeight: '200px' }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/epet/chat-bg.png';
+              }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            路径: /epet/chat-bg.png | 上传新互动背景后点击卡片"设为互动背景"即可替换
+          </p>
+          <p className="mt-1 text-xs text-amber-400/80">
+            💡 当前版本仅支持设置 1 个互动背景, 未来可扩展商店购买+切换新背景
           </p>
         </div>
       )}
@@ -278,8 +326,18 @@ export default function MiniGameAssets() {
                     <button
                       onClick={() => setAsYardBg(asset.url)}
                       className="flex-1 rounded bg-blue-500/20 px-2 py-1 text-[10px] text-blue-300 hover:bg-blue-500/30 transition"
+                      title="复制为 yard-bg.png, 庭院背景"
                     >
                       设为庭院背景
+                    </button>
+                  )}
+                  {activeType === 'chat-bgs' && (
+                    <button
+                      onClick={() => setAsChatBg(asset.url)}
+                      className="flex-1 rounded bg-rose-500/20 px-2 py-1 text-[10px] text-rose-300 hover:bg-rose-500/30 transition"
+                      title="复制为 chat-bg.png, 互动页背景"
+                    >
+                      设为互动背景
                     </button>
                   )}
                   <button

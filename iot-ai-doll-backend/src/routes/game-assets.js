@@ -10,7 +10,7 @@ const router = express.Router();
 
 // 素材根目录
 const EPET_ASSETS_BASE = '/var/www/iot-ai-doll/frontend/dist/epet/assets';
-const ASSET_TYPES = ['bg', 'cg', 'pets', 'ui', 'fx', 'game-assets'];
+const ASSET_TYPES = ['bg', 'cg', 'pets', 'ui', 'fx', 'game-assets', 'chat-bgs', 'art-assets'];
 
 // 确保目录存在
 async function ensureDir(dir) {
@@ -135,6 +135,46 @@ router.delete('/:type/:name', async (req, res) => {
     res.json({ ok: true, message: '删除成功' });
   } catch (err) {
     if (err.code === 'ENOENT') return res.status(404).json({ error: '文件不存在' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 互动页背景文件: dist/epet/chat-bg.png
+const CHAT_BG_PATH = join(EPET_ASSETS_BASE, '..', 'chat-bg.png');
+
+// GET /api/game-assets/config - 返回当前 yard-bg / chat-bg 是否就绪 + URL
+router.get('/config', async (req, res) => {
+  try {
+    const yardExists = await stat(join(EPET_ASSETS_BASE, '..', 'yard-bg.png')).then(() => true).catch(() => false);
+    const chatExists = await stat(CHAT_BG_PATH).then(() => true).catch(() => false);
+    res.json({
+      ok: true,
+      yardBg: yardExists ? '/epet/yard-bg.png' : null,
+      chatBg: chatExists ? '/epet/chat-bg.png' : null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/game-assets/set-chat-bg - 把指定素材设为互动页背景
+router.post('/set-chat-bg', async (req, res) => {
+  try {
+    const { filename, type } = req.body;
+    if (!filename || !type) return res.status(400).json({ error: '缺少参数' });
+    if (!ASSET_TYPES.includes(type) || /[\/\\.]{2,}/.test(filename)) {
+      return res.status(400).json({ error: '非法参数' });
+    }
+
+    const sourceDir = type === 'game-assets'
+      ? join(EPET_ASSETS_BASE, '..')
+      : join(EPET_ASSETS_BASE, type);
+    const sourcePath = join(sourceDir, filename);
+    await copyFile(sourcePath, CHAT_BG_PATH);
+    console.log('[game-assets] set as chat-bg:', filename);
+    res.json({ ok: true, message: '已设为互动页背景', target: '/epet/chat-bg.png' });
+  } catch (err) {
+    console.error('[game-assets] set-chat-bg error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

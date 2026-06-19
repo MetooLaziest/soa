@@ -726,7 +726,8 @@ body {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: #FFF8F0;
+  background-color: #FFF8F0;
+  background-repeat: no-repeat;
   display: flex;
   flex-direction: column;
   overflow: hidden;

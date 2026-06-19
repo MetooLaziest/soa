@@ -708,6 +708,20 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [traveling, setTraveling] = useState(false);
+  const [chatBgUrl, setChatBgUrl] = useState<string | null>(null);
+
+  // 加载互动页背景 (从 /api/game-assets/config 拿)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/game-assets/config', { credentials: 'include' });
+        const data = await res.json();
+        if (!cancelled && data?.chatBg) setChatBgUrl(data.chatBg);
+      } catch { /* fallback 用 CSS 背景色 */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // 找到当前对话的宠物
   const pet = yardPets.find((p) => p.id === chatPetId) || allPets.find((p) => p.id === chatPetId) || yardPets[0];
@@ -794,7 +808,10 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 
   if (!pet) {
     return (
-      <div className="chat-page">
+      <div
+        className="chat-page"
+        style={chatBgUrl ? { backgroundImage: `url(${chatBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+      >
         <div className="chat-topbar">
           <button className="chat-topbar-btn" onClick={onClose}>← 返回</button>
         </div>
@@ -804,7 +821,10 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="chat-page">
+    <div
+      className="chat-page"
+      style={chatBgUrl ? { backgroundImage: `url(${chatBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+    >
       {/* 顶部栏 */}
       <div className="chat-topbar">
         <button className="chat-topbar-btn" onClick={onClose}>← 返回</button>
