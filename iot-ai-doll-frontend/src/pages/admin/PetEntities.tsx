@@ -12,6 +12,7 @@
  * - 庭院最多展示 2 只实体, 派遣中的不能展示
  */
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 
 interface PetInstance {
@@ -52,6 +53,7 @@ interface ModelGroup {
 }
 
 export default function PetEntities() {
+  const navigate = useNavigate();
   const [models, setModels] = useState<ModelGroup[]>([]);
   const [summary, setSummary] = useState<any>({});
   const [loading, setLoading] = useState(true);
@@ -174,6 +176,7 @@ export default function PetEntities() {
             group={group}
             onEdit={setEditingInstance}
             onDelete={handleDelete}
+            onEditModel={(id) => navigate(`/admin/companions/${id}/edit`)}
           />
         ))}
         {filteredModels.length === 0 && (
@@ -199,10 +202,12 @@ function ModelCard({
   group,
   onEdit,
   onDelete,
+  onEditModel,
 }: {
   group: ModelGroup;
   onEdit: (i: PetInstance) => void;
   onDelete: (i: PetInstance) => void;
+  onEditModel: (modelId: number) => void;
 }) {
   const m = group.model;
   const rarityColor = {
@@ -236,9 +241,17 @@ function ModelCard({
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{m.description || '—'}</p>
         </div>
-        <div className="text-right text-sm">
-          <div className="text-gray-500">实体数</div>
-          <div className="text-2xl font-bold text-gray-700">{group.instances.length}</div>
+        <div className="flex flex-col items-end gap-2">
+          <div className="text-right text-sm">
+            <div className="text-gray-500">实体数</div>
+            <div className="text-2xl font-bold text-gray-700">{group.instances.length}</div>
+          </div>
+          <button
+            onClick={() => onEditModel(group.model.id)}
+            className="rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1.5 text-xs text-white font-medium hover:from-purple-600 hover:to-pink-600 shadow-sm"
+          >
+            ✏️ 编辑机伴
+          </button>
         </div>
       </div>
 
@@ -256,6 +269,7 @@ function ModelCard({
               <th className="text-left px-4 py-2 font-medium">互动</th>
               <th className="text-left px-4 py-2 font-medium">庭院</th>
               <th className="text-left px-4 py-2 font-medium">创建</th>
+              <th className="text-right px-4 py-2 font-medium">机伴</th>
               <th className="text-right px-4 py-2 font-medium">操作</th>
             </tr>
           </thead>
@@ -290,6 +304,15 @@ function ModelCard({
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   {new Date(inst.created_at).toLocaleDateString('zh-CN')}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => onEditModel(inst.pet_model_id)}
+                    className="text-purple-500 hover:text-purple-700 text-sm mr-3"
+                    title="编辑此机伴的 5 层提示词 / 图片 / sprite"
+                  >
+                    🎨 机伴
+                  </button>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button
