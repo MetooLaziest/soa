@@ -287,7 +287,7 @@ export default function MiniGameAssets() {
         <div className="py-12 text-center text-sm text-gray-400">加载素材列表...</div>
       ) : assets.length === 0 ? (
         <div className="py-12 text-center text-sm text-gray-500">
-          暂无{activeType === 'game-assets' ? '小游戏' : ''}素材，请上传
+          暂无素材，请上传
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -356,7 +356,7 @@ export default function MiniGameAssets() {
       {/* 统计 */}
       {!loading && assets.length > 0 && (
         <div className="mt-6 text-center text-xs text-gray-600">
-          共 {assets.length} 个{activeType === 'game-assets' ? '小游戏' : ''}素材 · 总大小 {(assets.reduce((sum, a) => sum + a.size, 0) / 1024).toFixed(1)} KB
+          共 {assets.length} 个素材 · 总大小 {(assets.reduce((sum, a) => sum + a.size, 0) / 1024).toFixed(1)} KB
         </div>
       )}
 

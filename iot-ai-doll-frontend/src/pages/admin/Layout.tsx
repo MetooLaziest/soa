@@ -17,7 +17,7 @@ const navItems = [
   { key: 'sys-config', label: '系统配置', icon: '⚙️', path: '/admin/sys-config' },
   { key: 'pets', label: '宠物实体管理', icon: '🐾', path: '/admin/pets' },
   { key: 'rag', label: 'RAG 知识库管理', icon: '📚', path: '/admin/rag' },
-  { key: 'minigame-assets', label: '小游戏素材管理', icon: '🎮', path: '/admin/minigame-assets' },
+  { key: 'minigame-assets', label: '美术素材', icon: '🎨', path: '/admin/minigame-assets' },
 ];
 
 export default function AdminLayout() {

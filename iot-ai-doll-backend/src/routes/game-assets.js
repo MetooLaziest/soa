@@ -1,5 +1,6 @@
 import express from 'express';
-import { readdir, unlink, stat, mkdir, copyFile } from 'fs/promises';
+import { readdir, unlink, stat, mkdir, copyFile, rename } from 'fs/promises';
+import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
@@ -20,12 +21,13 @@ async function ensureDir(dir) {
 }
 
 // Multer 配置
+// multer.diskStorage.destination 是在 body 解析前跑的, req.body.type undefined
+// 所以先用 /tmp 暂存, handler 里解析完再 copyFile 到正确子目录
+const TEMP_UPLOAD_DIR = join(tmpdir(), 'epet-uploads');
+await ensureDir(TEMP_UPLOAD_DIR);
 const storage = multer.diskStorage({
-  destination: async (req, _file, cb) => {
-    const type = req.body?.type || 'game-assets';
-    const dir = join(EPET_ASSETS_BASE, type === 'game-assets' ? '..' : type);
-    await ensureDir(dir);
-    cb(null, dir);
+  destination: async (_req, _file, cb) => {
+    cb(null, TEMP_UPLOAD_DIR);
   },
   filename: (_req, file, cb) => {
     const ext = file.originalname.split('.').pop()?.toLowerCase() || '';
@@ -93,20 +95,36 @@ router.get('/', async (req, res) => {
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: '请选择文件' });
-    
-    const type = req.body?.type || 'game-assets';
-    const urlPath = type === 'game-assets' 
-      ? '/epet/' + req.file.filename 
-      : '/epet/assets/' + type + '/' + req.file.filename;
 
-    console.log('[game-assets] uploaded:', type, req.file.filename);
-    res.json({ 
-      ok: true, 
-      message: '上传成功', 
+    // body 已解析, 拿到真实 type
+    const type = req.body?.type || 'game-assets';
+    const validType = ASSET_TYPES.includes(type) ? type : 'game-assets';
+
+    // 移动文件到正确分类目录
+    const targetDir = validType === 'game-assets'
+      ? join(EPET_ASSETS_BASE, '..')
+      : join(EPET_ASSETS_BASE, validType);
+    await ensureDir(targetDir);
+    const targetPath = join(targetDir, req.file.filename);
+    if (req.file.path !== targetPath) {
+      await rename(req.file.path, targetPath).catch(async () => {
+        await copyFile(req.file.path, targetPath);
+        await unlink(req.file.path);
+      });
+    }
+
+    const urlPath = validType === 'game-assets'
+      ? '/epet/' + req.file.filename
+      : '/epet/assets/' + validType + '/' + req.file.filename;
+
+    console.log('[game-assets] uploaded:', validType, req.file.filename);
+    res.json({
+      ok: true,
+      message: '上传成功',
       asset: {
         name: req.file.filename,
         url: urlPath,
-        type,
+        type: validType,
         size: req.file.size,
         sizeFormatted: formatSize(req.file.size),
         modified: new Date().toISOString(),
