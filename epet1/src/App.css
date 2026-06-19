@@ -9,13 +9,13 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
   background: #FFF8F0;
   color: #4A4A4A;
-  min-height: 100vh;
+  min-height: 100%;
   overflow-x: hidden;
 }
 
 /* ─── App Shell ───────────────────────────── */
 .app {
-  min-height: 100vh;
+  min-height: 100%;
   position: relative;
 }
 
@@ -31,7 +31,7 @@ body {
   z-index: 1;
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100vh;
+  min-height: 100%;
   padding-bottom: 80px;
 }
 
@@ -70,15 +70,21 @@ body {
   position: relative;
   width: 100vw;
   height: 100vh;
+  max-width: 100%;
+  /* 跨过 .app-content 容器限制，始终全屏 */
+  margin-left: calc(50% - 50vw);
   overflow: hidden;
 }
 
 .yard-canvas {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 100% !important;  /* 覆盖 PixiJS 内联 style */
+  height: 100% !important;
+  max-width: 100vw;
+  max-height: 100vh;
   display: block;
+  object-fit: contain;
 }
 
 .travel-banner {

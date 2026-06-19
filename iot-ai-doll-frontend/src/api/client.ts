@@ -16,6 +16,10 @@ client.interceptors.request.use((config) => {
   if (!(config.data instanceof FormData)) {
     config.headers['Content-Type'] = config.headers['Content-Type'] || 'application/json';
   }
+  // ⭐ FormData (文件上传) 单独给 5 分钟超时，避免大图超过默认 15s
+  if (config.data instanceof FormData) {
+    config.timeout = 5 * 60 * 1000; // 5 分钟
+  }
   return config;
 });
 

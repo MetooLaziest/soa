@@ -81,21 +81,33 @@ export default function MiniGameAssets() {
   };
 
   const doUpload = async (file: File) => {
+    if (file.size > 50 * 1024 * 1024) {
+      alert(`文件太大（${(file.size / 1024 / 1024).toFixed(1)}MB），最大 50MB`);
+      return;
+    }
     setUploading(true);
+    const form = new FormData();
+    form.append('file', file);
+    form.append('type', activeType);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('type', activeType);
+      // 不设 headers，让 axios 自动生成 boundary
+      // 默认 15s 超时不够，client.ts 拦截器已给 FormData 5 分钟
       await client.post('/game-assets/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (e.total) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            console.log(`上传中... ${pct}%`);
+          }
+        },
       });
       await load();
-      // 如果是背景图，提示可以设为庭院背景
       if (activeType === 'bg') {
         alert('上传成功！如果是庭院背景，可以点击"设为庭院背景"按钮');
       }
     } catch (err: any) {
-      alert('上传失败: ' + (err.response?.data?.error || err.message));
+      console.error('Upload error:', err);
+      const msg = err.response?.data?.error || err.message;
+      alert('上传失败: ' + msg);
     } finally {
       setUploading(false);
     }

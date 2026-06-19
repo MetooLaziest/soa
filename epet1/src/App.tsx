@@ -38,12 +38,12 @@ import './App.css';
 // ─── 宠物图片映射 ────────────────────────────────────────────
 // model_id=1→海浪沫沫(蓝) model_id=2→团子糯糯(白) model_id=3→糖心莓莓(粉)
 const PET_IMAGES: Record<number, string> = {
-  1: 'https://soa.laziestlife.com/epet/pet-blue.png',
-  2: 'https://soa.laziestlife.com/epet/pet-white.png',
-  3: 'https://soa.laziestlife.com/epet/pet-pink.png',
-  4: 'https://soa.laziestlife.com/epet/pet-blue.png',
-  5: 'https://soa.laziestlife.com/epet/pet-pink.png',
-  6: 'https://soa.laziestlife.com/epet/pet-blue.png',
+  1: '/assets/pets/moomo.png',
+  2: '/assets/pets/nuonuo.png',
+  3: '/assets/pets/meimei.png',
+  4: '/assets/pets/moomo.png',
+  5: '/assets/pets/meimei.png',
+  6: '/assets/pets/moomo.png',
 };
 
 // model_id → PixiJS monsterType (PetEntity.getImageName 映射)
@@ -54,7 +54,7 @@ function getMonsterType(modelId: number): string {
 }
 
 function getPetImage(modelId: number): string {
-  return PET_IMAGES[modelId] || 'https://soa.laziestlife.com/epet/pet-idle.png';
+  return PET_IMAGES[modelId] || '/assets/pets/placeholder.png';
 }
 
 // ─── Emoji 映射 ──────────────────────────────────────────────
@@ -101,8 +101,8 @@ function CollectionModal({ onClose }: { onClose: () => void }) {
         await removeFromYard(userId, pet.id);
         setYardPets(yardPets.filter((p) => p.id !== pet.id));
       } else {
-        if (yardPets.length >= 2) {
-          alert('庭院最多放 2 只宠物！');
+        if (yardPets.length >= 3) {
+          alert('庭院最多放 3 只宠物！');
           return;
         }
         await addToYard(userId, pet.id);
@@ -605,6 +605,7 @@ function HomePanel() {
         g.addPet(petId, monsterType, p.nickname, {
           modelId: p.pet_model_id,
           nickname: p.nickname,
+          imageUrl: (p as any).image_url || getPetImage(p.pet_model_id),
         });
       }
     });

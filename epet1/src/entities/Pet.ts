@@ -8,6 +8,7 @@ export class PetEntity {
   monsterType: string;
   displayName: string;
   nickname: string;
+  imageUrl: string = '';
   fullness: number;
   lastFeedAt: string;
   lastInteractAt: string;
@@ -122,6 +123,7 @@ export class PetEntity {
   }
 
   getImageName(): string {
+    if (this.imageUrl) return this.imageUrl;
     const colorMap: Record<string, string> = {
       white: 'pet-white.png',
       blue: 'pet-blue.png',

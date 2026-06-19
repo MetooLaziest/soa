@@ -73,7 +73,7 @@ export class Game {
   private async _loadBackground() {
     if (!this.bgContainer) return;
     try {
-      const bgUrl = `${window.location.protocol}//${window.location.host}/epet/yard-bg.jpg`;
+      const bgUrl = `${window.location.protocol}//${window.location.host}/epet/yard-bg.png`;
       const tex = await Assets.load(bgUrl);
       const bg = new Sprite(tex);
       bg.label = 'yard-bg';
@@ -108,7 +108,7 @@ export class Game {
     petId: string,
     monsterType: string,
     displayName: string = '',
-    opts?: { modelId?: number; nickname?: string; x?: number; y?: number },
+    opts?: { modelId?: number; nickname?: string; x?: number; y?: number; imageUrl?: string },
   ): Promise<void> {
     if (this.petEntities.has(petId)) return;
     if (!this.app || !this.petContainer) return;
@@ -133,6 +133,7 @@ export class Game {
       pet_model_id: opts?.modelId ?? 0,
       nickname: opts?.nickname ?? displayName,
     } as any);
+    entity.imageUrl = opts?.imageUrl || '';
 
     const { W, H } = getViewport();
     entity.setWalkBounds(WALK_BOUNDS);
