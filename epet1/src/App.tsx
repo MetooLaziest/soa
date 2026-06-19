@@ -705,6 +705,11 @@ function ChatPage({ onClose }: { onClose: () => void }) {
     setYardPets, setActiveTravel, addEmotionPoints,
   } = useGameStore();
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+
+  // 最后一条助理消息（显示在回复框）
+  const lastAssistantMessage = messages
+    .filter(m => m.role === 'assistant')
+    .slice(-1)[0]?.content || null;
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [traveling, setTraveling] = useState(false);
@@ -862,35 +867,21 @@ function ChatPage({ onClose }: { onClose: () => void }) {
           alt={pet.nickname}
           draggable={false}
         />
-        <div className="chat-pet-hint">👆 点击宠物不同部位互动</div>
       </div>
 
-      {/* 聊天气泡（全部消息，自动滚动） */}
-      <div className="chat-bubbles" ref={bubblesRef}>
-        {messages.length === 0 && (
-          <div className="chat-bubbles-empty">摸摸宠物或发消息开始对话吧~</div>
-        )}
-        {messages.map((m, i) => (
-          <div key={i} className={`chat-bubble ${m.role}`}>
-            {m.role === 'assistant' && (
-              <div className="chat-bubble-avatar">
-                <img src={getPetPortrait(pet)} alt="" />
-              </div>
-            )}
-            <div className="chat-bubble-text">{m.content}</div>
-          </div>
-        ))}
-        {sending && (
-          <div className="chat-bubble assistant">
-            <div className="chat-bubble-avatar">
-              <img src={getPetPortrait(pet)} alt="" />
-            </div>
-            <div className="chat-bubble-text chat-bubble-typing">
-              <span className="dot" /><span className="dot" /><span className="dot" />
-            </div>
-          </div>
+      <div className="chat-pet-hint">👆 点击宠物不同部位互动</div>
+
+      {/* 宠物回复文本框（最新一条） */}
+      <div className="chat-response-box">
+        {lastAssistantMessage ? (
+          <p className="chat-response-text">{lastAssistantMessage}</p>
+        ) : sending ? (
+          <p className="chat-response-text typing">宠物正在思考</p>
+        ) : (
+          <p className="chat-response-text chat-response-empty">摸摸宠物或发消息开始对话吧~</p>
         )}
       </div>
+
 
       {/* 底部输入栏 */}
       <div className="chat-input-bar">
