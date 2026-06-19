@@ -1,0 +1,26 @@
+{
+  "name": "iot-ai-doll-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "自建IoT设备与AI玩偶控制后端服务",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "db:migrate": "node src/db/migrate.js"
+  },
+  "dependencies": {
+    "axios": "^1.18.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "eventsource-parser": "^3.0.6",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "ky": "^1.14.1",
+    "mqtt": "^5.15.1",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.13.1",
+    "uuid": "^13.0.0"
+  }
+}

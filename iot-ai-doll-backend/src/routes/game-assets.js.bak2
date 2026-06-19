@@ -1,0 +1,193 @@
+/**
+ * epet 素材管理 - 文件上传路由
+ * 
+ * API:
+ *   GET    /api/game-assets?type=bg|cg|pets|ui|fx  - 获取素材列表
+ *   POST   /api/game-assets/upload                 - 上传素材 (multipart/form-data, field: file, type)
+ *   DELETE /api/game-assets/:type/:name            - 删除素材
+ */
+import express from 'express';
+import { readdir, unlink, stat, mkdir } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import multer from 'multer';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const router = express.Router();
+
+// epet 素材根目录
+const EPET_ASSETS_BASE = '/var/www/iot-ai-doll/frontend/dist/epet/assets';
+
+// 支持的素材类型
+const ASSET_TYPES = ['bg', 'cg', 'pets', 'ui', 'fx', 'game-assets'];
+
+// 确保目录存在
+async function ensureDir(dir) {
+  try {
+    await mkdir(dir, { recursive: true });
+  } catch (e) { /* ignore */ }
+}
+
+// Multer 配置 - 动态存储到对应类型目录
+const storage = multer.diskStorage({
+  destination: async (req, _file, cb) => {
+    const type = req.body?.type || 'game-assets';
+    const dir = join(EPET_ASSETS_BASE, type === 'game-assets' ? '..' : type);
+    await ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = file.originalname.split('.').pop()?.toLowerCase() || '';
+    const baseName = file.originalname.replace(/\.[^.]+$/, '');
+    const safeBase = baseName.replace(/[^a-zA-Z0-9_\-\u4e00-\u9fff]/g, '_');
+    const timestamp = Date.now();
+    const rand = Math.random().toString(36).substring(2, 8);
+    cb(null, safeBase + '_' + timestamp + '_' + rand + '.' + ext);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('仅支持 PNG/JPG/GIF/WebP/SVG 图片格式'));
+    }
+  },
+});
+
+// GET /api/game-assets?type=xxx - 素材列表
+router.get('/', async (req, res) => {
+  try {
+    const type = req.query.type || 'game-assets';
+    const dirPath = type === 'game-assets' 
+      ? join(EPET_ASSETS_BASE, '..') 
+      : join(EPET_ASSETS_BASE, type);
+    
+    await ensureDir(dirPath);
+    const files = await readdir(dirPath);
+    const assets = [];
+    
+    for (const name of files) {
+      try {
+        const filePath = join(dirPath, name);
+        const s = await stat(filePath);
+        if (s.isFile()) {
+          const urlPath = type === 'game-assets' 
+            ? '/epet/' + name 
+            : '/epet/assets/' + type + '/' + name;
+          assets.push({
+            name: name,
+            url: urlPath,
+            type: type,
+            size: s.size,
+            sizeFormatted: formatSize(s.size),
+            modified: s.mtime.toISOString(),
+          });
+        }
+      } catch (_) { /* skip */ }
+    }
+    
+    assets.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+    res.json({ ok: true, count: assets.length, type, assets });
+  } catch (err) {
+    console.error('[game-assets] list error:', err.message);
+    res.status(500).json({ error: '无法读取素材目录: ' + err.message });
+  }
+});
+
+// POST /api/game-assets/upload - 上传素材
+router.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '请选择要上传的文件' });
+    }
+
+    const type = req.body?.type || 'game-assets';
+    const urlPath = type === 'game-assets' 
+      ? '/epet/' + req.file.filename 
+      : '/epet/assets/' + type + '/' + req.file.filename;
+
+    const asset = {
+      name: req.file.filename,
+      url: urlPath,
+      type: type,
+      size: req.file.size,
+      sizeFormatted: formatSize(req.file.size),
+      modified: new Date().toISOString(),
+    };
+
+    console.log('[game-assets] uploaded:', type, req.file.originalname, '->', req.file.filename);
+    res.json({ ok: true, message: '上传成功', asset });
+  } catch (err) {
+    console.error('[game-assets] upload error:', err.message);
+    res.status(500).json({ error: err.message || '上传失败' });
+  }
+});
+
+// DELETE /api/game-assets/:type/:name - 删除素材
+router.delete('/:type/:name', async (req, res) => {
+  try {
+    const { type, name } = req.params;
+    if (!ASSET_TYPES.includes(type) || name.includes('/') || name.includes('..') || name.includes('\\')) {
+      return res.status(400).json({ error: '非法参数' });
+    }
+
+    const dirPath = type === 'game-assets' 
+      ? join(EPET_ASSETS_BASE, '..') 
+      : join(EPET_ASSETS_BASE, type);
+    const filePath = join(dirPath, name);
+    
+    await unlink(filePath);
+    console.log('[game-assets] deleted:', type, name);
+    res.json({ ok: true, message: '删除成功' });
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return res.status(404).json({ error: '文件不存在' });
+    }
+    console.error('[game-assets] delete error:', err.message);
+    res.status(500).json({ error: err.message || '删除失败' });
+  }
+});
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+export default router;
+
+// POST /api/game-assets/set-yard-bg - 设为庭院背景
+router.post('/set-yard-bg', async (req, res) => {
+  try {
+    const { filename, type } = req.body;
+    if (!filename || !type) {
+      return res.status(400).json({ error: '缺少参数' });
+    }
+    if (filename.includes('/') || filename.includes('..') || filename.includes('\\')) {
+      return res.status(400).json({ error: '非法文件名' });
+    }
+
+    const sourceDir = type === 'game-assets' 
+      ? join(EPET_ASSETS_BASE, '..') 
+      : join(EPET_ASSETS_BASE, type);
+    const sourcePath = join(sourceDir, filename);
+    const targetPath = join(EPET_ASSETS_BASE, '..', 'yard-bg.png');
+
+    // 复制文件
+    const { copyFile } = await import('fs/promises');
+    await copyFile(sourcePath, targetPath);
+
+    console.log('[game-assets] set as yard-bg:', filename);
+    res.json({ ok: true, message: '已设为庭院背景', target: '/epet/yard-bg.png' });
+  } catch (err) {
+    console.error('[game-assets] set-yard-bg error:', err.message);
+    res.status(500).json({ error: err.message || '设置失败' });
+  }
+});
