@@ -3,6 +3,7 @@
  * 包含：机伴 CRUD（12字段）+ 数字生命宠物的5层提示词配置
  */
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import { CompanionForm } from './CompanionForm';
 
@@ -272,6 +273,7 @@ function LayerEditModal({ pet, onSave, onCancel }: {
 // ============ 主组件 ============
 
 export default function Companions() {
+  const navigate = useNavigate();
   const [models, setModels] = useState<CompanionModel[]>([]);
   const [pets, setPets] = useState<EpetPet[]>([]);
   const [petsLoading, setPetsLoading] = useState(true);
@@ -355,7 +357,16 @@ export default function Companions() {
   };
 
   const openAdd = () => { setEditingId(null); setShowModal(true); };
-  const openEdit = (m: CompanionModel) => { setEditingId(m.id); setShowModal(true); };
+  // 跳到独立路由: 5 层提示词 + 图片 + sprite 编辑器 (调 pet_models, 不是老 companion_models)
+  // m.epet_model_id 是新表 id (1/2/3), m.id 是老表 UUID
+  const openEdit = (m: any) => {
+    const newId = m.epet_model_id || m.id;
+    if (m.epet_model_id) {
+      navigate(`/admin/companions/${newId}/edit`);
+    } else {
+      alert(`此机伴 "${m.name}" 还没绑定到新 pet_models (epet_model_id 为空),\n请先在 DB 把 m.id=${m.id} 关联到 pet_models.id`);
+    }
+  };
   const closeModal = () => { setShowModal(false); setEditingId(null); };
 
   const parseMbti = (raw: any) => {
