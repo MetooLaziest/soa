@@ -709,6 +709,15 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   const [sending, setSending] = useState(false);
   const [traveling, setTraveling] = useState(false);
   const [chatBgUrl, setChatBgUrl] = useState<string | null>(null);
+  const [petPulse, setPetPulse] = useState(false);
+  const bubblesRef = React.useRef<HTMLDivElement>(null);
+
+  // 消息更新时滚到底
+  React.useEffect(() => {
+    if (bubblesRef.current) {
+      bubblesRef.current.scrollTop = bubblesRef.current.scrollHeight;
+    }
+  }, [messages, sending]);
 
   // 加载互动页背景 (从 /api/game-assets/config 拿)
   useEffect(() => {
@@ -731,9 +740,13 @@ function ChatPage({ onClose }: { onClose: () => void }) {
     if (!userId || !pet || sending) return;
     setSending(true);
 
+    // 点击立绘时, 客户端组装"用户视角"消息 (不带 [系统] 前缀)
     let userBubble = '';
     if (touchArea) {
       userBubble = `🤚 ${TOUCH_AREA_LABELS[touchArea] || '摸了摸'}`;
+      // 点击反馈
+      setPetPulse(true);
+      setTimeout(() => setPetPulse(false), 500);
     } else if (message) {
       userBubble = message;
     }
@@ -744,7 +757,9 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 
     try {
       const { reply } = await sendChatMessage(userId, pet.id, message, touchArea);
-      setMessages((m) => [...m, { role: 'assistant', content: reply }]);
+      // 防御性: 剥离 LLM 偶尔回传的 [系统] 前缀
+      const cleanReply = (reply || '').replace(/\[系统\][^\n]*\n?/g, '').trim() || '...';
+      setMessages((m) => [...m, { role: 'assistant', content: cleanReply }]);
       addEmotionPoints(1);
     } catch (e: any) {
       setMessages((m) => [...m, {
@@ -803,8 +818,6 @@ function ChatPage({ onClose }: { onClose: () => void }) {
     }
   };
 
-  // 只展示最近 2 条
-  const recentMsgs = messages.slice(-2);
 
   if (!pet) {
     return (
@@ -839,21 +852,25 @@ function ChatPage({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* 宠物大图 */}
-      <div className="chat-pet-area" onClick={handlePetTouch}>
+      <div
+        className={`chat-pet-area${petPulse ? ' pet-pulse' : ''}`}
+        onClick={handlePetTouch}
+      >
         <img
           className="chat-pet-img"
           src={getPetPortrait(pet)}
           alt={pet.nickname}
+          draggable={false}
         />
         <div className="chat-pet-hint">👆 点击宠物不同部位互动</div>
       </div>
 
-      {/* 聊天气泡（最近 2 条） */}
-      <div className="chat-bubbles">
-        {recentMsgs.length === 0 && (
+      {/* 聊天气泡（全部消息，自动滚动） */}
+      <div className="chat-bubbles" ref={bubblesRef}>
+        {messages.length === 0 && (
           <div className="chat-bubbles-empty">摸摸宠物或发消息开始对话吧~</div>
         )}
-        {recentMsgs.map((m, i) => (
+        {messages.map((m, i) => (
           <div key={i} className={`chat-bubble ${m.role}`}>
             {m.role === 'assistant' && (
               <div className="chat-bubble-avatar">
