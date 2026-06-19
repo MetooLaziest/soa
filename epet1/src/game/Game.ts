@@ -73,23 +73,25 @@ export class Game {
   private async _loadBackground() {
     if (!this.bgContainer) return;
     try {
-      const bgUrl = `${window.location.protocol}//${window.location.host}/epet/yard-bg.png`;
+      const bgUrl = `${window.location.protocol}//${window.location.host}/epet/yard-bg.jpg`;
       const tex = await Assets.load(bgUrl);
       const bg = new Sprite(tex);
-      bg.label = 'treehouse-bg';
+      bg.label = 'yard-bg';
 
       const { W, H } = getViewport();
+      // 用 contain 模式：图片完整显示，必要时上下/左右有黑边
+      // 这样横图在竖屏下不会被裁切关键内容
       const scaleX = W / tex.width;
       const scaleY = H / tex.height;
-      const scale = Math.max(scaleX, scaleY);
+      const scale = Math.min(scaleX, scaleY);  // ✅ contain 模式
       bg.scale.set(scale);
-      bg.anchor.set(0.5, 0);
+      bg.anchor.set(0.5, 0.5);  // 中心锚点
       bg.x = W / 2;
-      bg.y = 0;
+      bg.y = H / 2;  // 垂直居中
 
       this.bgContainer.addChild(bg);
       this._bgLoaded = true;
-      console.log('✅ Background loaded');
+      console.log('✅ Background loaded:', { size: `${tex.width}x${tex.height}`, scale, viewport: `${W}x${H}` });
       this._notifyReady();
     } catch (e) {
       console.warn('Background load failed:', e);
