@@ -1,221 +1,174 @@
 #!/bin/bash
 # ==============================================
-#  SOA 统一构建部署脚本 (v6)
+#  SOA 统一构建部署脚本 (v7.1)
 #  路径: /var/www/iot-ai-doll/repo/deploy.sh
-#  说明: 拉取最新代码 → 构建两个项目 → 部署到 frontend/dist/
-#  
+#
 #  部署目标:
-#    /             -> 根入口，指向 admin 应用（admin 入口的 JS）
-#    /admin/       -> 后台管理 (iot-ai-doll-frontend 项目)
-#    /epet/        -> MOMOTOY 绒绒庭院 (epet1 项目)
+#    /             -> 艾瑟拉奇幻谭 (iot-ai-doll-frontend, base="/")
+#    /admin/       -> 管理后台 (iot-ai-doll-frontend, base="/admin/")
+#    /epet/        -> MOMOTOY 绒绒庭院 (epet1 项目, base="/epet/")
 #    /iot-test.html -> iot-sql 测试页
+#
+#  关键：根和 admin 是同一项目但不同 base 独立构建，互不覆盖。
+#  v7.1: 修复 cp -r 展开问题，使用 mktemp -d 临时目录。
 # ==============================================
 set -e
 
-# 用 Node 20 (Vite 8 / React 19 需要)
 export PATH="/opt/node20/bin:$PATH"
 export NODE_OPTIONS="--max-old-space-size=4096"
 
 SCRIPT_DIR="/var/www/iot-ai-doll/repo"
 DIST_DIR="/var/www/iot-ai-doll/frontend/dist"
+
 LOG_DIR="$SCRIPT_DIR/.deploy-logs"
-TEMP_BUILD="/tmp/build-temp-$$"
-mkdir -p "$LOG_DIR"
 TS=$(date +%Y%m%d_%H%M%S)
 LOG_FILE="$LOG_DIR/deploy_$TS.log"
+TEMP_BUILD=$(mktemp -d)
 
-# 颜色
 RED="\033[0;31m"
 GREEN="\033[0;32m"
 YELLOW="\033[1;33m"
 NC="\033[0m"
 
-log() {
-    echo -e "$1" | tee -a "$LOG_FILE"
-}
+log() { echo -e "$1" | tee -a "$LOG_FILE"; }
 
-cleanup() {
-    if [ -d "$TEMP_BUILD" ]; then
-        rm -rf "$TEMP_BUILD"
-    fi
-}
+cleanup() { rm -rf "$TEMP_BUILD"; }
 trap cleanup EXIT
 
+mkdir -p "$LOG_DIR"
+
 log "${YELLOW}===============================================${NC}"
-log "${YELLOW}  SOA 部署脚本 v6 - $TS${NC}"
+log "${YELLOW}  SOA 部署脚本 v7.1 - $TS${NC}"
 log "${YELLOW}===============================================${NC}"
 log "Node: $(node --version)"
-log "npm:  $(npm --version)"
 
-# 1. 拉取最新代码
+# 1. 拉取最新代码（先 sync 再部署！）
 log ""
 log "${YELLOW}📥 步骤1: 拉取最新代码${NC}"
 cd "$SCRIPT_DIR"
-if git pull --rebase 2>&1 | tee -a "$LOG_FILE"; then
-    log "${GREEN}✅ 代码已更新${NC}"
-else
-    log "${RED}❌ git pull 失败，继续构建本地版本${NC}"
-fi
+git stash 2>/dev/null || true
+git pull --rebase 2>&1 | tee -a "$LOG_FILE" || log "${RED}⚠️ git pull 失败，使用本地版本${NC}"
+git stash pop 2>/dev/null || true
+log "${GREEN}✅ 代码同步完成${NC}"
 
 # 2. 备份当前 dist
 log ""
 log "${YELLOW}💾 步骤2: 备份当前 dist${NC}"
-if [ -d "$DIST_DIR" ]; then
-    cp -r "$DIST_DIR" "$DIST_DIR.backup_$TS"
-    log "${GREEN}✅ 已备份到 $DIST_DIR.backup_$TS${NC}"
-fi
+[ -d "$DIST_DIR" ] && cp -r "$DIST_DIR" "$DIST_DIR.backup_$TS" && log "${GREEN}✅ 备份完成${NC}" || log "${YELLOW}⚠️ 跳过备份（目录不存在）${NC}"
 
-# 3. 临时构建
-rm -rf "$TEMP_BUILD"
+# 3. 构建
 mkdir -p "$TEMP_BUILD"
 
-# 3.1 构建 iot-ai-doll-frontend (主项目)
+# 3.1 根路径版 (base="/")
 log ""
-log "${YELLOW}🔨 步骤3.1: 构建 iot-ai-doll-frontend (admin + 根入口)${NC}"
+log "${YELLOW}🔨 步骤3.1: 构建根路径版 (艾瑟拉奇幻谭)${NC}"
 cd "$SCRIPT_DIR/iot-ai-doll-frontend"
 [ -d node_modules ] || npm install 2>&1 | tail -3 | tee -a "$LOG_FILE"
-cat > vite.config.ts << VCONF
+cat > vite.config.ts << 'EOF'
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-
 export default defineConfig({
   base: "/",
   plugins: [react(), tailwindcss()],
-  build: {
-    outDir: "$TEMP_BUILD/main",
-    emptyOutDir: true,
-  },
+  build: { outDir: "OUT/root", emptyOutDir: true },
 });
-VCONF
-if npm run build 2>&1 | tee -a "$LOG_FILE" | tail -8; then
-    log "${GREEN}✅ iot-ai-doll-frontend 构建成功${NC}"
-else
-    log "${RED}❌ iot-ai-doll-frontend 构建失败${NC}"
-    exit 1
-fi
+EOF
+sed -i "s|OUT|$TEMP_BUILD|g" vite.config.ts
+npm run build 2>&1 | tee -a "$LOG_FILE" | tail -5 && log "${GREEN}✅ 根路径版构建成功${NC}" || { log "${RED}❌ 失败${NC}"; exit 1; }
 
-# 3.2 构建 epet1
+# 3.2 admin 版 (base="/admin/")
 log ""
-log "${YELLOW}🔨 步骤3.2: 构建 epet1 (绒绒庭院)${NC}"
-cd "$SCRIPT_DIR/epet1"
-[ -d node_modules ] || npm install 2>&1 | tail -3 | tee -a "$LOG_FILE"
-cat > vite.config.ts << VCONF
+log "${YELLOW}🔨 步骤3.2: 构建 admin 版 (管理后台)${NC}"
+cd "$SCRIPT_DIR/iot-ai-doll-frontend"
+cat > vite.config.ts << 'EOF'
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+export default defineConfig({
+  base: "/admin/",
+  plugins: [react(), tailwindcss()],
+  build: { outDir: "OUT/admin", emptyOutDir: true },
+});
+EOF
+sed -i "s|OUT|$TEMP_BUILD|g" vite.config.ts
+npm run build 2>&1 | tee -a "$LOG_FILE" | tail -5 && log "${GREEN}✅ admin 版构建成功${NC}" || { log "${RED}❌ 失败${NC}"; exit 1; }
 
+# 3.3 epet1 (base="/epet/")
+log ""
+log "${YELLOW}🔨 步骤3.3: 构建 epet1 (绒绒庭院)${NC}"
+cd "$SCRIPT_DIR/epet1"
+[ -d node_modules ] || npm install 2>&1 | tail -3 | tee -a "$LOG_FILE"
+cat > vite.config.ts << 'EOF'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "/epet/",
   plugins: [react()],
-  build: {
-    outDir: "$TEMP_BUILD/epet",
-    emptyOutDir: true,
-  },
+  build: { outDir: "OUT/epet", emptyOutDir: true },
 });
-VCONF
-if npm run build 2>&1 | tee -a "$LOG_FILE" | tail -8; then
-    log "${GREEN}✅ epet1 构建成功${NC}"
-else
-    log "${RED}❌ epet1 构建失败${NC}"
-    exit 1
-fi
+EOF
+sed -i "s|OUT|$TEMP_BUILD|g" vite.config.ts
+npm run build 2>&1 | tee -a "$LOG_FILE" | tail -5 && log "${GREEN}✅ epet1 构建成功${NC}" || { log "${RED}❌ 失败${NC}"; exit 1; }
 
-# 4. 部署到 dist
+# 4. 部署（关键：使用 cp -r dir/. 避免 glob 展开问题）
 log ""
 log "${YELLOW}📦 步骤4: 部署到 dist${NC}"
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
-cp -r "$TEMP_BUILD/main" "$DIST_DIR/admin/"
-cp -r "$TEMP_BUILD/epet" "$DIST_DIR/epet/"
-cp -r "$TEMP_BUILD/main" "$DIST_DIR/"
+cp -r "$TEMP_BUILD/root/." "$DIST_DIR/"
+cp -r "$TEMP_BUILD/admin" "$DIST_DIR/admin"
+cp -r "$TEMP_BUILD/epet" "$DIST_DIR/epet"
 cp "$SCRIPT_DIR/iot-sql/iot-test.html" "$DIST_DIR/iot-test.html" 2>/dev/null || true
+log "${GREEN}✅ 文件部署完成${NC}"
 
-# 5. 重写根 index.html
+# 5. 校验
 log ""
-log "${YELLOW}🔧 步骤5: 重写根 index.html 指向 admin 入口${NC}"
-ADMIN_JS=$(grep -oE 'index-[A-Za-z0-9_-]+\.js' "$DIST_DIR/admin/index.html" | head -1)
-ADMIN_CSS=$(grep -oE 'index-[A-Za-z0-9_-]+\.css' "$DIST_DIR/admin/index.html" | head -1)
-log "  admin JS: $ADMIN_JS"
-log "  admin CSS: $ADMIN_CSS"
-
-cat > "$DIST_DIR/index.html" << INDEXHTML
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/admin/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MOMOTOY 绒绒庭院 · Admin</title>
-    <script type="module" crossorigin src="/admin/assets/$ADMIN_JS"></script>
-    <link rel="stylesheet" crossorigin href="/admin/assets/$ADMIN_CSS">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
-INDEXHTML
-
-# 6. 修复 admin/index.html
-cat > "$DIST_DIR/admin/index.html" << INDEXHTML
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/admin/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MOMOTOY 绒绒庭院 · Admin</title>
-    <script type="module" crossorigin src="/admin/assets/$ADMIN_JS"></script>
-    <link rel="stylesheet" crossorigin href="/admin/assets/$ADMIN_CSS">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
-INDEXHTML
-
-# 7. 部署后校验
-log ""
-log "${YELLOW}🛡️ 步骤7: 部署后校验${NC}"
+log "${YELLOW}🛡️ 步骤5: 部署后校验${NC}"
 errors=0
 
-if [ -f "$DIST_DIR/index.html" ]; then
-    if grep -qE "MOMOTOY绒绒庭院|/epet/assets/" "$DIST_DIR/index.html"; then
-        log "${RED}❌ 根 index.html 错误指向 epet${NC}"
-        errors=$((errors+1))
+check_file() {
+    local file=$1 local desc=$2
+    if [ -f "$DIST_DIR/$file" ]; then
+        log "${GREEN}✅ $desc 存在${NC}"
     else
-        log "${GREEN}✅ 根 index.html 正常${NC}"
-    fi
-fi
-
-for path in "$DIST_DIR/admin/assets/$ADMIN_JS" "$DIST_DIR/admin/assets/$ADMIN_CSS" "$DIST_DIR/epet/index.html"; do
-    if [ -f "$path" ]; then
-        log "${GREEN}✅ $path 存在${NC}"
-    else
-        log "${RED}❌ $path 不存在${NC}"
+        log "${RED}❌ $desc 不存在${NC}"
         errors=$((errors+1))
     fi
-done
+}
 
-# 8. nginx 配置检查
+check_contains() {
+    local file=$1 local pattern=$2 local desc=$3 local fail_msg=$4
+    if grep -qE "$pattern" "$DIST_DIR/$file" 2>/dev/null; then
+        log "${GREEN}✅ $desc${NC}"
+    else
+        log "${RED}❌ $fail_msg${NC}"
+        errors=$((errors+1))
+    fi
+}
+
+check_file "index.html" "根 index.html"
+check_file "assets/index.css" "根 assets/css"
+check_file "admin/index.html" "admin/index.html"
+check_file "admin/assets/index.css" "admin assets/css"
+check_file "epet/index.html" "epet/index.html"
+
+check_contains "index.html" "/assets/" "根 index.html 指向 /assets/" "根 index.html 未指向 /assets/"
+check_contains "admin/index.html" "/admin/assets/" "admin/index.html 指向 /admin/assets/" "admin 未指向 /admin/assets/"
+check_contains "epet/index.html" "/epet/assets/" "epet/index.html 指向 /epet/assets/" "epet 未指向 /epet/assets/"
+
+# nginx 检查
 log ""
-log "${YELLOW}🔄 步骤8: nginx 配置检查${NC}"
-if nginx -t 2>&1 | tee -a "$LOG_FILE" | tail -3; then
-    log "${GREEN}✅ nginx 配置正确${NC}"
-fi
+log "${YELLOW}🔄 步骤6: nginx 检查${NC}"
+nginx -t 2>&1 | tee -a "$LOG_FILE" | tail -2 && log "${GREEN}✅ nginx 正常${NC}"
 
-# 9. 部署完成
 log ""
 log "${YELLOW}===============================================${NC}"
-if [ $errors -eq 0 ]; then
-    log "${GREEN}🎉 部署成功 $TS${NC}"
-else
-    log "${RED}⚠️ 部署完成但有 $errors 个错误，请检查日志${NC}"
-fi
+[ $errors -eq 0 ] && log "${GREEN}🎉 部署成功 $TS${NC}" || log "${RED}⚠️ 有 $errors 个错误${NC}"
 log "${YELLOW}===============================================${NC}"
 log "日志: $LOG_FILE"
 log ""
-log "📍 部署后访问地址:"
-log "  https://soa.laziestlife.com/         (admin 后台入口)"
-log "  https://soa.laziestlife.com/admin/   (admin 后台)"
-log "  https://soa.laziestlife.com/epet/    (MOMOTOY 绒绒庭院)"
-log "  https://soa.laziestlife.com/iot-test.html"
+log "📍 访问:"
+log "  https://soa.laziestlife.com/     (艾瑟拉奇幻谭)"
+log "  https://soa.laziestlife.com/admin/   (管理后台)"
+log "  https://soa.laziestlife.com/epet/  (MOMOTOY 绒绒庭院)"

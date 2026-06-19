@@ -4,12 +4,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "/epet/",
   plugins: [react()],
-  server: {
-    port: 5173,
-    host: true,
-  },
   build: {
-    outDir: "dist",
-    assetsDir: "assets",
+    outDir: "/tmp/build-temp-623657/epet",
+    emptyOutDir: true,
   },
 });
