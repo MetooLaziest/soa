@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, type ReactNode, type MouseEvent, type KeyboardEvent, type ChangeEvent, type FormEvent } from 'react';
 import { useGameStore } from './store/gameStore';
 import Down100Floors from './games/Down100Floors';
 import Match3 from './games/Match3';
@@ -75,7 +75,7 @@ function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
 }
 
 // ─── Modal 基类 ──────────────────────────────────────────────
-function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+function ModalOverlay({ children, onClose }: { children: ReactNode; onClose: () => void }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
@@ -710,10 +710,10 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   const [traveling, setTraveling] = useState(false);
   const [chatBgUrl, setChatBgUrl] = useState<string | null>(null);
   const [petPulse, setPetPulse] = useState(false);
-  const bubblesRef = React.useRef<HTMLDivElement>(null);
+  const bubblesRef = useRef<HTMLDivElement>(null);
 
   // 消息更新时滚到底
-  React.useEffect(() => {
+  useEffect(() => {
     if (bubblesRef.current) {
       bubblesRef.current.scrollTop = bubblesRef.current.scrollHeight;
     }
@@ -780,7 +780,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   };
 
   /** 抚摸宠物图片 */
-  const handlePetTouch = (e: React.MouseEvent<HTMLImageElement>) => {
+  const handlePetTouch = (e: MouseEvent<HTMLImageElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
