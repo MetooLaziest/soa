@@ -71,3 +71,4 @@ coverage/
 .cache/
 .eslintcache
 .stylelintcache
+backups/snapshots/
