@@ -16,7 +16,7 @@ router.get('/', async (_req, res) => {
       'SELECT * FROM yard_scenes ORDER BY id'
     );
     res.json({ success: true, scenes: rows });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -35,7 +35,7 @@ router.get('/:id', async (req, res) => {
       [sceneId]
     );
     res.json({ success: true, scene, objects });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -53,7 +53,7 @@ router.get('/active/scene', async (_req, res) => {
       [scene.id]
     );
     res.json({ success: true, scene, objects });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
       [name || '新庭院', bg_image_url || '/epet/yard-bg.png', JSON.stringify(walk_bounds || { xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 })]
     );
     res.json({ success: true, scene: row });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -78,8 +78,8 @@ router.put('/:id', async (req, res) => {
   try {
     const sceneId = Number(req.params.id);
     const { name, bg_image_url, walk_bounds, is_active } = req.body;
-    const sets: string[] = [];
-    const vals: any[] = [];
+    const sets = [];
+    const vals = [];
     let idx = 1;
 
     if (name !== undefined) { sets.push(`name = $${idx++}`); vals.push(name); }
@@ -103,7 +103,7 @@ router.put('/:id', async (req, res) => {
     }
 
     res.json({ success: true, scene: row });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -115,7 +115,7 @@ router.delete('/:id', async (req, res) => {
     const { rowCount } = await poolEpet1.query('DELETE FROM yard_scenes WHERE id = $1', [sceneId]);
     if (!rowCount) return res.status(404).json({ error: 'Scene not found' });
     res.json({ success: true });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -135,7 +135,7 @@ router.post('/:sceneId/objects', async (req, res) => {
        image_url || '', collidable ?? false, sort_priority ?? 0]
     );
     res.json({ success: true, object: row });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -146,8 +146,8 @@ router.put('/:sceneId/objects/:objId', async (req, res) => {
     const objId = Number(req.params.objId);
     const sceneId = Number(req.params.sceneId);
     const fields = ['label', 'object_type', 'layer', 'pos_x', 'pos_y', 'width', 'height', 'image_url', 'collidable', 'sort_priority'];
-    const sets: string[] = [];
-    const vals: any[] = [];
+    const sets = [];
+    const vals = [];
     let idx = 1;
 
     for (const f of fields) {
@@ -167,7 +167,7 @@ router.put('/:sceneId/objects/:objId', async (req, res) => {
     );
     if (!row) return res.status(404).json({ error: 'Object not found' });
     res.json({ success: true, object: row });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -183,7 +183,7 @@ router.delete('/:sceneId/objects/:objId', async (req, res) => {
     );
     if (!rowCount) return res.status(404).json({ error: 'Object not found' });
     res.json({ success: true });
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -193,7 +193,7 @@ router.put('/:sceneId/objects', async (req, res) => {
   const client = await poolEpet1.connect();
   try {
     const sceneId = Number(req.params.sceneId);
-    const objects: any[] = req.body.objects;
+    const objects = req.body.objects;
     if (!Array.isArray(objects)) return res.status(400).json({ error: 'objects array required' });
 
     await client.query('BEGIN');
@@ -206,7 +206,7 @@ router.put('/:sceneId/objects', async (req, res) => {
     }
     await client.query('COMMIT');
     res.json({ success: true, updated: objects.length });
-  } catch (e: any) {
+  } catch (e) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: e.message });
   } finally {
