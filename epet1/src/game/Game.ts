@@ -3,8 +3,8 @@ import { PetEntity } from '../entities/Pet';
 import { collisionMap, type SceneObjectData } from './CollisionMap';
 
 // Default walk bounds for PORTRAIT mode (overridden by API scene config)
-// 竖屏：可走区域在画面下方 60%~85% 高度，左右留 8% 边距
-let walkBounds = { xMin: 0.08, xMax: 0.92, yMin: 0.55, yMax: 0.82 };
+// Large range — let scene objects (colliders) limit walking, not hard bounds
+let walkBounds = { xMin: 0.05, xMax: 0.95, yMin: 0.15, yMax: 0.92 };
 
 /** Pet size multiplier: 1.21 = 10% + 10% bigger than original */
 const PET_SIZE_MULT = 1.21;

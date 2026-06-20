@@ -45,7 +45,7 @@ export class PetEntity {
     this.lastInteractAt = pet.lastInteractAt;
     this.totalFeeds = pet.totalFeeds;
     this.totalPets = pet.totalPets;
-    this._walkBounds = { xMin: 0.05, xMax: 0.95, yMin: 0.35, yMax: 0.78 };
+    this._walkBounds = { xMin: 0.05, xMax: 0.95, yMin: 0.15, yMax: 0.92 };
   }
 
   /** Set the walkable area as fractions of viewport (0-1) */
