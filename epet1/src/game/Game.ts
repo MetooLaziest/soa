@@ -1,5 +1,6 @@
 import { Application, Container, Sprite, Assets } from 'pixi.js';
 import { PetEntity } from '../entities/Pet';
+import { collisionMap } from './CollisionMap';
 
 // Walkable area as fractions of viewport (mapped to the yard ground)
 const WALK_BOUNDS = { xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 };
@@ -72,9 +73,12 @@ export class Game {
       this.canopyContainer.label = 'canopy';
       app.stage.addChild(this.canopyContainer);
 
+      // Initialize collision system
+      await collisionMap.init();
+
       app.ticker.add(this._loop.bind(this));
       this._ready = true;
-      console.log('✅ Game initialized');
+      console.log('✅ Game initialized (3-layer + collision)');
     } catch (e) {
       console.error('Game.init failed:', e);
       throw e;

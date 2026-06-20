@@ -1,4 +1,5 @@
 import type { Pet } from '../api/epet';
+import { collisionMap } from '../game/CollisionMap';
 
 export type WanderState = 'idle' | 'walking' | 'shaking' | 'eating';
 
@@ -89,10 +90,26 @@ export class PetEntity {
       } else {
         const step = this._walkSpeed * (vpW / 375); // scale speed to viewport
         const ratio = Math.min(step / dist, 1);
-        this.x += dx * ratio;
-        this.y += dy * ratio;
+        const nextX = this.x + dx * ratio;
+        const nextY = this.y + dy * ratio;
+
+        // Collision check: slide along obstacles
+        const walkable = collisionMap.findWalkable(this.x, this.y, nextX, nextY, vpW, vpH);
+
+        if (walkable.x === this.x && walkable.y === this.y) {
+          // Completely blocked → pick a new target
+          this.state = 'idle';
+          this._idleUntil = now + 500 + Math.random() * 1000;
+        } else {
+          this.x = walkable.x;
+          this.y = walkable.y;
+        }
 
         // Face direction of movement
+        if (Math.abs(this.x - (this.x - dx * ratio)) > 0.3) {
+          this.facingRight = (this.x - (this.x - dx * ratio)) > 0;
+        }
+        // Simplified: face the intended direction
         if (Math.abs(dx) > 0.3) {
           this.facingRight = dx > 0;
         }
