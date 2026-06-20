@@ -6,8 +6,8 @@ import { collisionMap, type SceneObjectData } from './CollisionMap';
 // 竖屏：可走区域在画面下方 60%~85% 高度，左右留 8% 边距
 let walkBounds = { xMin: 0.08, xMax: 0.92, yMin: 0.55, yMax: 0.82 };
 
-/** Pet size multiplier: 1.1 = 10% bigger than before */
-const PET_SIZE_MULT = 1.1;
+/** Pet size multiplier: 1.21 = 10% + 10% bigger than original */
+const PET_SIZE_MULT = 1.21;
 
 function getViewport() {
   return { W: window.innerWidth, H: window.innerHeight };
