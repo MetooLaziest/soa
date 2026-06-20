@@ -336,7 +336,7 @@ export class Game {
       // Load collision obstacles from scene objects
       const objects: SceneObjectData[] = data.objects || [];
       this._sceneObjects = objects;
-      collisionMap.loadFromSceneObjects(objects);
+      await collisionMap.loadFromSceneObjects(objects);
 
       // Render scene objects (trees, fences, etc.)
       await this._renderSceneObjects(objects);
