@@ -4,6 +4,12 @@
  */
 import { Router } from 'express';
 import { poolEpet1 } from '../lib/db.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const router = Router();
 
@@ -211,6 +217,44 @@ router.put('/:sceneId/objects', async (req, res) => {
     res.status(500).json({ error: e.message });
   } finally {
     client.release();
+  }
+});
+
+/** Upload image for scene object */
+router.post('/upload-image', async (req, res) => {
+  try {
+    const { scene_id, object_id, image_data } = req.body;
+    if (!image_data) return res.status(400).json({ error: 'image_data required' });
+
+    // image_data is a base64 data URL
+    const match = image_data.match(/^data:(image\/(png|jpe?g|webp));base64,(.+)$/);
+    if (!match) return res.status(400).json({ error: 'Invalid image data' });
+
+    const ext = match[2].replace('jpeg', 'jpg');
+    const base64 = match[3];
+    const buffer = Buffer.from(base64, 'base64');
+
+    // Save to frontend dist/epet/scene-assets/
+    const dir = join(__dirname, '../../frontend/dist/epet/scene-assets');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const filename = `obj-${object_id || 'new'}-${Date.now()}.${ext}`;
+    const filepath = join(dir, filename);
+    fs.writeFileSync(filepath, buffer);
+
+    const url = `/epet/scene-assets/${filename}`;
+
+    // Update object's image_url if object_id provided
+    if (object_id && scene_id) {
+      await poolEpet1.query(
+        'UPDATE yard_scene_objects SET image_url = $1 WHERE id = $2 AND scene_id = $3',
+        [url, object_id, scene_id]
+      );
+    }
+
+    res.json({ success: true, url });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

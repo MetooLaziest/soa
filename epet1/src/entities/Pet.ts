@@ -53,11 +53,68 @@ export class PetEntity {
     this._walkBounds = b;
   }
 
+  /** Move to a specific position (from user tap) — respects walk bounds & collision */
+  moveTo(targetX: number, targetY: number, vpW: number, vpH: number) {
+    // Clamp to walk bounds
+    const cx = Math.max(vpW * this._walkBounds.xMin, Math.min(vpW * this._walkBounds.xMax, targetX));
+    const cy = Math.max(vpH * this._walkBounds.yMin, Math.min(vpH * this._walkBounds.yMax, targetY));
+
+    // Check if target is walkable
+    if (collisionMap.isLoaded && !collisionMap.isWalkable(cx, cy, vpW, vpH)) {
+      // Target is inside an obstacle — try nearby positions in a spiral
+      const found = this._findNearbyWalkable(cx, cy, vpW, vpH);
+      if (found) {
+        this._targetX = found.x;
+        this._targetY = found.y;
+      } else {
+        return; // no walkable position found, ignore
+      }
+    } else {
+      this._targetX = cx;
+      this._targetY = cy;
+    }
+
+    this._walkSpeed = 0.6 + Math.random() * 0.6;
+    this.state = 'walking';
+    // Cancel idle timer
+    this._idleUntil = Infinity;
+  }
+
+  /** Find a walkable position near (x,y) using spiral search */
+  private _findNearbyWalkable(x: number, y: number, vpW: number, vpH: number): { x: number; y: number } | null {
+    const step = Math.min(vpW, vpH) * 0.03; // 3% of viewport
+    for (let r = 1; r <= 5; r++) {
+      for (let angle = 0; angle < 8 * r; angle++) {
+        const a = (angle / (8 * r)) * Math.PI * 2;
+        const tx = x + Math.cos(a) * step * r;
+        const ty = y + Math.sin(a) * step * r;
+        if (collisionMap.isWalkable(tx, ty, vpW, vpH) &&
+            tx >= vpW * this._walkBounds.xMin && tx <= vpW * this._walkBounds.xMax &&
+            ty >= vpH * this._walkBounds.yMin && ty <= vpH * this._walkBounds.yMax) {
+          return { x: tx, y: ty };
+        }
+      }
+    }
+    return null;
+  }
+
   /** Pick a random target within walkable bounds */
   private _pickTarget(vpW: number, vpH: number) {
-    this._targetX = vpW * (this._walkBounds.xMin + Math.random() * (this._walkBounds.xMax - this._walkBounds.xMin));
-    this._targetY = vpH * (this._walkBounds.yMin + Math.random() * (this._walkBounds.yMax - this._walkBounds.yMin));
-    this._walkSpeed = 0.3 + Math.random() * 0.9; // slower = more leisurely
+    // Try up to 10 times to find a walkable target
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const tx = vpW * (this._walkBounds.xMin + Math.random() * (this._walkBounds.xMax - this._walkBounds.xMin));
+      const ty = vpH * (this._walkBounds.yMin + Math.random() * (this._walkBounds.yMax - this._walkBounds.yMin));
+      if (!collisionMap.isLoaded || collisionMap.isWalkable(tx, ty, vpW, vpH)) {
+        this._targetX = tx;
+        this._targetY = ty;
+        this._walkSpeed = 0.3 + Math.random() * 0.9;
+        return;
+      }
+    }
+    // Fallback: just pick something (shouldn't happen often)
+    this._targetX = vpW * (this._walkBounds.xMin + 0.5 * (this._walkBounds.xMax - this._walkBounds.xMin));
+    this._targetY = vpH * (this._walkBounds.yMin + 0.5 * (this._walkBounds.yMax - this._walkBounds.yMin));
+    this._walkSpeed = 0.3 + Math.random() * 0.9;
   }
 
   update(now: number, vpW: number, vpH: number): void {
@@ -97,7 +154,7 @@ export class PetEntity {
         const walkable = collisionMap.findWalkable(this.x, this.y, nextX, nextY, vpW, vpH);
 
         if (walkable.x === this.x && walkable.y === this.y) {
-          // Completely blocked → pick a new target
+          // Completely blocked → pick a new target after brief pause
           this.state = 'idle';
           this._idleUntil = now + 500 + Math.random() * 1000;
         } else {
@@ -105,11 +162,7 @@ export class PetEntity {
           this.y = walkable.y;
         }
 
-        // Face direction of movement
-        if (Math.abs(this.x - (this.x - dx * ratio)) > 0.3) {
-          this.facingRight = (this.x - (this.x - dx * ratio)) > 0;
-        }
-        // Simplified: face the intended direction
+        // Face direction of actual movement
         if (Math.abs(dx) > 0.3) {
           this.facingRight = dx > 0;
         }
@@ -121,7 +174,7 @@ export class PetEntity {
 
     // Scale based on y-position (lower = closer = larger)
     const yNorm = (this.y - vpH * this._walkBounds.yMin) / (vpH * (this._walkBounds.yMax - this._walkBounds.yMin));
-    this.scale = 0.7 + yNorm * 0.5; // 0.7 (far) to 1.2 (close)
+    this.scale = 0.7 + Math.max(0, Math.min(1, yNorm)) * 0.5; // 0.7 (far) to 1.2 (close)
   }
 
   triggerShake(now: number): void {

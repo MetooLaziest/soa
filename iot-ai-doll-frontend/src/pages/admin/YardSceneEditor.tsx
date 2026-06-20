@@ -369,6 +369,36 @@ export default function YardSceneEditor() {
               <p className="text-[10px] text-gray-500 mt-1">留空=纯碰撞区/占位</p>
             </div>
 
+            {/* Upload image */}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">上传素材图片</label>
+              <input type="file" accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !scene) return;
+                  e.target.value = '';
+                  try {
+                    const reader = new FileReader();
+                    reader.onload = async (ev) => {
+                      const image_data = ev.target?.result as string;
+                      const res = await client.post('/admin/yard-scenes/upload-image', {
+                        scene_id: scene.id,
+                        object_id: selectedObj.id,
+                        image_data,
+                      });
+                      if (res.data?.url) {
+                        updateField('image_url', res.data.url);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  } catch (err) {
+                    setError('上传失败');
+                  }
+                }}
+                className="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-blue-600/30 file:text-blue-300 hover:file:bg-blue-600/50" />
+              <p className="text-[10px] text-gray-500 mt-1">支持 PNG/JPG/WebP，自动保存到服务器</p>
+            </div>
+
             <div>
               <label className="block text-xs text-gray-400 mb-1">排序优先级</label>
               <input type="number" value={selectedObj.sort_priority}

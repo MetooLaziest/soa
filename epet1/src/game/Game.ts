@@ -2,8 +2,9 @@ import { Application, Container, Sprite, Assets } from 'pixi.js';
 import { PetEntity } from '../entities/Pet';
 import { collisionMap, type SceneObjectData } from './CollisionMap';
 
-// Default walk bounds (overridden by API scene config)
-let walkBounds = { xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 };
+// Default walk bounds for PORTRAIT mode (overridden by API scene config)
+// 竖屏：可走区域在画面下方 60%~85% 高度，左右留 8% 边距
+let walkBounds = { xMin: 0.08, xMax: 0.92, yMin: 0.55, yMax: 0.82 };
 
 /** Pet size multiplier: 1.1 = 10% bigger than before */
 const PET_SIZE_MULT = 1.1;
@@ -60,7 +61,6 @@ export class Game {
       this._loadBackground();
 
       // Layer 1: Y-sorted objects (pets, tree trunks, fences, etc.)
-      // Objects with lower Y (farther) are drawn first, higher Y (closer) drawn on top
       this.sortedContainer = new Container();
       this.sortedContainer.label = 'sorted';
       app.stage.addChild(this.sortedContainer);
@@ -81,12 +81,49 @@ export class Game {
       // Load scene config from API
       await this._loadSceneConfig();
 
+      // Click-to-move: tap on empty yard area → pet walks there
+      app.stage.eventMode = 'static';
+      app.stage.hitArea = { contains: () => true }; // entire stage is hit area
+      app.stage.on('pointerdown', (e: any) => {
+        this._handleStageClick(e.globalX, e.globalY);
+      });
+
       app.ticker.add(this._loop.bind(this));
       this._ready = true;
-      console.log('✅ Game initialized (3-layer + collision + scene)');
+      console.log('✅ Game initialized (3-layer + collision + scene + click-to-move)');
     } catch (e) {
       console.error('Game.init failed:', e);
       throw e;
+    }
+  }
+
+  /** Handle click on empty yard area — move the nearest pet to click position */
+  private _handleStageClick(cx: number, cy: number): void {
+    // Check if click hit a pet sprite — if so, ignore (pet tap handled separately)
+    for (const [petId, sprite] of this.petSprites) {
+      const bounds = sprite.getBounds();
+      if (bounds.contains(cx, cy)) {
+        return; // clicked on a pet, don't move
+      }
+    }
+
+    // Find the nearest pet to the click position
+    let nearestPet: PetEntity | null = null;
+    let nearestDist = Infinity;
+    for (const entity of this.petEntities.values()) {
+      const dx = entity.x - cx;
+      const dy = entity.y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestPet = entity;
+      }
+    }
+
+    if (nearestPet) {
+      const { W, H } = getViewport();
+      nearestPet.moveTo(cx, cy, W, H);
+      console.log(`[Game] Click-to-move: ${nearestPet.petId} → (${cx.toFixed(0)}, ${cy.toFixed(0)})`);
     }
   }
 
@@ -105,15 +142,13 @@ export class Game {
       bg.label = 'yard-bg';
 
       const { W, H } = getViewport();
-      // 用 contain 模式：图片完整显示，必要时上下/左右有黑边
-      // 这样横图在竖屏下不会被裁切关键内容
       const scaleX = W / tex.width;
       const scaleY = H / tex.height;
-      const scale = Math.min(scaleX, scaleY);  // ✅ contain 模式
+      const scale = Math.min(scaleX, scaleY);  // contain mode
       bg.scale.set(scale);
-      bg.anchor.set(0.5, 0.5);  // 中心锚点
+      bg.anchor.set(0.5, 0.5);
       bg.x = W / 2;
-      bg.y = H / 2;  // 垂直居中
+      bg.y = H / 2;
 
       this.bgContainer.addChild(bg);
       this._bgLoaded = true;
@@ -128,6 +163,29 @@ export class Game {
 
   get isReady(): boolean {
     return this._ready && this._bgLoaded;
+  }
+
+  /** Find a safe spawn position (not inside an obstacle) */
+  private _findSafeSpawn(vpW: number, vpH: number, preferredX?: number, preferredY?: number): { x: number; y: number } {
+    const x = preferredX ?? vpW * (0.15 + Math.random() * 0.7);
+    const y = preferredY ?? vpH * (0.6 + Math.random() * 0.2);
+
+    // Check if spawn position is walkable
+    if (!collisionMap.isLoaded || collisionMap.isWalkable(x, y, vpW, vpH)) {
+      return { x, y };
+    }
+
+    // Try spiral search for a walkable spot
+    const entity = new PetEntity({ petId: '__spawn_check__', monsterType: '', displayName: '', nfc: '', userId: '', fullness: 50, lastFeedAt: '', lastInteractAt: '', totalFeeds: 0, totalPets: 0, totalPoops: 0, totalCleans: 0, currentPoops: 0, isVisible: true, displayOrder: 0, modelId: '', pet_model_id: 0 } as any);
+    entity.setWalkBounds(walkBounds);
+    const found = (entity as any)._findNearbyWalkable(x, y, vpW, vpH) as { x: number; y: number } | null;
+    if (found) return found;
+
+    // Ultimate fallback: center of walk bounds
+    return {
+      x: vpW * (walkBounds.xMin + walkBounds.xMax) / 2,
+      y: vpH * (walkBounds.yMin + walkBounds.yMax) / 2,
+    };
   }
 
   async addPet(
@@ -165,9 +223,10 @@ export class Game {
     const { W, H } = getViewport();
     entity.setWalkBounds(walkBounds);
 
-    // Initial position
-    entity.x = opts?.x ?? W * (0.15 + Math.random() * 0.7);
-    entity.y = opts?.y ?? H * (0.5 + Math.random() * 0.25);
+    // Find safe spawn position (avoid obstacles)
+    const spawn = this._findSafeSpawn(W, H, opts?.x, opts?.y);
+    entity.x = spawn.x;
+    entity.y = spawn.y;
 
     this.petEntities.set(petId, entity);
 
@@ -185,7 +244,8 @@ export class Game {
       sprite.cursor = 'pointer';
 
       // Tap handler
-      sprite.on('pointerdown', () => {
+      sprite.on('pointerdown', (e: any) => {
+        e.stopPropagation?.(); // prevent stage click
         console.log('[Game] Pet tapped:', petId);
         this._callbacks.onPetTap?.(petId, entity);
       });
@@ -220,7 +280,7 @@ export class Game {
     const sprite = this.petSprites.get(petId);
     if (!sprite || !this.app) return null;
     const g = sprite.getGlobalPosition();
-    return { x: g.x, y: g.y - 40 }; // slightly above sprite
+    return { x: g.x, y: g.y - 40 };
   }
 
   private _loop(): void {
@@ -291,7 +351,7 @@ export class Game {
     const { W, H } = getViewport();
 
     for (const obj of objects) {
-      if (!obj.image_url) continue;  // invisible colliders don't need sprites
+      if (!obj.image_url) continue;
 
       try {
         const base = `${window.location.protocol}//${window.location.host}`;
@@ -301,13 +361,11 @@ export class Game {
 
         const sprite = new Sprite(tex);
         sprite.label = `scene-${obj.id}-${obj.label}`;
-        sprite.anchor.set(0.5, 0.85);  // anchor near feet like pets
+        sprite.anchor.set(0.5, 0.85);
 
-        // Position in viewport
         sprite.x = obj.pos_x * W;
         sprite.y = obj.pos_y * H;
 
-        // Scale to fit the bounding box
         const targetW = obj.width * W;
         const targetH = obj.height * H;
         const scaleX = targetW / tex.width;
@@ -315,7 +373,6 @@ export class Game {
         const s = Math.min(scaleX, scaleY);
         sprite.scale.set(s);
 
-        // Place in correct layer
         if (obj.layer === 0) {
           this.bgContainer.addChild(sprite);
         } else if (obj.layer === 2) {
