@@ -1,9 +1,9 @@
 import { Application, Container, Sprite, Assets } from 'pixi.js';
 import { PetEntity } from '../entities/Pet';
-import { collisionMap } from './CollisionMap';
+import { collisionMap, type SceneObjectData } from './CollisionMap';
 
-// Walkable area as fractions of viewport (mapped to the yard ground)
-const WALK_BOUNDS = { xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 };
+// Default walk bounds (overridden by API scene config)
+let walkBounds = { xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 };
 
 /** Pet size multiplier: 1.1 = 10% bigger than before */
 const PET_SIZE_MULT = 1.1;
@@ -25,6 +25,8 @@ export class Game {
   petContainer: Container | null = null;        // sub-container inside sortedContainer
   petSprites = new Map<string, Sprite>();
   petEntities = new Map<string, PetEntity>();
+  private _sceneObjects: SceneObjectData[] = [];  // from API
+  private _sceneSprites: Sprite[] = [];           // rendered scene object sprites
   private _ready = false;
   private _bgLoaded = false;
   private _callbacks: PetEventCallbacks = {};
@@ -76,9 +78,12 @@ export class Game {
       // Initialize collision system
       await collisionMap.init();
 
+      // Load scene config from API
+      await this._loadSceneConfig();
+
       app.ticker.add(this._loop.bind(this));
       this._ready = true;
-      console.log('✅ Game initialized (3-layer + collision)');
+      console.log('✅ Game initialized (3-layer + collision + scene)');
     } catch (e) {
       console.error('Game.init failed:', e);
       throw e;
@@ -158,7 +163,7 @@ export class Game {
     entity.animations = opts?.animations || {};
 
     const { W, H } = getViewport();
-    entity.setWalkBounds(WALK_BOUNDS);
+    entity.setWalkBounds(walkBounds);
 
     // Initial position
     entity.x = opts?.x ?? W * (0.15 + Math.random() * 0.7);
@@ -252,6 +257,81 @@ export class Game {
     this._ySortPets();
   }
 
+  /** Load scene configuration from API and render scene objects */
+  private async _loadSceneConfig(): Promise<void> {
+    try {
+      const resp = await fetch('/api/epet1/yard/scene');
+      const data = await resp.json();
+      if (!data.success || !data.scene) {
+        console.log('ℹ️ No scene config from API, using defaults');
+        return;
+      }
+
+      // Update walk bounds
+      if (data.scene.walk_bounds) {
+        walkBounds = data.scene.walk_bounds;
+        console.log('✅ Walk bounds from API:', walkBounds);
+      }
+
+      // Load collision obstacles from scene objects
+      const objects: SceneObjectData[] = data.objects || [];
+      this._sceneObjects = objects;
+      collisionMap.loadFromSceneObjects(objects);
+
+      // Render scene objects (trees, fences, etc.)
+      await this._renderSceneObjects(objects);
+    } catch (e) {
+      console.warn('Scene config load failed, using defaults:', e);
+    }
+  }
+
+  /** Render scene objects into the 3-layer system */
+  private async _renderSceneObjects(objects: SceneObjectData[]): Promise<void> {
+    if (!this.bgContainer || !this.sortedContainer || !this.canopyContainer) return;
+    const { W, H } = getViewport();
+
+    for (const obj of objects) {
+      if (!obj.image_url) continue;  // invisible colliders don't need sprites
+
+      try {
+        const base = `${window.location.protocol}//${window.location.host}`;
+        const url = obj.image_url.startsWith('/') ? `${base}${obj.image_url}` : obj.image_url;
+        const tex = await Assets.load(url);
+        if (!tex) continue;
+
+        const sprite = new Sprite(tex);
+        sprite.label = `scene-${obj.id}-${obj.label}`;
+        sprite.anchor.set(0.5, 0.85);  // anchor near feet like pets
+
+        // Position in viewport
+        sprite.x = obj.pos_x * W;
+        sprite.y = obj.pos_y * H;
+
+        // Scale to fit the bounding box
+        const targetW = obj.width * W;
+        const targetH = obj.height * H;
+        const scaleX = targetW / tex.width;
+        const scaleY = targetH / tex.height;
+        const s = Math.min(scaleX, scaleY);
+        sprite.scale.set(s);
+
+        // Place in correct layer
+        if (obj.layer === 0) {
+          this.bgContainer.addChild(sprite);
+        } else if (obj.layer === 2) {
+          this.canopyContainer.addChild(sprite);
+        } else {
+          this.sortedContainer.addChild(sprite);
+        }
+
+        this._sceneSprites.push(sprite);
+        console.log(`  🎨 Scene object: ${obj.label} (L${obj.layer}) at (${obj.pos_x.toFixed(2)}, ${obj.pos_y.toFixed(2)})`);
+      } catch (e) {
+        console.warn(`  Failed to load scene object: ${obj.label}`, e);
+      }
+    }
+  }
+
   /** Sort petContainer children by Y position (lower Y = farther = drawn first) */
   private _ySortPets(): void {
     if (!this.petContainer) return;
@@ -269,6 +349,8 @@ export class Game {
     this.sortedContainer = null;
     this.canopyContainer = null;
     this.petContainer = null;
+    this._sceneObjects = [];
+    this._sceneSprites = [];
     this._ready = false;
     this._bgLoaded = false;
   }

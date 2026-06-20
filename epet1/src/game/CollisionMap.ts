@@ -1,5 +1,20 @@
 import { Assets, Texture, Sprite, CanvasSource } from 'pixi.js';
 
+/** Scene object from API */
+export interface SceneObjectData {
+  id: number;
+  label: string;
+  object_type: string;
+  layer: number;
+  pos_x: number;
+  pos_y: number;
+  width: number;
+  height: number;
+  image_url: string;
+  collidable: boolean;
+  sort_priority: number;
+}
+
 /**
  * Collision system for the yard scene.
  *
@@ -54,6 +69,21 @@ export class CollisionMap {
   /** Custom obstacles override (e.g. from API config) */
   setObstacles(obs: RectObstacle[]) {
     this._obstacles = obs;
+  }
+
+  /** Load obstacles from API scene objects */
+  loadFromSceneObjects(objects: SceneObjectData[]) {
+    const obs: RectObstacle[] = objects
+      .filter(o => o.collidable)
+      .map(o => ({
+        xMin: o.pos_x - o.width / 2,
+        yMin: o.pos_y - o.height / 2,
+        xMax: o.pos_x + o.width / 2,
+        yMax: o.pos_y + o.height / 2,
+        label: o.label,
+      }));
+    this._obstacles = obs;
+    console.log(`✅ Collision: loaded ${obs.length} obstacles from API`);
   }
 
   /** Try loading a collision map PNG; falls back to rect mode */

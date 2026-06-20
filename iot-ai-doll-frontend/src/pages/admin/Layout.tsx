@@ -18,6 +18,7 @@ const navItems = [
   { key: 'pets', label: '宠物实体管理', icon: '🐾', path: '/admin/pets' },
   { key: 'rag', label: 'RAG 知识库管理', icon: '📚', path: '/admin/rag' },
   { key: 'minigame-assets', label: '美术素材', icon: '🎨', path: '/admin/minigame-assets' },
+  { key: 'yard-editor', label: '庭院地图编辑', icon: '🗺️', path: '/admin/yard-editor' },
 ];
 
 export default function AdminLayout() {

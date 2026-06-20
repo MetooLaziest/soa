@@ -24,6 +24,7 @@ import SystemConfig from './pages/admin/SystemConfig';
 import MiniGameAssets from './pages/admin/MiniGameAssets';
 import PetEntities from './pages/admin/PetEntities';
 import CompanionEdit from './pages/admin/CompanionEdit';
+import YardSceneEditor from './pages/admin/YardSceneEditor';
 import CompanionRAG from './pages/admin/CompanionRAG';
 import RAGList from './pages/admin/RAGKnowledgeBases';
 import RAGEdit from './pages/admin/RAGEdit';
@@ -89,6 +90,7 @@ export default function App() {
           <Route path="rag" element={<RAGList />} />
           <Route path="rag/new" element={<RAGEdit />} />
           <Route path="rag/:id/edit" element={<RAGEdit />} />
+          <Route path="yard-editor" element={<YardSceneEditor />} />
         </Route>
 
         {/* 兜底 */}

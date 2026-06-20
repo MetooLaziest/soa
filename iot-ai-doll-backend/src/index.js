@@ -19,6 +19,7 @@ import adminDevicesRoutes from './routes/admin-devices.js';
 import adminPetsRoutes from './routes/admin-pets.js';
 import adminRagRoutes from './routes/admin-rag.js';
 import adminModelsRoutes from './routes/admin-models.js';
+import adminYardScenesRoutes from './routes/admin-yard-scenes.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -62,7 +63,11 @@ app.use('/api/admin/devices', adminDevicesRoutes);
 app.use('/api/admin/pets', adminPetsRoutes);
 app.use('/api/admin/rag-kbs', adminRagRoutes);
 app.use('/api/admin/models', adminModelsRoutes);
+app.use('/api/admin/yard-scenes', adminYardScenesRoutes);
 
+
+// ========== EPET1 公开接口（无需admin权限）==========
+app.use('/api/epet1/yard', requireCjs('./routes-epet1/yard-scene.cjs')(poolEpet1));
 
 // ========== EPET1 路由注册（与原 epet1-backend 3001 端口完全等价）==========
 app.use('/api/epet1/user',      requireCjs('./routes-epet1/users.cjs')(poolEpet1));
