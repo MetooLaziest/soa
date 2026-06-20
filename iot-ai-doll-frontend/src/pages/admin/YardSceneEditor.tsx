@@ -249,7 +249,7 @@ export default function YardSceneEditor() {
                 className="absolute group"
                 style={{
                   left: `${(obj.pos_x - obj.width / 2) * 100}%`,
-                  top: `${(obj.pos_y - obj.height / 2) * 100}%`,
+                  top: `${(obj.pos_y - obj.height * 0.85) * 100}%`,
                   width: `${obj.width * 100}%`,
                   height: `${obj.height * 100}%`,
                   border: isSelected ? SELECTED_BORDER : (isCollider ? `1px dashed ${COLLIDER_BORDER}` : '1px solid rgba(255,255,255,0.1)'),

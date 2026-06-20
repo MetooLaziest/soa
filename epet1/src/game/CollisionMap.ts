@@ -71,15 +71,19 @@ export class CollisionMap {
     this._obstacles = obs;
   }
 
-  /** Load obstacles from API scene objects */
+  /** Load obstacles from API scene objects
+   *  Anchor is (0.5, 0.85) — pos_y = foot position, not center.
+   *  Visual top = pos_y - height*0.85, visual bottom = pos_y + height*0.15
+   *  Collision rect matches the visual sprite bounds.
+   */
   loadFromSceneObjects(objects: SceneObjectData[]) {
     const obs: RectObstacle[] = objects
       .filter(o => o.collidable)
       .map(o => ({
         xMin: o.pos_x - o.width / 2,
-        yMin: o.pos_y - o.height / 2,
+        yMin: o.pos_y - o.height * 0.85,
         xMax: o.pos_x + o.width / 2,
-        yMax: o.pos_y + o.height / 2,
+        yMax: o.pos_y + o.height * 0.15,
         label: o.label,
       }));
     this._obstacles = obs;
