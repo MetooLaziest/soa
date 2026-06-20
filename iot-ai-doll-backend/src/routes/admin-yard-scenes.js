@@ -235,7 +235,8 @@ router.post('/upload-image', async (req, res) => {
     const buffer = Buffer.from(base64, 'base64');
 
     // Save to frontend dist/epet/scene-assets/
-    const dir = join(__dirname, '../../frontend/dist/epet/scene-assets');
+    // __dirname = .../backend/src/routes/ → need ../../../frontend/dist/epet/scene-assets/
+    const dir = join(__dirname, '../../../frontend/dist/epet/scene-assets');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     const filename = `obj-${object_id || 'new'}-${Date.now()}.${ext}`;

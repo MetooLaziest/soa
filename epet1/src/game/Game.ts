@@ -101,8 +101,8 @@ export class Game {
   private _handleStageClick(cx: number, cy: number): void {
     // Check if click hit a pet sprite — if so, ignore (pet tap handled separately)
     for (const [petId, sprite] of this.petSprites) {
-      const bounds = sprite.getBounds();
-      if (bounds.contains(cx, cy)) {
+      const b = sprite.getBounds();
+      if (cx >= b.x && cx <= b.x + b.width && cy >= b.y && cy <= b.y + b.height) {
         return; // clicked on a pet, don't move
       }
     }
