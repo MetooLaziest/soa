@@ -1,8 +1,11 @@
 import { Application, Container, Sprite, Assets } from 'pixi.js';
 import { PetEntity } from '../entities/Pet';
 
-// Walkable area as fractions of viewport (mapped to the treehouse ground)
+// Walkable area as fractions of viewport (mapped to the yard ground)
 const WALK_BOUNDS = { xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 };
+
+/** Pet size multiplier: 1.1 = 10% bigger than before */
+const PET_SIZE_MULT = 1.1;
 
 function getViewport() {
   return { W: window.innerWidth, H: window.innerHeight };
@@ -15,8 +18,10 @@ export interface PetEventCallbacks {
 
 export class Game {
   app: Application | null = null;
-  bgContainer: Container | null = null;
-  petContainer: Container | null = null;
+  bgContainer: Container | null = null;        // Layer 0: background (sky/ground)
+  sortedContainer: Container | null = null;     // Layer 1: Y-sorted objects (pets, tree trunks, fences)
+  canopyContainer: Container | null = null;     // Layer 2: always-on-top (tree canopies)
+  petContainer: Container | null = null;        // sub-container inside sortedContainer
   petSprites = new Map<string, Sprite>();
   petEntities = new Map<string, PetEntity>();
   private _ready = false;
@@ -44,16 +49,28 @@ export class Game {
       });
       this.app = app;
 
-      // Layer 0: Background
+      // Layer 0: Background (sky, ground, distant scenery)
       this.bgContainer = new Container();
       app.stage.addChild(this.bgContainer);
 
-      // Load treehouse background
+      // Load yard background
       this._loadBackground();
 
-      // Layer 1: Pets
+      // Layer 1: Y-sorted objects (pets, tree trunks, fences, etc.)
+      // Objects with lower Y (farther) are drawn first, higher Y (closer) drawn on top
+      this.sortedContainer = new Container();
+      this.sortedContainer.label = 'sorted';
+      app.stage.addChild(this.sortedContainer);
+
+      // Pet sub-container lives inside sortedContainer so Y-sort includes them
       this.petContainer = new Container();
-      app.stage.addChild(this.petContainer);
+      this.petContainer.label = 'pets';
+      this.sortedContainer.addChild(this.petContainer);
+
+      // Layer 2: Canopy / always-on-top (tree canopies, roof eaves)
+      this.canopyContainer = new Container();
+      this.canopyContainer.label = 'canopy';
+      app.stage.addChild(this.canopyContainer);
 
       app.ticker.add(this._loop.bind(this));
       this._ready = true;
@@ -207,7 +224,7 @@ export class Game {
       const sprite = this.petSprites.get(petId);
       if (!sprite) return;
 
-      const baseSize = Math.min(80, W * 0.12);
+      const baseSize = Math.min(80, W * 0.12) * PET_SIZE_MULT;
       const s = (baseSize * entity.scale) / (sprite.texture.width || 1);
       sprite.scale.set(
         entity.facingRight ? Math.abs(s) : -Math.abs(s),
@@ -226,12 +243,27 @@ export class Game {
         sprite.rotation = 0;
       }
     });
+
+    // Y-sort: arrange pet sprites by foot Y so closer pets overlap farther ones
+    this._ySortPets();
+  }
+
+  /** Sort petContainer children by Y position (lower Y = farther = drawn first) */
+  private _ySortPets(): void {
+    if (!this.petContainer) return;
+    const children = [...this.petContainer.children];
+    children.sort((a, b) => a.y - b.y);
+    for (let i = 0; i < children.length; i++) {
+      this.petContainer.addChildAt(children[i], i);
+    }
   }
 
   destroy(): void {
     this.app?.destroy(true, { children: true });
     this.app = null;
     this.bgContainer = null;
+    this.sortedContainer = null;
+    this.canopyContainer = null;
     this.petContainer = null;
     this._ready = false;
     this._bgLoaded = false;
