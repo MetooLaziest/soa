@@ -34,8 +34,8 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// 资源基础目录 (与 dist/assets/pets 路径匹配 DB image_url)
-const ASSETS_BASE = '/var/www/iot-ai-doll/frontend/dist/assets/pets';
+// 资源基础目录 (隔离目录，部署不受影响)
+const ASSETS_BASE = '/var/www/iot-ai-doll/epet-assets/pets';
 
 // 上传中间件: 临时目录
 const upload = multer({

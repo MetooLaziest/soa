@@ -9,8 +9,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const router = express.Router();
 
-// 素材根目录
-const EPET_ASSETS_BASE = '/var/www/iot-ai-doll/frontend/dist/epet/assets';
+// 素材根目录（隔离目录，部署不受影响）
+const EPET_ASSETS_BASE = '/var/www/iot-ai-doll/epet-assets';
 const ASSET_TYPES = ['bg', 'cg', 'pets', 'ui', 'fx', 'game-assets', 'chat-bgs', 'art-assets'];
 
 // 确保目录存在
@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
   try {
     const type = req.query.type || 'game-assets';
     const dirPath = type === 'game-assets' 
-      ? join(EPET_ASSETS_BASE, '..') 
+      ? EPET_ASSETS_BASE 
       : join(EPET_ASSETS_BASE, type);
     
     await ensureDir(dirPath);
@@ -71,7 +71,7 @@ router.get('/', async (req, res) => {
         const s = await stat(filePath);
         if (s.isFile()) {
           const urlPath = type === 'game-assets' 
-            ? '/epet/' + name 
+            ? '/epet/assets/' + name 
             : '/epet/assets/' + type + '/' + name;
           assets.push({
             name, url: urlPath, type,
@@ -102,7 +102,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     // 移动文件到正确分类目录
     const targetDir = validType === 'game-assets'
-      ? join(EPET_ASSETS_BASE, '..')
+      ? EPET_ASSETS_BASE
       : join(EPET_ASSETS_BASE, validType);
     await ensureDir(targetDir);
     const targetPath = join(targetDir, req.file.filename);
@@ -114,7 +114,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     const urlPath = validType === 'game-assets'
-      ? '/epet/' + req.file.filename
+      ? '/epet/assets/' + req.file.filename
       : '/epet/assets/' + validType + '/' + req.file.filename;
 
     console.log('[game-assets] uploaded:', validType, req.file.filename);
@@ -145,7 +145,7 @@ router.delete('/:type/:name', async (req, res) => {
     }
 
     const dirPath = type === 'game-assets' 
-      ? join(EPET_ASSETS_BASE, '..') 
+      ? EPET_ASSETS_BASE 
       : join(EPET_ASSETS_BASE, type);
     await unlink(join(dirPath, name));
     
@@ -157,18 +157,18 @@ router.delete('/:type/:name', async (req, res) => {
   }
 });
 
-// 互动页背景文件: dist/epet/chat-bg.png
-const CHAT_BG_PATH = join(EPET_ASSETS_BASE, '..', 'chat-bg.png');
+// 互动页背景文件
+const CHAT_BG_PATH = join(EPET_ASSETS_BASE, 'chat-bg.png');
 
 // GET /api/game-assets/config - 返回当前 yard-bg / chat-bg 是否就绪 + URL
 router.get('/config', async (req, res) => {
   try {
-    const yardExists = await stat(join(EPET_ASSETS_BASE, '..', 'yard-bg.png')).then(() => true).catch(() => false);
+    const yardExists = await stat(join(EPET_ASSETS_BASE, 'yard-bg.png')).then(() => true).catch(() => false);
     const chatExists = await stat(CHAT_BG_PATH).then(() => true).catch(() => false);
     res.json({
       ok: true,
-      yardBg: yardExists ? '/epet/yard-bg.png' : null,
-      chatBg: chatExists ? '/epet/chat-bg.png' : null,
+      yardBg: yardExists ? '/epet/assets/yard-bg.png' : null,
+      chatBg: chatExists ? '/epet/assets/chat-bg.png' : null,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -185,12 +185,12 @@ router.post('/set-chat-bg', async (req, res) => {
     }
 
     const sourceDir = type === 'game-assets'
-      ? join(EPET_ASSETS_BASE, '..')
+      ? EPET_ASSETS_BASE
       : join(EPET_ASSETS_BASE, type);
     const sourcePath = join(sourceDir, filename);
     await copyFile(sourcePath, CHAT_BG_PATH);
     console.log('[game-assets] set as chat-bg:', filename);
-    res.json({ ok: true, message: '已设为互动页背景', target: '/epet/chat-bg.png' });
+    res.json({ ok: true, message: '已设为互动页背景', target: '/epet/assets/chat-bg.png' });
   } catch (err) {
     console.error('[game-assets] set-chat-bg error:', err.message);
     res.status(500).json({ error: err.message });
@@ -205,14 +205,14 @@ router.post('/set-yard-bg', async (req, res) => {
     if (/[\/\\.]{2,}/.test(filename)) return res.status(400).json({ error: '非法文件名' });
 
     const sourceDir = type === 'game-assets' 
-      ? join(EPET_ASSETS_BASE, '..') 
+      ? EPET_ASSETS_BASE 
       : join(EPET_ASSETS_BASE, type);
     const sourcePath = join(sourceDir, filename);
-    const targetPath = join(EPET_ASSETS_BASE, '..', 'yard-bg.png');
+    const targetPath = join(EPET_ASSETS_BASE, 'yard-bg.png');
 
     await copyFile(sourcePath, targetPath);
     console.log('[game-assets] set as yard-bg:', filename);
-    res.json({ ok: true, message: '已设为庭院背景', target: '/epet/yard-bg.png' });
+    res.json({ ok: true, message: '已设为庭院背景', target: '/epet/assets/yard-bg.png' });
   } catch (err) {
     console.error('[game-assets] set-yard-bg error:', err.message);
     res.status(500).json({ error: err.message });

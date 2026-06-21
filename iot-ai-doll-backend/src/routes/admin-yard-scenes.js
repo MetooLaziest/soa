@@ -234,16 +234,15 @@ router.post('/upload-image', async (req, res) => {
     const base64 = match[3];
     const buffer = Buffer.from(base64, 'base64');
 
-    // Save to frontend dist/epet/scene-assets/
-    // __dirname = .../backend/src/routes/ → need ../../../frontend/dist/epet/scene-assets/
-    const dir = join(__dirname, '../../../frontend/dist/epet/scene-assets');
+    // Save to isolated assets directory (deployment-safe)
+    const dir = '/var/www/iot-ai-doll/epet-assets/scene-assets';
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     const filename = `obj-${object_id || 'new'}-${Date.now()}.${ext}`;
     const filepath = join(dir, filename);
     fs.writeFileSync(filepath, buffer);
 
-    const url = `/epet/scene-assets/${filename}`;
+    const url = `/epet/assets/scene-assets/${filename}`;
 
     // Update object's image_url if object_id provided
     if (object_id && scene_id) {
