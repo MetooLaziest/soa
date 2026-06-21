@@ -23,6 +23,7 @@ import adminYardScenesRoutes from './routes/admin-yard-scenes.js';
 import epetFishingRoutes from './routes/epet-fishing.js';
 import epetInventoryRoutes from './routes/epet-inventory.js';
 import epetShop2Routes from './routes/epet-shop2.js';
+import epetSpotdiffRoutes from './routes/epet-spotdiff.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -86,6 +87,7 @@ app.use('/api/epet1/admin',      requireCjs('./routes-epet1/admin.cjs')(poolEpet
 app.use('/api/epet1/fishing',    epetFishingRoutes);
 app.use('/api/epet1/inventory',  epetInventoryRoutes);
 app.use('/api/epet1/shop2',     epetShop2Routes);
+app.use('/api/epet1/spotdiff',  epetSpotdiffRoutes);
 // 静态文件服务（前端构建产物）
 app.use(express.static(join(__dirname, '../frontend')));
 app.get('*', (req, res) => {

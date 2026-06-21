@@ -2,30 +2,64 @@ import { useState, useEffect, useCallback } from 'react';
 import GameFullscreen from './GameFullscreen';
 
 /**
- * 找不同 - 全屏 + 左右/上下对比
- * 用 canvas 绘制两张图，第二张有若干处不同
- * 点击找出所有不同之处
+ * 找不同 - 全屏 + 上下对比
+ * 从API加载关卡（双图 + 不同点坐标），随机选择3关
  */
 
 interface DiffSpot {
-  x: number;       // 百分比坐标 0-100
+  x: number;       // 百分比 0-100
   y: number;
-  radius: number;   // 检测半径(px)
-  found: boolean;
+  radius: number;
   label: string;
+  found?: boolean;
 }
 
-// 预设关卡：每关有不同的元素布局，第二张图有变化
-const ROUNDS: {
-  title: string;
-  bgGradient: [string, string];
-  elements: { emoji: string; x: number; y: number; size: number }[];
-  diffs: Omit<DiffSpot, 'found'>[];
-  // diffs 描述第二张图相比第一张图的变化
-}[] = [
+interface Level {
+  id: number;
+  name: string;
+  image_a_url: string;
+  image_b_url: string;
+  diff_spots: DiffSpot[];
+}
+
+// 内置备用关卡（当API无数据时使用）
+const FALLBACK_ROUNDS: Level[] = [
   {
-    title: '庭院寻宝',
-    bgGradient: ['#4a7c59', '#2d5a3f'],
+    id: 0, name: '庭院寻宝', image_a_url: '', image_b_url: '',
+    diff_spots: [
+      { x: 50, y: 25, radius: 25, label: '房子' },
+      { x: 20, y: 35, radius: 22, label: '树' },
+      { x: 30, y: 55, radius: 18, label: '花' },
+      { x: 65, y: 45, radius: 16, label: '蝴蝶' },
+      { x: 25, y: 10, radius: 18, label: '天气' },
+    ],
+  },
+  {
+    id: 0, name: '海底世界', image_a_url: '', image_b_url: '',
+    diff_spots: [
+      { x: 30, y: 30, radius: 20, label: '鱼' },
+      { x: 70, y: 45, radius: 20, label: '珊瑚' },
+      { x: 50, y: 60, radius: 24, label: '章鱼' },
+      { x: 40, y: 80, radius: 16, label: '海星' },
+      { x: 25, y: 50, radius: 18, label: '河豚' },
+    ],
+  },
+  {
+    id: 0, name: '星空夜景', image_a_url: '', image_b_url: '',
+    diff_spots: [
+      { x: 75, y: 15, radius: 22, label: '月亮' },
+      { x: 25, y: 20, radius: 16, label: '星星' },
+      { x: 55, y: 12, radius: 16, label: '流星' },
+      { x: 20, y: 60, radius: 20, label: '树' },
+      { x: 50, y: 72, radius: 18, label: '帐篷' },
+    ],
+  },
+];
+
+// 内置场景 emoji（当无图片时用 emoji 渲染）
+const SCENE_EMOJIS: Record<string, { bg: [string, string]; elements: { emoji: string; x: number; y: number; size: number }[] }> = {
+  '庭院寻宝': {
+    bg: ['#4a7c59', '#2d5a3f'],
     elements: [
       { emoji: '🏠', x: 50, y: 25, size: 48 },
       { emoji: '🌳', x: 20, y: 35, size: 36 },
@@ -36,17 +70,9 @@ const ROUNDS: {
       { emoji: '🌤️', x: 25, y: 10, size: 32 },
       { emoji: '🦋', x: 65, y: 45, size: 22 },
     ],
-    diffs: [
-      { x: 50, y: 25, radius: 25, label: '房子变了' },     // 🏠 → 🏰
-      { x: 20, y: 35, radius: 22, label: '树变了' },       // 🌳 → 🎄
-      { x: 30, y: 55, radius: 18, label: '花变了' },       // 🌸 → 🌺
-      { x: 65, y: 45, radius: 16, label: '蝴蝶变了' },     // 🦋 → 🐝
-      { x: 25, y: 10, radius: 18, label: '天气变了' },     // 🌤️ → 🌙
-    ],
   },
-  {
-    title: '海底世界',
-    bgGradient: ['#1a6b8a', '#0d3d56'],
+  '海底世界': {
+    bg: ['#1a6b8a', '#0d3d56'],
     elements: [
       { emoji: '🐠', x: 30, y: 30, size: 32 },
       { emoji: '🐠', x: 70, y: 45, size: 32 },
@@ -57,17 +83,9 @@ const ROUNDS: {
       { emoji: '🐚', x: 60, y: 82, size: 24 },
       { emoji: '🐡', x: 25, y: 50, size: 28 },
     ],
-    diffs: [
-      { x: 30, y: 30, radius: 20, label: '鱼变色了' },
-      { x: 70, y: 45, radius: 20, label: '鱼不见了' },
-      { x: 50, y: 60, radius: 24, label: '章鱼变了' },
-      { x: 40, y: 80, radius: 16, label: '海星变了' },
-      { x: 25, y: 50, radius: 18, label: '河豚变了' },
-    ],
   },
-  {
-    title: '星空夜景',
-    bgGradient: ['#1a1a3e', '#0a0a1a'],
+  '星空夜景': {
+    bg: ['#1a1a3e', '#0a0a1a'],
     elements: [
       { emoji: '🌙', x: 75, y: 15, size: 36 },
       { emoji: '⭐', x: 25, y: 20, size: 22 },
@@ -78,49 +96,59 @@ const ROUNDS: {
       { emoji: '🌲', x: 80, y: 62, size: 32 },
       { emoji: '🏕️', x: 50, y: 72, size: 28 },
     ],
-    diffs: [
-      { x: 75, y: 15, radius: 22, label: '月亮变了' },
-      { x: 25, y: 20, radius: 16, label: '星星变了' },
-      { x: 55, y: 12, radius: 16, label: '星星变了' },
-      { x: 20, y: 60, radius: 20, label: '树变了' },
-      { x: 50, y: 72, radius: 18, label: '帐篷变了' },
-    ],
   },
-];
+};
 
-// 第二张图的替换 emoji（按 diff 索引映射）
-const SWAP_EMOJIS: string[][] = [
-  ['🏰', '🎄', '🌺', '🐝', '🌙'],
-  ['🐟', '🫧', '🦑', '💫', '🐬'],
-  ['🌕', '✨', '💫', '🎄', '⛺'],
-];
+const SWAP_MAPS: Record<string, Record<number, string>> = {
+  '庭院寻宝': { 0: '🏰', 1: '🎄', 2: '🌺', 3: '🐝', 4: '🌙' },
+  '海底世界': { 0: '🐟', 1: '🫧', 2: '🦑', 3: '💫', 4: '🐬' },
+  '星空夜景': { 0: '🌕', 1: '✨', 2: '💫', 3: '🎄', 4: '⛺' },
+};
 
 export default function SpotDifference({ onScore }: { onScore: (s: number) => void }) {
-  const [currentRound, setCurrentRound] = useState(0);
+  const [levels, setLevels] = useState<Level[]>([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [diffs, setDiffs] = useState<DiffSpot[]>([]);
   const [foundCount, setFoundCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
-  const [showHint, setShowHint] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const round = ROUNDS[currentRound];
-  const totalDiffs = round.diffs.length;
+  const currentLevel = levels[currentIdx];
+  const totalDiffs = diffs.length;
+
+  // 加载关卡
+  useEffect(() => {
+    fetch('/api/epet1/spotdiff/levels?count=3')
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.levels?.length > 0) {
+          setLevels(data.levels);
+        } else {
+          setLevels(FALLBACK_ROUNDS);
+        }
+      })
+      .catch(() => setLevels(FALLBACK_ROUNDS))
+      .finally(() => setLoading(false));
+  }, []);
 
   const initRound = useCallback(() => {
-    const newDiffs = ROUNDS[currentRound].diffs.map(d => ({ ...d, found: false }));
+    if (!currentLevel) return;
+    const newDiffs = (currentLevel.diff_spots || []).map(d => ({ ...d, found: false }));
     setDiffs(newDiffs);
     setFoundCount(0);
     setTimeLeft(60);
     setGameOver(false);
-    setShowHint(false);
-  }, [currentRound]);
+  }, [currentLevel]);
 
-  useEffect(() => { initRound(); }, [initRound]);
+  useEffect(() => {
+    if (currentLevel) initRound();
+  }, [currentLevel, initRound]);
 
   // 倒计时
   useEffect(() => {
-    if (gameOver || foundCount >= totalDiffs) return;
+    if (gameOver || foundCount >= totalDiffs || totalDiffs === 0) return;
     const timer = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) { setGameOver(true); return 0; }
@@ -130,14 +158,12 @@ export default function SpotDifference({ onScore }: { onScore: (s: number) => vo
     return () => clearInterval(timer);
   }, [gameOver, foundCount, totalDiffs]);
 
-  // 点击检测
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (gameOver || foundCount >= totalDiffs) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const px = ((e.clientX - rect.left) / rect.width) * 100;
     const py = ((e.clientY - rect.top) / rect.height) * 100;
 
-    // 检查是否点中未发现的不同
     const hitIdx = diffs.findIndex(d =>
       !d.found &&
       Math.sqrt((d.x - px) ** 2 + (d.y - py) ** 2) < (d.radius / rect.width * 100 + 5)
@@ -156,45 +182,41 @@ export default function SpotDifference({ onScore }: { onScore: (s: number) => vo
         const newScore = score + roundScore;
         setScore(newScore);
 
-        if (currentRound >= ROUNDS.length - 1) {
-          // 最后一关
+        if (currentIdx >= levels.length - 1) {
           setTimeout(() => setGameOver(true), 800);
         } else {
-          setTimeout(() => {
-            setCurrentRound(r => r + 1);
-          }, 1200);
+          setTimeout(() => setCurrentIdx(i => i + 1), 1200);
         }
       }
     }
   };
 
-  // 渲染场景
-  const renderScene = (isModified: boolean) => {
-    const round = ROUNDS[currentRound];
+  // 渲染 emoji 场景（备用）
+  const renderEmojiScene = (isModified: boolean) => {
+    const name = currentLevel.name;
+    const scene = SCENE_EMOJIS[name];
+    if (!scene) return null;
+
     return (
       <div style={{
         position: 'relative', width: '100%', height: '100%',
-        background: `linear-gradient(180deg, ${round.bgGradient[0]}, ${round.bgGradient[1]})`,
+        background: `linear-gradient(180deg, ${scene.bg[0]}, ${scene.bg[1]})`,
         borderRadius: 12, overflow: 'hidden',
       }}>
-        {round.elements.map((el, i) => {
-          // 如果这是修改版，检查是否有 diff 对应这个元素
+        {scene.elements.map((el, i) => {
           let emoji = el.emoji;
           if (isModified) {
-            const diffIdx = round.diffs.findIndex(d => {
-              return Math.abs(d.x - el.x) < 3 && Math.abs(d.y - el.y) < 3;
-            });
+            const diffIdx = currentLevel.diff_spots.findIndex(d =>
+              Math.abs(d.x - el.x) < 3 && Math.abs(d.y - el.y) < 3
+            );
             if (diffIdx >= 0) {
-              emoji = SWAP_EMOJIS[currentRound]?.[diffIdx] || '❓';
+              emoji = SWAP_MAPS[name]?.[diffIdx] || '❓';
             }
           }
           return (
             <div key={i} style={{
-              position: 'absolute',
-              left: `${el.x}%`, top: `${el.y}%`,
-              transform: 'translate(-50%, -50%)',
-              fontSize: el.size,
-              lineHeight: 1,
+              position: 'absolute', left: `${el.x}%`, top: `${el.y}%`,
+              transform: 'translate(-50%, -50%)', fontSize: el.size, lineHeight: 1,
               filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
             }}>
               {emoji}
@@ -204,6 +226,24 @@ export default function SpotDifference({ onScore }: { onScore: (s: number) => vo
       </div>
     );
   };
+
+  // 渲染图片场景
+  const renderImageScene = (url: string) => (
+    <img src={url} alt="" style={{
+      width: '100%', height: '100%', objectFit: 'contain',
+      borderRadius: 12, background: '#1a1a2e',
+    }} />
+  );
+
+  const hasImages = currentLevel?.image_a_url && currentLevel?.image_b_url;
+
+  if (loading) {
+    return (
+      <GameFullscreen onClose={() => onScore(0)}>
+        <div style={{ color: '#fff', textAlign: 'center' }}>加载中...</div>
+      </GameFullscreen>
+    );
+  }
 
   return (
     <GameFullscreen onClose={() => onScore(score)}>
@@ -216,26 +256,16 @@ export default function SpotDifference({ onScore }: { onScore: (s: number) => vo
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginBottom: 8, padding: '0 4px',
         }}>
-          <span style={{ fontSize: 15, fontWeight: 700 }}>🔍 {round.title}</span>
+          <span style={{ fontSize: 15, fontWeight: 700 }}>🔍 {currentLevel?.name || '找不同'}</span>
           <span style={{ fontSize: 14, color: '#FFD700' }}>🏆 {score}分</span>
         </div>
         <div style={{
           display: 'flex', justifyContent: 'space-between', marginBottom: 8,
           padding: '0 4px', fontSize: 13, color: 'rgba(255,255,255,0.7)',
         }}>
-          <span>第 {currentRound + 1}/{ROUNDS.length} 关</span>
+          <span>第 {currentIdx + 1}/{levels.length} 关</span>
           <span style={{ color: timeLeft <= 10 ? '#ff6b6b' : '#FFD700' }}>⏱️ {timeLeft}s</span>
           <span>已找到 {foundCount}/{totalDiffs}</span>
-        </div>
-
-        {/* 提示按钮 */}
-        <div style={{ textAlign: 'center', marginBottom: 6 }}>
-          <button onClick={() => setShowHint(h => !h)} style={{
-            background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 12,
-            color: '#FFD700', fontSize: 12, padding: '3px 12px', cursor: 'pointer',
-          }}>
-            {showHint ? '🙈 隐藏提示' : '💡 显示提示'}
-          </button>
         </div>
 
         {/* 两张对比图 */}
@@ -252,19 +282,14 @@ export default function SpotDifference({ onScore }: { onScore: (s: number) => vo
               onClick={handleClick}
               style={{ position: 'relative', width: '100%', height: 'calc(100% - 16px)' }}
             >
-              {renderScene(false)}
-              {/* 已找到的标记 */}
+              {hasImages ? renderImageScene(currentLevel.image_a_url) : renderEmojiScene(false)}
               {diffs.map((d, i) => d.found && (
                 <div key={i} style={{
-                  position: 'absolute',
-                  left: `${d.x}%`, top: `${d.y}%`,
+                  position: 'absolute', left: `${d.x}%`, top: `${d.y}%`,
                   transform: 'translate(-50%, -50%)',
                   width: d.radius * 2.5, height: d.radius * 2.5,
-                  border: '3px solid #FF6B6B',
-                  borderRadius: '50%',
-                  pointerEvents: 'none',
-                  animation: 'pulse 0.3s ease-out',
-                  boxShadow: '0 0 8px rgba(255,107,107,0.5)',
+                  border: '3px solid #FF6B6B', borderRadius: '50%',
+                  pointerEvents: 'none', boxShadow: '0 0 8px rgba(255,107,107,0.5)',
                 }} />
               ))}
             </div>
@@ -279,33 +304,19 @@ export default function SpotDifference({ onScore }: { onScore: (s: number) => vo
               onClick={handleClick}
               style={{ position: 'relative', width: '100%', height: 'calc(100% - 16px)' }}
             >
-              {renderScene(true)}
+              {hasImages ? renderImageScene(currentLevel.image_b_url) : renderEmojiScene(true)}
               {diffs.map((d, i) => d.found && (
                 <div key={i} style={{
-                  position: 'absolute',
-                  left: `${d.x}%`, top: `${d.y}%`,
+                  position: 'absolute', left: `${d.x}%`, top: `${d.y}%`,
                   transform: 'translate(-50%, -50%)',
                   width: d.radius * 2.5, height: d.radius * 2.5,
-                  border: '3px solid #FF6B6B',
-                  borderRadius: '50%',
-                  pointerEvents: 'none',
-                  boxShadow: '0 0 8px rgba(255,107,107,0.5)',
+                  border: '3px solid #FF6B6B', borderRadius: '50%',
+                  pointerEvents: 'none', boxShadow: '0 0 8px rgba(255,107,107,0.5)',
                 }} />
               ))}
             </div>
           </div>
         </div>
-
-        {/* 提示浮层 */}
-        {showHint && !gameOver && (
-          <div style={{
-            position: 'absolute', bottom: 60, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(0,0,0,0.8)', borderRadius: 12, padding: '8px 16px',
-            fontSize: 12, color: '#FFD700', textAlign: 'center', maxWidth: 280,
-          }}>
-            💡 提示：找找看 {round.diffs.filter(d => !diffs.find(dd => dd.x === d.x && dd.found)).slice(0, 2).map(d => d.label).join('、')}
-          </div>
-        )}
 
         {/* 游戏结束 */}
         {gameOver && (
@@ -320,9 +331,7 @@ export default function SpotDifference({ onScore }: { onScore: (s: number) => vo
             <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
               {foundCount >= totalDiffs ? '太厉害了！' : '时间到！'}
             </div>
-            <div style={{ fontSize: 16, color: '#FFD700', marginBottom: 16 }}>
-              得分：{score}
-            </div>
+            <div style={{ fontSize: 16, color: '#FFD700', marginBottom: 16 }}>得分：{score}</div>
             <button onClick={() => onScore(score)} style={{
               background: 'linear-gradient(135deg, #FFD700, #FFA500)',
               border: 'none', borderRadius: 20, padding: '10px 32px',
