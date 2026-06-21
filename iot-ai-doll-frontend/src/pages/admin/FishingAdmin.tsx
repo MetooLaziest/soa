@@ -56,6 +56,24 @@ export default function FishingAdmin() {
   const [formWeight, setFormWeight] = useState(10);
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [formImageUrl, setFormImageUrl] = useState('');
+  const [uploadingImg, setUploadingImg] = useState(false);
+
+  const uploadImage = async (file: File) => {
+    setUploadingImg(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', 'fishing');
+      const res = await client.post('/game-assets/upload', form, { timeout: 300000 });
+      if (res.data?.asset?.url) {
+        setFormImageUrl(res.data.asset.url);
+      }
+    } catch (err: any) {
+      alert('图片上传失败: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setUploadingImg(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -190,7 +208,9 @@ export default function FishingAdmin() {
           {fish.map(f => (
             <div key={f.id} className={`flex items-center justify-between rounded-xl border p-4 ${RARITY_BG[f.rarity] || 'border-white/10 bg-white/5'}`}>
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 text-2xl">🐟</div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 text-2xl overflow-hidden">
+                  {f.image_url ? <img src={f.image_url} alt="" className="h-full w-full object-cover" /> : '🐟'}
+                </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-white">{f.name}</span>
@@ -292,10 +312,22 @@ export default function FishingAdmin() {
               </div>
 
               <div>
-                <label className="text-xs text-gray-400">图片 URL</label>
-                <input value={formImageUrl} onChange={e => setFormImageUrl(e.target.value)}
-                  className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="/epet/static/fishing/xxx.png" />
+                <label className="text-xs text-gray-400">图片素材</label>
+                <div className="mt-1 flex items-center gap-3">
+                  {formImageUrl && (
+                    <img src={formImageUrl} alt="" className="h-12 w-12 rounded-lg object-cover border border-white/20" />
+                  )}
+                  <div className="flex-1 flex items-center gap-2">
+                    <input value={formImageUrl} onChange={e => setFormImageUrl(e.target.value)}
+                      className="flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="/epet/static/fishing/xxx.png" />
+                    <label className={`cursor-pointer rounded-lg px-3 py-2 text-xs font-medium ${uploadingImg ? 'bg-gray-600 text-gray-400' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}>
+                      {uploadingImg ? '上传中...' : '上传'}
+                      <input type="file" accept="image/*" className="hidden" disabled={uploadingImg}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = ''; }} />
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div>

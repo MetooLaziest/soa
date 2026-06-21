@@ -19,6 +19,7 @@ const navItems = [
   { key: 'rag', label: 'RAG 知识库管理', icon: '📚', path: '/admin/rag' },
   { key: 'minigame-assets', label: '美术素材', icon: '🎨', path: '/admin/minigame-assets' },
   { key: 'fishing', label: '钓鱼管理', icon: '🎣', path: '/admin/fishing' },
+  { key: 'shop', label: '商店管理', icon: '🛍️', path: '/admin/shop' },
   { key: 'yard-editor', label: '庭院地图编辑', icon: '🗺️', path: '/admin/yard-editor' },
 ];
 

@@ -26,6 +26,7 @@ import PetEntities from './pages/admin/PetEntities';
 import CompanionEdit from './pages/admin/CompanionEdit';
 import YardSceneEditor from './pages/admin/YardSceneEditor';
 import FishingAdmin from './pages/admin/FishingAdmin';
+import ShopAdmin from './pages/admin/ShopAdmin';
 import CompanionRAG from './pages/admin/CompanionRAG';
 import RAGList from './pages/admin/RAGKnowledgeBases';
 import RAGEdit from './pages/admin/RAGEdit';
@@ -93,6 +94,7 @@ export default function App() {
           <Route path="rag/:id/edit" element={<RAGEdit />} />
           <Route path="yard-editor" element={<YardSceneEditor />} />
           <Route path="fishing" element={<FishingAdmin />} />
+          <Route path="shop" element={<ShopAdmin />} />
         </Route>
 
         {/* 兜底 */}

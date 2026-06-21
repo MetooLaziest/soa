@@ -11,7 +11,7 @@ const router = express.Router();
 
 // 素材根目录（隔离目录，部署不受影响）
 const EPET_ASSETS_BASE = '/var/www/iot-ai-doll/epet-assets';
-const ASSET_TYPES = ['bg', 'cg', 'pets', 'ui', 'fx', 'game-assets', 'chat-bgs', 'art-assets'];
+const ASSET_TYPES = ['bg', 'cg', 'pets', 'ui', 'fx', 'game-assets', 'chat-bgs', 'art-assets', 'fishing'];
 
 // 确保目录存在
 async function ensureDir(dir) {
@@ -215,6 +215,32 @@ router.post('/set-yard-bg', async (req, res) => {
     res.json({ ok: true, message: '已设为庭院背景', target: '/epet/static/yard-bg.png' });
   } catch (err) {
     console.error('[game-assets] set-yard-bg error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/game-assets/set-fishing-bg
+router.post('/set-fishing-bg', async (req, res) => {
+  try {
+    const { filename, type } = req.body;
+    if (!filename || !type) return res.status(400).json({ error: '缺少参数' });
+    if (!ASSET_TYPES.includes(type) || /[\/\\.]{2,}/.test(filename)) {
+      return res.status(400).json({ error: '非法参数' });
+    }
+
+    const sourceDir = type === 'game-assets'
+      ? EPET_ASSETS_BASE
+      : join(EPET_ASSETS_BASE, type);
+    const sourcePath = join(sourceDir, filename);
+    const fishingDir = join(EPET_ASSETS_BASE, 'fishing');
+    await ensureDir(fishingDir);
+    const targetPath = join(fishingDir, 'fishbg.png');
+
+    await copyFile(sourcePath, targetPath);
+    console.log('[game-assets] set as fishing-bg:', filename);
+    res.json({ ok: true, message: '已设为钓鱼背景', target: '/epet/static/fishing/fishbg.png' });
+  } catch (err) {
+    console.error('[game-assets] set-fishing-bg error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

@@ -318,8 +318,8 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
             style={{
               flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer',
               fontSize: 13, fontWeight: activeTab === tab.id ? 700 : 400,
-              background: activeTab === tab.id ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
-              color: activeTab === tab.id ? '#FFD700' : 'rgba(255,255,255,0.6)',
+              color: activeTab === tab.id ? '#8B6914' : 'rgba(0,0,0,0.4)',
+              background: activeTab === tab.id ? 'rgba(139,105,20,0.12)' : 'rgba(0,0,0,0.04)',
             }}
           >
             {tab.name}
@@ -336,25 +336,25 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, maxHeight: '50vh', overflowY: 'auto' }}>
           {items.map((item: any, i: number) => (
             <div key={i} style={{
-              background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 10,
-              textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(0,0,0,0.04)', borderRadius: 10, padding: 10,
+              textAlign: 'center', border: '1px solid rgba(0,0,0,0.06)',
             }}>
               <div style={{
                 width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
-                background: 'rgba(255,255,255,0.08)', display: 'flex',
+                background: 'rgba(0,0,0,0.06)', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', fontSize: 28,
               }}>
                 {activeTab === 'postcard' ? '💌' : activeTab === 'food' ? '🐟' : '🪑'}
               </div>
-              <div style={{ color: '#fff', fontSize: 12, fontWeight: 600, marginBottom: 2,
+              <div style={{ color: '#333', fontSize: 12, fontWeight: 600, marginBottom: 2,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {item.name}
               </div>
               {item.quantity !== undefined && (
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>×{item.quantity}</div>
+                <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 10 }}>×{item.quantity}</div>
               )}
               {item.duplicate_count !== undefined && item.duplicate_count > 0 && (
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>重复 ×{item.duplicate_count}</div>
+                <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 10 }}>重复 ×{item.duplicate_count}</div>
               )}
             </div>
           ))}
@@ -448,15 +448,34 @@ function DriftModal({ onClose }: { onClose: () => void }) {
 // ─── 商店 Modal ─────────────────────────────────────────────
 function ShopModal({ onClose }: { onClose: () => void }) {
   const { userId, emotionPoints, setEmotionPoints } = useGameStore();
-  const [items, setItems] = useState<ShopItem[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('food');
+  const [tabs, setTabs] = useState<Record<string, any[]>>({});
+  const [bgImage, setBgImage] = useState('');
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<number | null>(null);
 
+  const SHOP_TABS = [
+    { id: 'food', name: '🥘 食材' },
+    { id: 'furniture', name: '🪑 家具' },
+    { id: 'decoration', name: '✨ 装扮' },
+    { id: 'map', name: '🗺️ 地图' },
+    { id: 'toy', name: '🎨 潮玩' },
+  ];
+
   useEffect(() => {
-    fetchShopItems().then((i) => { setItems(i); setLoading(false); }).catch(() => setLoading(false));
+    Promise.all([
+      fetch('/api/epet1/shop2/items').then(r => r.json()),
+      fetch('/api/epet1/shop2/config').then(r => r.json()),
+    ]).then(([itemsData, configData]) => {
+      if (itemsData.ok) setTabs(itemsData.tabs);
+      if (configData.ok && configData.config?.background_image) {
+        setBgImage(configData.config.background_image);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
-  const handleBuy = async (item: ShopItem) => {
+  const handleBuy = async (item: any) => {
     if (!userId) return;
     if (emotionPoints < item.price_emotion) {
       alert(`情绪值不足！需要 ${item.price_emotion}，你有 ${emotionPoints}`);
@@ -475,33 +494,106 @@ function ShopModal({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const items = tabs[activeTab] || [];
+
   return (
-    <ModalOverlay onClose={onClose}>
-      <div className="modal-header">
-        <h3>🛍️ 商店</h3>
-        <button className="modal-close" onClick={onClose}>×</button>
-      </div>
-      <div className="modal-tip">💛 当前情绪值：{emotionPoints}</div>
-      {loading ? <div className="modal-loading">加载中...</div> : (
-        <div className="shop-grid">
-          {items.map((item) => (
-            <div key={item.id} className={`shop-item ${emotionPoints < item.price_emotion ? ' unaffordable' : ''}`}>
-              <div className="shop-icon">{item.icon}</div>
-              <div className="shop-name">{item.name}</div>
-              <div className="shop-desc">{item.desc}</div>
-              <div className="shop-price">💛 {item.price_emotion}</div>
-              <button
-                className="btn-buy"
-                onClick={() => handleBuy(item)}
-                disabled={buying === item.id || emotionPoints < item.price_emotion || item.stock === 0}
-              >
-                {item.stock === 0 ? '售罄' : buying === item.id ? '购买中...' : '购买'}
-              </button>
-            </div>
-          ))}
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: bgImage
+        ? `url(${bgImage}) center/cover no-repeat`
+        : 'linear-gradient(180deg, #FFF8F0 0%, #F0E6D6 100%)',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* 顶部栏 */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '12px 16px', paddingTop: 'max(12px, env(safe-area-inset-top))',
+        background: 'rgba(255,248,240,0.9)', borderBottom: '1px solid rgba(0,0,0,0.08)',
+      }}>
+        <h3 style={{ margin: 0, fontSize: 18, color: '#333' }}>🛍️ 商店</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, color: '#8B6914', fontWeight: 600 }}>💛 {emotionPoints}</span>
+          <button onClick={onClose} style={{
+            width: 32, height: 32, borderRadius: '50%', border: 'none',
+            background: 'rgba(0,0,0,0.08)', fontSize: 16, cursor: 'pointer', color: '#666',
+          }}>✕</button>
         </div>
-      )}
-    </ModalOverlay>
+      </div>
+
+      {/* Tab 栏 */}
+      <div style={{
+        display: 'flex', gap: 0, background: 'rgba(255,248,240,0.85)',
+        borderBottom: '1px solid rgba(0,0,0,0.06)',
+        overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+      }}>
+        {SHOP_TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              flex: 1, minWidth: 60, padding: '10px 8px', border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: activeTab === tab.id ? 700 : 400,
+              color: activeTab === tab.id ? '#8B6914' : '#999',
+              background: 'transparent',
+              borderBottom: activeTab === tab.id ? '3px solid #8B6914' : '3px solid transparent',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {tab.name}
+          </button>
+        ))}
+      </div>
+
+      {/* 商品网格 */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>加载中...</div>
+        ) : items.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>暂无商品</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {items.map((item: any) => (
+              <div key={item.id} style={{
+                background: 'rgba(255,255,255,0.92)', borderRadius: 12, padding: 10,
+                textAlign: 'center', border: '1px solid rgba(0,0,0,0.06)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+              }}>
+                <div style={{
+                  width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
+                  background: 'rgba(0,0,0,0.04)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: 28, overflow: 'hidden',
+                }}>
+                  {item.image_url
+                    ? <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    : '📦'}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#333', marginBottom: 2,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.name}
+                </div>
+                <div style={{ fontSize: 11, color: '#8B6914', fontWeight: 600, marginBottom: 6 }}>
+                  💛 {item.price_emotion}
+                </div>
+                <button
+                  onClick={() => handleBuy(item)}
+                  disabled={buying === item.id || emotionPoints < item.price_emotion || item.stock === 0}
+                  style={{
+                    width: '100%', padding: '5px 0', border: 'none', borderRadius: 6,
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    background: (buying === item.id || emotionPoints < item.price_emotion || item.stock === 0)
+                      ? '#ddd' : 'linear-gradient(135deg, #FFD700, #FFA500)',
+                    color: (buying === item.id || emotionPoints < item.price_emotion || item.stock === 0)
+                      ? '#999' : '#fff',
+                  }}
+                >
+                  {item.stock === 0 ? '售罄' : buying === item.id ? '...' : '购买'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -509,7 +601,6 @@ function ShopModal({ onClose }: { onClose: () => void }) {
 function GameModal({ onClose }: { onClose: () => void }) {
   const { userId } = useGameStore();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
-  const [score, setScore] = useState<number | null>(null);
   const [games] = useState([
     { id: 'fishing', name: '钓鱼', icon: '🎣', desc: '静待鱼儿上钩', status: 'ready' },
     { id: 'cook', name: '煎鱼小游戏', icon: '🐟', desc: '控制火候，煎出完美鱼', status: 'ready' },
@@ -517,16 +608,25 @@ function GameModal({ onClose }: { onClose: () => void }) {
   ]);
 
   const handleGameScore = async (gameId: string, s: number) => {
-    setScore(s);
     if (userId) {
       await recordGameScore(userId, gameId, s);
     }
   };
 
-  const handleBack = () => {
-    setSelectedGame(null);
-    setScore(null);
-  };
+  // 钓鱼游戏全屏独立渲染
+  if (selectedGame === 'fishing') {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: '#0a1628',
+      }}>
+        <Fishing
+          onScore={() => { setSelectedGame(null); }}
+          userId={userId}
+        />
+      </div>
+    );
+  }
 
   return (
     <ModalOverlay onClose={onClose}>
@@ -534,7 +634,7 @@ function GameModal({ onClose }: { onClose: () => void }) {
         <h3>
           {selectedGame ? (
             <>
-              <button className="btn-back" onClick={handleBack}>←</button>
+              <button className="btn-back" onClick={() => setSelectedGame(null)}>←</button>
               &nbsp;{games.find(g => g.id === selectedGame)?.name || '游戏'}
             </>
           ) : (
@@ -543,28 +643,13 @@ function GameModal({ onClose }: { onClose: () => void }) {
         </h3>
         <button className="modal-close" onClick={onClose}>×</button>
       </div>
-      {selectedGame ? (
-        score !== null ? (
-          <div className="game-result">
-            <div className="game-result-score">🏆 得分：{score}</div>
-            <div className="game-result-tip">💛 参与游戏 +3 情绪值已到账</div>
-            <button className="btn-primary" onClick={handleBack}>再玩一次</button>
-            <button className="btn-secondary" onClick={() => { handleBack(); onClose(); }}>返回</button>
-          </div>
-        ) : (
-          <>
-            {selectedGame === 'spot' && (
-              <SpotDifference onScore={(s) => handleGameScore('spot', s)} />
-            )}
-            {selectedGame === 'fishing' && (
-              <Fishing onScore={(s) => handleGameScore('fishing', s)} userId={userId} />
-            )}
-            {selectedGame === 'cook' && (
-              <CookFish onScore={(s) => handleGameScore('cook', s)} />
-            )}
-          </>
-        )
-      ) : (
+      {selectedGame === 'spot' && (
+        <SpotDifference onScore={(s) => { handleGameScore('spot', s); setSelectedGame(null); }} />
+      )}
+      {selectedGame === 'cook' && (
+        <CookFish onScore={(s) => { handleGameScore('cook', s); setSelectedGame(null); }} />
+      )}
+      {!selectedGame && (
         <div className="game-list">
           {games.map((g) => (
             <div key={g.id} className={`game-item ${g.status === 'coming' ? 'coming' : ''}`} onClick={() => g.status === 'ready' && setSelectedGame(g.id)}>
