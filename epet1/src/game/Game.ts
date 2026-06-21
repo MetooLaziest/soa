@@ -90,6 +90,7 @@ export class Game {
 
       app.ticker.add(this._loop.bind(this));
       this._ready = true;
+      this._notifyReady();
       console.log('✅ Game initialized (3-layer + collision + scene + click-to-move)');
     } catch (e) {
       console.error('Game.init failed:', e);
