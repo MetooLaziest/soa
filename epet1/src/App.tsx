@@ -281,6 +281,89 @@ function TravelModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── 背包 Modal ────────────────────────────────────────────
+const INV_TABS = [
+  { id: 'food', name: '🥘 食材', empty: '还没有食材，去钓鱼或商店看看吧' },
+  { id: 'furniture', name: '🪑 家具', empty: '还没有家具，去商店看看吧' },
+  { id: 'postcard', name: '💌 明信片', empty: '还没有明信片，送宠物去旅行吧' },
+];
+
+function InventoryModal({ onClose }: { onClose: () => void }) {
+  const { userId } = useGameStore();
+  const [activeTab, setActiveTab] = useState<'food' | 'furniture' | 'postcard'>('food');
+  const [inventory, setInventory] = useState<{ food: any[]; furniture: any[]; postcard: any[] }>({ food: [], furniture: [], postcard: [] });
+
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`/api/epet1/inventory/${userId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) setInventory(data.categories);
+      })
+      .catch(e => console.error('Failed to load inventory:', e));
+  }, [userId]);
+
+  const items = inventory[activeTab] || [];
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <h3>🎒 背包</h3>
+
+      {/* Tab 切换 */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {INV_TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            style={{
+              flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: activeTab === tab.id ? 700 : 400,
+              background: activeTab === tab.id ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+              color: activeTab === tab.id ? '#FFD700' : 'rgba(255,255,255,0.6)',
+            }}
+          >
+            {tab.name}
+          </button>
+        ))}
+      </div>
+
+      {/* 内容区 */}
+      {items.length === 0 ? (
+        <div className="modal-empty" style={{ padding: '40px 0' }}>
+          {INV_TABS.find(t => t.id === activeTab)?.empty}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, maxHeight: '50vh', overflowY: 'auto' }}>
+          {items.map((item: any, i: number) => (
+            <div key={i} style={{
+              background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 10,
+              textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              <div style={{
+                width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
+                background: 'rgba(255,255,255,0.08)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', fontSize: 28,
+              }}>
+                {activeTab === 'postcard' ? '💌' : activeTab === 'food' ? '🐟' : '🪑'}
+              </div>
+              <div style={{ color: '#fff', fontSize: 12, fontWeight: 600, marginBottom: 2,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {item.name}
+              </div>
+              {item.quantity !== undefined && (
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>×{item.quantity}</div>
+              )}
+              {item.duplicate_count !== undefined && item.duplicate_count > 0 && (
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>重复 ×{item.duplicate_count}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </ModalOverlay>
+  );
+}
+
 // ─── 漂流瓶 Modal ───────────────────────────────────────────
 function DriftModal({ onClose }: { onClose: () => void }) {
   const { userId, emotionPoints, setEmotionPoints, addEmotionPoints } = useGameStore();
@@ -474,7 +557,7 @@ function GameModal({ onClose }: { onClose: () => void }) {
               <SpotDifference onScore={(s) => handleGameScore('spot', s)} />
             )}
             {selectedGame === 'fishing' && (
-              <Fishing onScore={(s) => handleGameScore('fishing', s)} />
+              <Fishing onScore={(s) => handleGameScore('fishing', s)} userId={userId} />
             )}
             {selectedGame === 'cook' && (
               <CookFish onScore={(s) => handleGameScore('cook', s)} />
@@ -621,7 +704,7 @@ function HomePanel() {
         </button>
       </div>
 
-      {/* 底部菜单栏：漂流瓶、藏品库、明信片、小游戏 */}
+      {/* 底部菜单栏：漂流瓶、藏品库、背包、小游戏 */}
       <div className="bottom-bar">
         <button className="bottom-bar-btn" onClick={() => setActiveModal('drift')}>
           <span className="bottom-bar-icon">🌊</span>
@@ -631,9 +714,9 @@ function HomePanel() {
           <span className="bottom-bar-icon">🏠</span>
           <span className="bottom-bar-label">藏品库</span>
         </button>
-        <button className="bottom-bar-btn" onClick={() => setActiveModal('postcard')}>
-          <span className="bottom-bar-icon">💌</span>
-          <span className="bottom-bar-label">明信片</span>
+        <button className="bottom-bar-btn" onClick={() => setActiveModal('inventory')}>
+          <span className="bottom-bar-icon">🎒</span>
+          <span className="bottom-bar-label">背包</span>
         </button>
         <button className="bottom-bar-btn" onClick={() => setActiveModal('game')}>
           <span className="bottom-bar-icon">🎮</span>
@@ -901,6 +984,7 @@ export default function App() {
       {activeModal === 'travel' && <TravelModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'drift' && <DriftModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'shop' && <ShopModal onClose={() => setActiveModal(null)} />}
+      {activeModal === 'inventory' && <InventoryModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'game' && <GameModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'chat' && <ChatPage onClose={() => { setActiveModal(null); }} />}
     </div>

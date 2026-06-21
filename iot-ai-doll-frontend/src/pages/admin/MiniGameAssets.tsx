@@ -20,6 +20,7 @@ const ASSET_TYPES = [
   { id: 'ui', name: '🎯 UI元素', desc: '按钮、图标、弹窗', color: 'from-green-500/20 to-emerald-500/20' },
   { id: 'fx', name: '✨ 特效', desc: '粒子、光效、动画', color: 'from-purple-500/20 to-violet-500/20' },
   { id: 'chat-bgs', name: '💬 互动背景', desc: '聊天互动页背景池(可设当前使用)', color: 'from-rose-500/20 to-pink-500/20' },
+  { id: 'fishing', name: '🎣 钓鱼素材', desc: '钓鱼游戏背景、动图、宠物主体', color: 'from-cyan-500/20 to-blue-500/20' },
   { id: 'game-assets', name: '🎨 美术素材', desc: '小游戏、UI、特效等通用美术素材', color: 'from-indigo-500/20 to-blue-500/20' },
 ];
 
@@ -138,11 +139,22 @@ export default function MiniGameAssets() {
   const setAsYardBg = async (url: string) => {
     if (!confirm('将此图设为庭院背景？\n（会替换当前的 yard-bg.png）')) return;
     try {
-      // 提取文件名
       const filename = url.split('/').pop();
       await client.post('/game-assets/set-yard-bg', { filename, type: activeType });
       alert('已设为庭院背景！刷新 epet 页面即可看到新背景');
       refreshYardBg();
+    } catch (err: any) {
+      alert('设置失败: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // 设为钓鱼背景
+  const setAsFishingBg = async (url: string) => {
+    if (!confirm('将此图设为钓鱼背景？\n（会替换当前的 fishbg.png）')) return;
+    try {
+      const filename = url.split('/').pop();
+      await client.post('/game-assets/set-fishing-bg', { filename, type: activeType });
+      alert('已设为钓鱼背景！刷新钓鱼游戏即可看到新背景');
     } catch (err: any) {
       alert('设置失败: ' + (err.response?.data?.error || err.message));
     }
@@ -229,6 +241,30 @@ export default function MiniGameAssets() {
           </p>
           <p className="mt-1 text-xs text-amber-400/80">
             💡 当前版本仅支持设置 1 个互动背景, 未来可扩展商店购买+切换新背景
+          </p>
+        </div>
+      )}
+
+      {/* 钓鱼素材预览（fishing tab） */}
+      {activeType === 'fishing' && (
+        <div className="mb-6 rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white">🎣 当前钓鱼背景</h3>
+            <span className="text-xs text-gray-500">路径: /epet/static/fishing/fishbg.png</span>
+          </div>
+          <div className="relative overflow-hidden rounded-lg" style={{ maxHeight: '240px' }}>
+            <img
+              src="/epet/static/fishing/fishbg.png"
+              alt="当前钓鱼背景"
+              className="w-full object-cover object-center"
+              style={{ maxHeight: '240px' }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            上传新图片后，在素材卡片点击「设为钓鱼背景」即可替换
+          </p>
+          <p className="mt-1 text-xs text-amber-400/80">
+            💡 后续支持：动图背景（GIF/WebP）、钓鱼宠物主体
           </p>
         </div>
       )}
@@ -338,6 +374,15 @@ export default function MiniGameAssets() {
                       title="复制为 chat-bg.png, 互动页背景"
                     >
                       设为互动背景
+                    </button>
+                  )}
+                  {activeType === 'fishing' && (
+                    <button
+                      onClick={() => setAsFishingBg(asset.url)}
+                      className="flex-1 rounded bg-cyan-500/20 px-2 py-1 text-[10px] text-cyan-300 hover:bg-cyan-500/30 transition"
+                      title="复制为 fishbg.png, 钓鱼背景"
+                    >
+                      设为钓鱼背景
                     </button>
                   )}
                   <button

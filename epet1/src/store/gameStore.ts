@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PetInstance, TravelRecord } from '../api/epet1';
 
-type ModalType = 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | null;
+type ModalType = 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | null;
 
 interface GameStore {
   // User

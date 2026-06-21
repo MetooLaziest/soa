@@ -25,6 +25,7 @@ import MiniGameAssets from './pages/admin/MiniGameAssets';
 import PetEntities from './pages/admin/PetEntities';
 import CompanionEdit from './pages/admin/CompanionEdit';
 import YardSceneEditor from './pages/admin/YardSceneEditor';
+import FishingAdmin from './pages/admin/FishingAdmin';
 import CompanionRAG from './pages/admin/CompanionRAG';
 import RAGList from './pages/admin/RAGKnowledgeBases';
 import RAGEdit from './pages/admin/RAGEdit';
@@ -91,6 +92,7 @@ export default function App() {
           <Route path="rag/new" element={<RAGEdit />} />
           <Route path="rag/:id/edit" element={<RAGEdit />} />
           <Route path="yard-editor" element={<YardSceneEditor />} />
+          <Route path="fishing" element={<FishingAdmin />} />
         </Route>
 
         {/* 兜底 */}
