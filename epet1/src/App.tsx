@@ -1,16 +1,7 @@
 import { useEffect, useState, useCallback, useRef, type ReactNode, type MouseEvent, type KeyboardEvent, type ChangeEvent, type FormEvent } from 'react';
 import { useGameStore } from './store/gameStore';
-import Down100Floors from './games/Down100Floors';
-import Match3 from './games/Match3';
-import RockPaperScissors from './games/RockPaperScissors';
-import MemoryCard from './games/MemoryCard';
-import FlappyBird from './games/FlappyBird';
-import FallingGifts from './games/FallingGifts';
 import SpotDifference from './games/SpotDifference';
 import Fishing from './games/Fishing';
-import Tower from './games/Tower';
-import PlatformJump from './games/PlatformJump';
-import PacMan from './games/PacMan';
 import CookFish from './games/CookFish';
 import {
   getOrCreateUser,
@@ -437,18 +428,9 @@ function GameModal({ onClose }: { onClose: () => void }) {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [score, setScore] = useState<number | null>(null);
   const [games] = useState([
-    { id: '100floor', name: '是男人就下100层', icon: '🏃', desc: '左右移动，避免坠落', status: 'ready' },
-    { id: 'match3', name: '消消乐', icon: '💎', desc: '交换相邻宝石，三连消除', status: 'ready' },
-    { id: 'rps', name: '猜拳', icon: '✊', desc: '石头剪刀布，三局两胜', status: 'ready' },
-    { id: 'memory', name: '记忆卡牌', icon: '🃏', desc: '翻开卡牌，找到所有配对', status: 'ready' },
-    { id: 'flappy', name: 'Flappy Bird', icon: '🐦', desc: '点击飞翔，穿过柱子', status: 'ready' },
-    { id: 'gifts', name: '天降好礼', icon: '🎁', desc: '移动接住掉落礼物', status: 'ready' },
-    { id: 'spot', name: '找不同', icon: '🔍', desc: '找出两图的不同之处', status: 'ready' },
     { id: 'fishing', name: '钓鱼', icon: '🎣', desc: '静待鱼儿上钩', status: 'ready' },
-    { id: 'tower', name: '塔楼建筑', icon: '🏗️', desc: '堆叠积木，盖得越高越好', status: 'ready' },
-    { id: 'platform', name: '平台跳跃', icon: '🦘', desc: '跳跃闯关，收集金币', status: 'ready' },
-    { id: 'pacman', name: '吃豆人', icon: '👾', desc: '迷宫吃豆，躲避幽灵', status: 'ready' },
     { id: 'cook', name: '煎鱼小游戏', icon: '🐟', desc: '控制火候，煎出完美鱼', status: 'ready' },
+    { id: 'spot', name: '找不同', icon: '🔍', desc: '找出两图的不同之处', status: 'ready' },
   ]);
 
   const handleGameScore = async (gameId: string, s: number) => {
@@ -488,38 +470,11 @@ function GameModal({ onClose }: { onClose: () => void }) {
           </div>
         ) : (
           <>
-            {selectedGame === '100floor' && (
-              <Down100Floors onScore={(s) => handleGameScore('100floor', s)} />
-            )}
-            {selectedGame === 'match3' && (
-              <Match3 onScore={(s) => handleGameScore('match3', s)} />
-            )}
-            {selectedGame === 'rps' && (
-              <RockPaperScissors onScore={(s) => handleGameScore('rps', s)} />
-            )}
-            {selectedGame === 'memory' && (
-              <MemoryCard onScore={(s) => handleGameScore('memory', s)} />
-            )}
-            {selectedGame === 'flappy' && (
-              <FlappyBird onScore={(s) => handleGameScore('flappy', s)} />
-            )}
-            {selectedGame === 'gifts' && (
-              <FallingGifts onScore={(s) => handleGameScore('gifts', s)} />
-            )}
             {selectedGame === 'spot' && (
               <SpotDifference onScore={(s) => handleGameScore('spot', s)} />
             )}
             {selectedGame === 'fishing' && (
               <Fishing onScore={(s) => handleGameScore('fishing', s)} />
-            )}
-            {selectedGame === 'tower' && (
-              <Tower onScore={(s) => handleGameScore('tower', s)} />
-            )}
-            {selectedGame === 'platform' && (
-              <PlatformJump onScore={(s) => handleGameScore('platform', s)} />
-            )}
-            {selectedGame === 'pacman' && (
-              <PacMan onScore={(s) => handleGameScore('pacman', s)} />
             )}
             {selectedGame === 'cook' && (
               <CookFish onScore={(s) => handleGameScore('cook', s)} />
@@ -643,8 +598,8 @@ function HomePanel() {
         </div>
       )}
 
-      {/* 左下角 其他 按钮 */}
-      <div className="bottom-left-area">
+      {/* 右上角：其他 + 商店 */}
+      <div className="top-right-area">
         {otherExpanded && (
           <div className="other-menu">
             <button className="other-menu-item" onClick={() => { alert('功能开发中'); setOtherExpanded(false); }}>
@@ -655,33 +610,33 @@ function HomePanel() {
             </button>
           </div>
         )}
-        <button className="bottom-btn bottom-btn-other" onClick={() => setOtherExpanded(v => !v)}>
-          <span className="bottom-btn-icon">☰</span>
-          <span className="bottom-btn-label">其他</span>
+        <button className="top-right-btn" onClick={() => setOtherExpanded(v => !v)}>
+          <span className="top-right-btn-icon">☰</span>
+          <span className="top-right-btn-label">其他</span>
+        </button>
+        <button className="top-right-btn" onClick={() => setActiveModal('shop')}>
+          <span className="top-right-btn-icon">🛍️</span>
+          <span className="top-right-btn-label">商店</span>
         </button>
       </div>
 
-      {/* 右下角 5 个按钮 */}
-      <div className="bottom-right-area">
-        <button className="bottom-btn" onClick={() => setActiveModal('drift')}>
-          <span className="bottom-btn-icon">🌊</span>
-          <span className="bottom-btn-label">漂流瓶</span>
+      {/* 底部菜单栏：漂流瓶、藏品库、明信片、小游戏 */}
+      <div className="bottom-bar">
+        <button className="bottom-bar-btn" onClick={() => setActiveModal('drift')}>
+          <span className="bottom-bar-icon">🌊</span>
+          <span className="bottom-bar-label">漂流瓶</span>
         </button>
-        <button className="bottom-btn" onClick={() => setActiveModal('collection')}>
-          <span className="bottom-btn-icon">🏠</span>
-          <span className="bottom-btn-label">藏品库</span>
+        <button className="bottom-bar-btn" onClick={() => setActiveModal('collection')}>
+          <span className="bottom-bar-icon">🏠</span>
+          <span className="bottom-bar-label">藏品库</span>
         </button>
-        <button className="bottom-btn" onClick={() => setActiveModal('postcard')}>
-          <span className="bottom-btn-icon">💌</span>
-          <span className="bottom-btn-label">明信片</span>
+        <button className="bottom-bar-btn" onClick={() => setActiveModal('postcard')}>
+          <span className="bottom-bar-icon">💌</span>
+          <span className="bottom-bar-label">明信片</span>
         </button>
-        <button className="bottom-btn" onClick={() => setActiveModal('game')}>
-          <span className="bottom-btn-icon">🎮</span>
-          <span className="bottom-btn-label">小游戏</span>
-        </button>
-        <button className="bottom-btn" onClick={() => setActiveModal('shop')}>
-          <span className="bottom-btn-icon">🛍️</span>
-          <span className="bottom-btn-label">商店</span>
+        <button className="bottom-bar-btn" onClick={() => setActiveModal('game')}>
+          <span className="bottom-bar-icon">🎮</span>
+          <span className="bottom-bar-label">小游戏</span>
         </button>
       </div>
 
