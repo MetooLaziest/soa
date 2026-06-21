@@ -71,8 +71,8 @@ router.get('/', async (req, res) => {
         const s = await stat(filePath);
         if (s.isFile()) {
           const urlPath = type === 'game-assets' 
-            ? '/epet/assets/' + name 
-            : '/epet/assets/' + type + '/' + name;
+            ? '/epet/static/' + name 
+            : '/epet/static/' + type + '/' + name;
           assets.push({
             name, url: urlPath, type,
             size: s.size,
@@ -114,8 +114,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     const urlPath = validType === 'game-assets'
-      ? '/epet/assets/' + req.file.filename
-      : '/epet/assets/' + validType + '/' + req.file.filename;
+      ? '/epet/static/' + req.file.filename
+      : '/epet/static/' + validType + '/' + req.file.filename;
 
     console.log('[game-assets] uploaded:', validType, req.file.filename);
     res.json({
@@ -167,8 +167,8 @@ router.get('/config', async (req, res) => {
     const chatExists = await stat(CHAT_BG_PATH).then(() => true).catch(() => false);
     res.json({
       ok: true,
-      yardBg: yardExists ? '/epet/assets/yard-bg.png' : null,
-      chatBg: chatExists ? '/epet/assets/chat-bg.png' : null,
+      yardBg: yardExists ? '/epet/static/yard-bg.png' : null,
+      chatBg: chatExists ? '/epet/static/chat-bg.png' : null,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -190,7 +190,7 @@ router.post('/set-chat-bg', async (req, res) => {
     const sourcePath = join(sourceDir, filename);
     await copyFile(sourcePath, CHAT_BG_PATH);
     console.log('[game-assets] set as chat-bg:', filename);
-    res.json({ ok: true, message: '已设为互动页背景', target: '/epet/assets/chat-bg.png' });
+    res.json({ ok: true, message: '已设为互动页背景', target: '/epet/static/chat-bg.png' });
   } catch (err) {
     console.error('[game-assets] set-chat-bg error:', err.message);
     res.status(500).json({ error: err.message });
@@ -212,7 +212,7 @@ router.post('/set-yard-bg', async (req, res) => {
 
     await copyFile(sourcePath, targetPath);
     console.log('[game-assets] set as yard-bg:', filename);
-    res.json({ ok: true, message: '已设为庭院背景', target: '/epet/assets/yard-bg.png' });
+    res.json({ ok: true, message: '已设为庭院背景', target: '/epet/static/yard-bg.png' });
   } catch (err) {
     console.error('[game-assets] set-yard-bg error:', err.message);
     res.status(500).json({ error: err.message });

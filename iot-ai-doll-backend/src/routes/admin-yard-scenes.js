@@ -242,7 +242,7 @@ router.post('/upload-image', async (req, res) => {
     const filepath = join(dir, filename);
     fs.writeFileSync(filepath, buffer);
 
-    const url = `/epet/assets/scene-assets/${filename}`;
+    const url = `/epet/static/scene-assets/${filename}`;
 
     // Update object's image_url if object_id provided
     if (object_id && scene_id) {
