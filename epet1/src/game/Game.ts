@@ -136,7 +136,7 @@ export class Game {
   private async _loadBackground() {
     if (!this.bgContainer) return;
     try {
-      const bgUrl = `${window.location.protocol}//${window.location.host}/epet/yard-bg.png`;
+      const bgUrl = `${window.location.protocol}//${window.location.host}/epet/assets/yard-bg.png`;
       const tex = await Assets.load(bgUrl);
       const bg = new Sprite(tex);
       bg.label = 'yard-bg';
