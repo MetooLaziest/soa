@@ -543,6 +543,7 @@ function HomePanel() {
     };
   }, []);
 
+
   // Sync yard pets to game (runs when gameReady or yardPets change)
   useEffect(() => {
     const g = gameRef.current;

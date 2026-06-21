@@ -410,6 +410,9 @@ export class Game {
     this._sceneSprites = [];
     this._ready = false;
     this._bgLoaded = false;
+    this._readyNotified = false;
+    this.petEntities.clear();
+    this.petSprites.clear();
   }
 }
 
