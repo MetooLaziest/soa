@@ -72,6 +72,7 @@ app.use('/api/admin/yard-scenes', adminYardScenesRoutes);
 
 // ========== EPET1 公开接口（无需admin权限）==========
 app.use('/api/epet1/yard', requireCjs('./routes-epet1/yard-scene.cjs')(poolEpet1));
+app.use('/api/epet1/furniture', requireCjs('./routes-epet1/furniture.cjs')(poolEpet1));
 
 // ========== EPET1 路由注册（与原 epet1-backend 3001 端口完全等价）==========
 app.use('/api/epet1/user',      requireCjs('./routes-epet1/users.cjs')(poolEpet1));

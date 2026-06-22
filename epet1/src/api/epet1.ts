@@ -265,6 +265,71 @@ export async function sendChatMessage(
   return { reply: res.reply };
 }
 
+// ─── 家具布置 ─────────────────────────────────────────────
+
+export interface YardFurniture {
+  id: number;
+  user_id: number;
+  shop_item_id: number;
+  pos_x: number;
+  pos_y: number;
+  width: number;
+  height: number;
+  name?: string;
+  image_url?: string;
+  item_category?: string;
+}
+
+/** 获取庭院已布置的家具 */
+export async function fetchYardFurniture(userId: number): Promise<YardFurniture[]> {
+  const res = await get<any>(`/furniture/yard/${userId}`);
+  return res.furniture || [];
+}
+
+/** 放置家具到庭院 */
+export async function placeFurniture(
+  userId: number,
+  shopItemId: number,
+  posX: number,
+  posY: number,
+  width?: number,
+  height?: number
+): Promise<YardFurniture> {
+  const res = await post<any>('/furniture/place', {
+    user_id: userId,
+    shop_item_id: shopItemId,
+    pos_x: posX,
+    pos_y: posY,
+    width,
+    height,
+  });
+  return res.furniture;
+}
+
+/** 从庭院收回家具 */
+export async function removeFurniture(
+  userId: number,
+  furnitureId: number
+): Promise<void> {
+  await post('/furniture/remove', { user_id: userId, furniture_id: furnitureId });
+}
+
+/** 移动已放置家具 */
+export async function moveFurniture(
+  userId: number,
+  furnitureId: number,
+  posX: number,
+  posY: number
+): Promise<YardFurniture> {
+  const res = await post<any>('/furniture/move', {
+    user_id: userId,
+    furniture_id: furnitureId,
+    pos_x: posX,
+    pos_y: posY,
+  });
+  return res.furniture;
+}
+
 // ─── 小游戏 ─────────────────────────────────────────────────
 
 /** 可玩游戏列表 */

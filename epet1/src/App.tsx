@@ -21,9 +21,12 @@ import {
   activatePet,
   recordGameScore,
   sendChatMessage,
+  placeFurniture,
+  removeFurniture,
+  fetchYardFurniture,
 } from './api/epet1';
-import type { PetInstance, Postcard, DriftBottle, ShopItem } from './api/epet1';
-import { gameInstance } from './game/Game';
+import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture } from './api/epet1';
+import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
 import './App.css';
 
 // ─── 宠物图片映射 ────────────────────────────────────────────
@@ -288,8 +291,18 @@ const INV_TABS = [
   { id: 'postcard', name: '💌 明信片', empty: '还没有明信片，送宠物去旅行吧' },
 ];
 
+// 默认家具尺寸（视口比例）
+const FURNITURE_DEFAULT_SIZE: Record<string, { width: number; height: number }> = {
+  '椅子': { width: 0.06, height: 0.10 },
+  '秋千': { width: 0.10, height: 0.14 },
+  '盆栽': { width: 0.05, height: 0.08 },
+  '太阳伞': { width: 0.12, height: 0.16 },
+  '小帐篷': { width: 0.12, height: 0.14 },
+  '飞盘': { width: 0.06, height: 0.06 },
+};
+
 function InventoryModal({ onClose }: { onClose: () => void }) {
-  const { userId } = useGameStore();
+  const { userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture, addYardFurniture, removeYardFurniture } = useGameStore();
   const [activeTab, setActiveTab] = useState<'food' | 'furniture' | 'postcard'>('food');
   const [inventory, setInventory] = useState<{ food: any[]; furniture: any[]; postcard: any[] }>({ food: [], furniture: [], postcard: [] });
 
@@ -304,6 +317,25 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
   }, [userId]);
 
   const items = inventory[activeTab] || [];
+
+  const handlePlaceFurniture = (item: any) => {
+    if (!userId) return;
+    if (yardFurniture.length >= 8) {
+      alert('庭院最多放置 8 件家具！');
+      return;
+    }
+    const defaultSize = FURNITURE_DEFAULT_SIZE[item.name] || { width: 0.08, height: 0.12 };
+    const info: PlacingFurnitureInfo = {
+      shopItemId: item.shop_item_id || item.id,
+      name: item.name,
+      imageUrl: item.image_url || '',
+      width: defaultSize.width,
+      height: defaultSize.height,
+    };
+    setPlacingFurniture(info);
+    gameInstance.startPlacing(info);
+    onClose(); // close modal, show yard with placement ghost
+  };
 
   return (
     <ModalOverlay onClose={onClose}>
@@ -343,8 +375,10 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
                 width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
                 background: 'rgba(0,0,0,0.06)', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', fontSize: 28,
+                backgroundImage: item.image_url ? `url(${item.image_url})` : undefined,
+                backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
               }}>
-                {activeTab === 'postcard' ? '💌' : activeTab === 'food' ? '🐟' : '🪑'}
+                {!item.image_url && (activeTab === 'postcard' ? '💌' : activeTab === 'food' ? '🐟' : '🪑')}
               </div>
               <div style={{ color: '#333', fontSize: 12, fontWeight: 600, marginBottom: 2,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -352,6 +386,19 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
               </div>
               {item.quantity !== undefined && (
                 <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 10 }}>×{item.quantity}</div>
+              )}
+              {/* 家具布置按钮 */}
+              {activeTab === 'furniture' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handlePlaceFurniture(item); }}
+                  style={{
+                    marginTop: 6, padding: '4px 10px', borderRadius: 6, border: 'none',
+                    background: 'linear-gradient(135deg, #8B6914, #C49B2A)', color: '#fff',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer', width: '100%',
+                  }}
+                >
+                  🏗️ 布置
+                </button>
               )}
               {item.duplicate_count !== undefined && item.duplicate_count > 0 && (
                 <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 10 }}>重复 ×{item.duplicate_count}</div>
@@ -673,13 +720,16 @@ function GameModal({ onClose }: { onClose: () => void }) {
 
 // ─── 主页（庭院 PixiJS 渲染） ─────────────────────────────────
 function HomePanel() {
-  const { emotionPoints, yardPets, setChatPetId, setActiveModal, activeTravel } = useGameStore();
+  const { emotionPoints, yardPets, setChatPetId, setActiveModal, activeTravel,
+          userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture,
+          addYardFurniture, removeYardFurniture } = useGameStore();
   const [toast, setToast] = useState('');
   const [otherExpanded, setOtherExpanded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<typeof gameInstance | null>(null);
   const petsRef = useRef<Map<string, PetInstance>>(new Map());
   const [gameReady, setGameReady] = useState(false);
+  const [furnitureLoading, setFurnitureLoading] = useState(false);
 
   // Init PixiJS game + sync on ready
   useEffect(() => {
@@ -700,6 +750,57 @@ function HomePanel() {
       },
       onReady() {
         setGameReady(true);
+      },
+      onFurniturePlaced(shopItemId, posX, posY) {
+        if (!userId) return;
+        setFurnitureLoading(true);
+        const info = useGameStore.getState().placingFurniture;
+        if (!info) return;
+        placeFurniture(userId, shopItemId, posX, posY, info.width, info.height)
+          .then((placed) => {
+            addYardFurniture(placed);
+            // Convert to SceneObjectData format for game rendering
+            const sceneObj = {
+              id: placed.id,
+              label: placed.name || info.name,
+              object_type: 'furniture',
+              layer: 1,
+              pos_x: parseFloat(String(placed.pos_x)),
+              pos_y: parseFloat(String(placed.pos_y)),
+              width: parseFloat(String(placed.width)),
+              height: parseFloat(String(placed.height)),
+              image_url: placed.image_url || info.imageUrl,
+              collidable: true,
+              sort_priority: 0,
+              is_user_furniture: true,
+              shop_item_id: placed.shop_item_id,
+            };
+            gameRef.current?.confirmPlacement(sceneObj);
+            setPlacingFurniture(null);
+            setToast(`🪑 ${info.name} 已放置到庭院`);
+          })
+          .catch((e: any) => {
+            alert(e.message || '放置失败');
+            gameRef.current?.cancelPlacing();
+            setPlacingFurniture(null);
+          })
+          .finally(() => setFurnitureLoading(false));
+      },
+      onFurnitureRemove(furnitureId) {
+        if (!userId) return;
+        if (!confirm('确定要将此家具收回背包吗？')) return;
+        removeFurniture(userId, furnitureId)
+          .then(() => {
+            removeYardFurniture(furnitureId);
+            gameRef.current?.removeFurnitureSprite(furnitureId);
+            setToast('🪑 家具已收回背包');
+          })
+          .catch((e: any) => {
+            alert(e.message || '收回失败');
+          });
+      },
+      onFurnitureCancel() {
+        setPlacingFurniture(null);
       },
     });
 
@@ -788,6 +889,22 @@ function HomePanel() {
           <span className="top-right-btn-label">商店</span>
         </button>
       </div>
+
+      {/* 家具布置模式提示栏 */}
+      {placingFurniture && (
+        <div className="placing-bar">
+          <span className="placing-hint">👆 点击庭院空地放置 {placingFurniture.name}</span>
+          <button
+            className="placing-cancel"
+            onClick={() => {
+              gameRef.current?.cancelPlacing();
+              setPlacingFurniture(null);
+            }}
+          >
+            取消
+          </button>
+        </div>
+      )}
 
       {/* 底部菜单栏：漂流瓶、藏品库、背包、小游戏 */}
       <div className="bottom-bar">
@@ -1031,7 +1148,8 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 
 // ─── App 根组件 ──────────────────────────────────────────────
 export default function App() {
-  const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, activeModal, setActiveModal } = useGameStore();
+  const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, activeModal, setActiveModal,
+          setYardFurniture } = useGameStore();
 
   useEffect(() => {
     const init = async () => {
@@ -1039,14 +1157,19 @@ export default function App() {
         const user = await getOrCreateUser();
         setUser(user.user_id, user.emotion_points);
 
-        const [yardPets, allPets, travel] = await Promise.all([
+        // 保存 user_id 到 localStorage 供 Game.ts 场景加载使用
+        localStorage.setItem('epet_user_id', String(user.user_id));
+
+        const [yardPets, allPets, travel, yardFurn] = await Promise.all([
           fetchYardPets(user.user_id),
           fetchUserPets(user.user_id),
           fetchTravelStatus(user.user_id),
+          fetchYardFurniture(user.user_id),
         ]);
         setYardPets(yardPets);
         setAllPets(allPets);
         setActiveTravel(travel);
+        setYardFurniture(yardFurn);
       } catch (e) {
         console.error('init failed', e);
       } finally {

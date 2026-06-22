@@ -1063,3 +1063,52 @@ body {
   padding: 40px 20px;
   font-size: 15px;
 }
+
+/* ─── 家具布置模式 ─── */
+.placing-bar {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: rgba(60, 50, 30, 0.92);
+  backdrop-filter: blur(8px);
+  border-radius: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  z-index: 15;
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.placing-hint {
+  color: #FFF8E8;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.placing-cancel {
+  padding: 6px 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  background: transparent;
+  color: #FFD0D0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.placing-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.placing-cancel:active { transform: scale(0.95); }

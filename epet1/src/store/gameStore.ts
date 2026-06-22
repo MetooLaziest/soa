@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { PetInstance, TravelRecord } from '../api/epet1';
+import type { PetInstance, TravelRecord, YardFurniture } from '../api/epet1';
 
 type ModalType = 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | null;
 
@@ -18,6 +18,9 @@ interface GameStore {
   chatPetId: number | null;
   // Loading
   loading: boolean;
+  // Furniture placement
+  yardFurniture: YardFurniture[];
+  placingFurniture: { shopItemId: number; name: string; imageUrl: string; width: number; height: number } | null;
 
   setUser: (userId: number, emotionPoints: number) => void;
   setYardPets: (pets: PetInstance[]) => void;
@@ -29,6 +32,10 @@ interface GameStore {
   setChatPetId: (id: number | null) => void;
   setLoading: (v: boolean) => void;
   refreshPet: (updated: PetInstance) => void;
+  setYardFurniture: (f: YardFurniture[]) => void;
+  addYardFurniture: (f: YardFurniture) => void;
+  removeYardFurniture: (id: number) => void;
+  setPlacingFurniture: (f: { shopItemId: number; name: string; imageUrl: string; width: number; height: number } | null) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -40,6 +47,8 @@ export const useGameStore = create<GameStore>((set) => ({
   activeModal: null,
   chatPetId: null,
   loading: true,
+  yardFurniture: [],
+  placingFurniture: null,
 
   setUser: (userId, emotionPoints) => set({ userId, emotionPoints }),
   setYardPets: (yardPets) => set({ yardPets }),
@@ -56,4 +65,9 @@ export const useGameStore = create<GameStore>((set) => ({
       yardPets: s.yardPets.map((p) => (p.id === updated.id ? updated : p)),
       allPets: s.allPets.map((p) => (p.id === updated.id ? updated : p)),
     })),
+
+  setYardFurniture: (yardFurniture) => set({ yardFurniture }),
+  addYardFurniture: (f) => set((s) => ({ yardFurniture: [...s.yardFurniture, f] })),
+  removeYardFurniture: (id) => set((s) => ({ yardFurniture: s.yardFurniture.filter((f) => f.id !== id) })),
+  setPlacingFurniture: (placingFurniture) => set({ placingFurniture }),
 }));

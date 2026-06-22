@@ -1,4 +1,4 @@
-import { Application, Container, Sprite, Assets } from 'pixi.js';
+import { Application, Container, Sprite, Assets, Text, Graphics } from 'pixi.js';
 import { PetEntity } from '../entities/Pet';
 import { collisionMap, type SceneObjectData } from './CollisionMap';
 
@@ -13,9 +13,21 @@ function getViewport() {
   return { W: window.innerWidth, H: window.innerHeight };
 }
 
+/** Furniture placement target info (from store) */
+export interface PlacingFurnitureInfo {
+  shopItemId: number;
+  name: string;
+  imageUrl: string;
+  width: number;
+  height: number;
+}
+
 export interface PetEventCallbacks {
   onPetTap?: (petId: string, pet: PetEntity) => void;
   onReady?: () => void;
+  onFurniturePlaced?: (shopItemId: number, posX: number, posY: number) => void;
+  onFurnitureRemove?: (furnitureId: number) => void;
+  onFurnitureCancel?: () => void;
 }
 
 export class Game {
@@ -24,10 +36,14 @@ export class Game {
   sortedContainer: Container | null = null;     // Layer 1: Y-sorted objects (pets, tree trunks, fences)
   canopyContainer: Container | null = null;     // Layer 2: always-on-top (tree canopies)
   petContainer: Container | null = null;        // sub-container inside sortedContainer
+  furnitureContainer: Container | null = null;  // furniture sprites inside sortedContainer
   petSprites = new Map<string, Sprite>();
   petEntities = new Map<string, PetEntity>();
   private _sceneObjects: SceneObjectData[] = [];  // from API
   private _sceneSprites: Sprite[] = [];           // rendered scene object sprites
+  private _furnitureSprites = new Map<number, Container>(); // furniture id → container (sprite + remove btn)
+  private _placingSprite: Sprite | null = null;   // ghost preview while placing
+  private _placingInfo: PlacingFurnitureInfo | null = null;
   private _ready = false;
   private _bgLoaded = false;
   private _callbacks: PetEventCallbacks = {};
@@ -70,6 +86,11 @@ export class Game {
       this.petContainer.label = 'pets';
       this.sortedContainer.addChild(this.petContainer);
 
+      // Furniture sub-container inside sortedContainer (Y-sorted with pets)
+      this.furnitureContainer = new Container();
+      this.furnitureContainer.label = 'furniture';
+      this.sortedContainer.addChild(this.furnitureContainer);
+
       // Layer 2: Canopy / always-on-top (tree canopies, roof eaves)
       this.canopyContainer = new Container();
       this.canopyContainer.label = 'canopy';
@@ -98,8 +119,17 @@ export class Game {
     }
   }
 
-  /** Handle click on empty yard area — move the nearest pet to click position */
+  /** Handle click on empty yard area — move the nearest pet to click position, or place furniture */
   private _handleStageClick(cx: number, cy: number): void {
+    // If in furniture placement mode, place the furniture
+    if (this._placingInfo && this._placingSprite) {
+      const { W, H } = getViewport();
+      const posX = cx / W;
+      const posY = cy / H;
+      this._callbacks.onFurniturePlaced?.(this._placingInfo.shopItemId, posX, posY);
+      return;
+    }
+
     // Check if click hit a pet sprite — if so, ignore (pet tap handled separately)
     for (const [petId, sprite] of this.petSprites) {
       const b = sprite.getBounds();
@@ -321,7 +351,11 @@ export class Game {
   /** Load scene configuration from API and render scene objects */
   private async _loadSceneConfig(): Promise<void> {
     try {
-      const resp = await fetch('/api/epet1/yard/scene');
+      // Try to get user_id from localStorage (set by App.tsx)
+      const userIdStr = localStorage.getItem('epet_user_id');
+      const userId = userIdStr ? parseInt(userIdStr) : '';
+      const url = userId ? `/api/epet1/yard/scene?user_id=${userId}` : '/api/epet1/yard/scene';
+      const resp = await fetch(url);
       const data = await resp.json();
       if (!data.success || !data.scene) {
         console.log('ℹ️ No scene config from API, using defaults');
@@ -341,6 +375,15 @@ export class Game {
 
       // Render scene objects (trees, fences, etc.)
       await this._renderSceneObjects(objects);
+
+      // Render user furniture
+      const furniture: SceneObjectData[] = data.furniture || [];
+      if (furniture.length > 0) {
+        await this._renderFurniture(furniture);
+        // Add furniture to collision map
+        await collisionMap.loadFromSceneObjects(furniture);
+        console.log(`✅ ${furniture.length} user furniture rendered & collision added`);
+      }
     } catch (e) {
       console.warn('Scene config load failed, using defaults:', e);
     }
@@ -390,6 +433,166 @@ export class Game {
     }
   }
 
+  /** Render user furniture into the sorted layer with remove buttons */
+  private async _renderFurniture(furniture: SceneObjectData[]): Promise<void> {
+    if (!this.furnitureContainer) return;
+    const { W, H } = getViewport();
+
+    for (const f of furniture) {
+      if (!f.image_url) continue;
+      await this._addFurnitureSprite(f);
+    }
+  }
+
+  /** Add a single furniture sprite (with remove button) to the furniture container */
+  private async _addFurnitureSprite(f: SceneObjectData): Promise<void> {
+    if (!this.furnitureContainer) return;
+    const { W, H } = getViewport();
+
+    try {
+      const base = `${window.location.protocol}//${window.location.host}`;
+      const url = f.image_url.startsWith('/') ? `${base}${f.image_url}` : f.image_url;
+      const tex = await Assets.load(url);
+      if (!tex) return;
+
+      const container = new Container();
+      container.label = `furniture-${f.id}`;
+
+      const sprite = new Sprite(tex);
+      sprite.anchor.set(0.5, 0.85);
+      sprite.x = f.pos_x * W;
+      sprite.y = f.pos_y * H;
+      const targetW = f.width * W;
+      const targetH = f.height * H;
+      const scaleX = targetW / tex.width;
+      const scaleY = targetH / tex.height;
+      const s = Math.min(scaleX, scaleY);
+      sprite.scale.set(s);
+      container.addChild(sprite);
+
+      // Remove button (×) on top-right corner
+      const btnSize = Math.max(20, Math.min(28, targetW * 0.35));
+      const btnX = sprite.x + targetW * 0.4;
+      const btnY = sprite.y - targetH * 0.85 + btnSize * 0.3;
+
+      const btnBg = new Graphics();
+      btnBg.circle(0, 0, btnSize / 2);
+      btnBg.fill({ color: 0xFF4444, alpha: 0.85 });
+      btnBg.eventMode = 'static';
+      btnBg.cursor = 'pointer';
+      btnBg.x = btnX;
+      btnBg.y = btnY;
+      container.addChild(btnBg);
+
+      const btnLabel = new Text({ text: '×', style: { fontSize: btnSize * 0.8, fill: 0xFFFFFF, fontWeight: 'bold' } });
+      btnLabel.anchor.set(0.5);
+      btnLabel.x = btnX;
+      btnLabel.y = btnY;
+      btnLabel.eventMode = 'static';
+      btnLabel.cursor = 'pointer';
+      container.addChild(btnLabel);
+
+      // Click handler for remove button
+      const furnitureId = f.id;
+      const handleRemove = (e: any) => {
+        e.stopPropagation?.();
+        console.log(`[Game] Remove furniture: ${furnitureId}`);
+        this._callbacks.onFurnitureRemove?.(furnitureId);
+      };
+      btnBg.on('pointerdown', handleRemove);
+      btnLabel.on('pointerdown', handleRemove);
+
+      this.furnitureContainer.addChild(container);
+      this._furnitureSprites.set(f.id, container);
+      console.log(`  🪑 Furniture: ${f.label} at (${f.pos_x.toFixed(2)}, ${f.pos_y.toFixed(2)})`);
+    } catch (e) {
+      console.warn(`  Failed to load furniture: ${f.label}`, e);
+    }
+  }
+
+  /** Start furniture placement mode — shows ghost preview following cursor */
+  startPlacing(info: PlacingFurnitureInfo): void {
+    if (!this.app || !this.sortedContainer) return;
+    this.cancelPlacing(); // clean up any previous
+    this._placingInfo = info;
+
+    const base = `${window.location.protocol}//${window.location.host}`;
+    const url = info.imageUrl.startsWith('/') ? `${base}${info.imageUrl}` : info.imageUrl;
+
+    Assets.load(url).then((tex) => {
+      if (!tex || !this.sortedContainer) return;
+      const sprite = new Sprite(tex);
+      sprite.anchor.set(0.5, 0.85);
+      sprite.alpha = 0.5; // ghost preview
+      sprite.label = 'placing-ghost';
+
+      const { W, H } = getViewport();
+      const targetW = info.width * W;
+      const targetH = info.height * H;
+      const scaleX = targetW / tex.width;
+      const scaleY = targetH / tex.height;
+      sprite.scale.set(Math.min(scaleX, scaleY));
+
+      sprite.x = W / 2;
+      sprite.y = H / 2;
+
+      this.sortedContainer.addChild(sprite);
+      this._placingSprite = sprite;
+
+      // Move ghost with pointer
+      this.app!.stage.on('pointermove', this._onPlacingMove, this);
+      console.log(`[Game] Placement mode: ${info.name}`);
+    }).catch((e) => {
+      console.warn('Failed to load furniture preview:', e);
+    });
+  }
+
+  /** Move the ghost preview sprite with the pointer */
+  private _onPlacingMove(e: any): void {
+    if (!this._placingSprite) return;
+    this._placingSprite.x = e.globalX;
+    this._placingSprite.y = e.globalY;
+  }
+
+  /** Cancel furniture placement mode */
+  cancelPlacing(): void {
+    if (this._placingSprite) {
+      this._placingSprite.destroy();
+      this._placingSprite = null;
+    }
+    this._placingInfo = null;
+    if (this.app) {
+      this.app.stage.off('pointermove', this._onPlacingMove, this);
+    }
+    console.log('[Game] Placement mode cancelled');
+  }
+
+  /** Confirm furniture placement — render the placed furniture and add collision */
+  async confirmPlacement(furnitureData: SceneObjectData): Promise<void> {
+    // Remove ghost
+    this.cancelPlacing();
+
+    // Render the placed furniture
+    await this._addFurnitureSprite(furnitureData);
+
+    // Add to collision map
+    await collisionMap.loadFromSceneObjects([furnitureData]);
+
+    console.log(`[Game] Furniture placed: ${furnitureData.label}`);
+  }
+
+  /** Remove a furniture sprite and its collision from the yard */
+  removeFurnitureSprite(furnitureId: number): void {
+    const container = this._furnitureSprites.get(furnitureId);
+    if (container && this.furnitureContainer) {
+      this.furnitureContainer.removeChild(container);
+      container.destroy();
+      this._furnitureSprites.delete(furnitureId);
+    }
+    // Note: collision map reload happens on next scene load, which is acceptable
+    console.log(`[Game] Furniture sprite removed: ${furnitureId}`);
+  }
+
   /** Sort petContainer children by Y position (lower Y = farther = drawn first) */
   private _ySortPets(): void {
     if (!this.petContainer) return;
@@ -407,8 +610,12 @@ export class Game {
     this.sortedContainer = null;
     this.canopyContainer = null;
     this.petContainer = null;
+    this.furnitureContainer = null;
     this._sceneObjects = [];
     this._sceneSprites = [];
+    this._furnitureSprites.clear();
+    this._placingSprite = null;
+    this._placingInfo = null;
     this._ready = false;
     this._bgLoaded = false;
     this._readyNotified = false;
