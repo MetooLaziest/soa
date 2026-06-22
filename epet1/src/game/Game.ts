@@ -44,6 +44,8 @@ export class Game {
   private _furnitureSprites = new Map<number, Container>(); // furniture id → container (sprite + remove btn)
   private _furnitureData = new Map<number, SceneObjectData>(); // furniture id → data (for collision rebuild)
   private _placingSprite: Sprite | null = null;   // ghost preview while placing
+  private _placingPreview: Container | null = null;  // fixed preview with confirm/cancel buttons
+  private _placingPreviewPos = { x: 0, y: 0 };     // confirmed position in viewport coords
   private _placingInfo: PlacingFurnitureInfo | null = null;
   private _ready = false;
   private _bgLoaded = false;
@@ -122,12 +124,14 @@ export class Game {
 
   /** Handle click on empty yard area — move the nearest pet to click position, or place furniture */
   private _handleStageClick(cx: number, cy: number): void {
-    // If in furniture placement mode, place the furniture
+    // If in furniture placement mode and preview is showing (confirm/cancel)
+    if (this._placingInfo && this._placingPreview) {
+      return; // ignore clicks while preview is shown, wait for confirm/cancel
+    }
+
+    // If in furniture placement mode, fix position and show confirm/cancel
     if (this._placingInfo) {
-      const { W, H } = getViewport();
-      const posX = cx / W;
-      const posY = cy / H;
-      this._callbacks.onFurniturePlaced?.(this._placingInfo.shopItemId, posX, posY);
+      this._showPlacingPreview(cx, cy);
       return;
     }
 
@@ -582,8 +586,107 @@ export class Game {
     this._placingSprite.y = e.globalY;
   }
 
+  /** Show fixed preview with confirm/cancel buttons */
+  private _showPlacingPreview(cx: number, cy: number): void {
+    if (!this._placingInfo || !this.sortedContainer) return;
+
+    // Remove previous preview if any
+    this._removePlacingPreview();
+
+    // Fix ghost at clicked position
+    if (this._placingSprite) {
+      this._placingSprite.x = cx;
+      this._placingSprite.y = cy;
+      this._placingSprite.alpha = 0.7; // slightly more visible
+      // Stop following pointer
+      if (this.app) {
+        this.app.stage.off('pointermove', this._onPlacingMove, this);
+      }
+    }
+
+    const info = this._placingInfo;
+    const { W, H } = getViewport();
+    const targetW = info.width * W;
+    const targetH = info.height * H;
+
+    // Create confirm/cancel button container
+    const btnContainer = new Container();
+    btnContainer.label = 'placing-preview-buttons';
+    btnContainer.x = cx;
+    btnContainer.y = cy - targetH * 0.85 - 36; // above the furniture
+
+    // Cancel button (❌)
+    const cancelBtn = new Graphics();
+    cancelBtn.circle(0, 0, 20);
+    cancelBtn.fill({ color: 0xFF4444, alpha: 0.9 });
+    cancelBtn.eventMode = 'static';
+    cancelBtn.cursor = 'pointer';
+    cancelBtn.x = -28;
+    const cancelLabel = new Text({ text: '✕', style: { fontSize: 18, fill: 0xFFFFFF, fontWeight: 'bold' } });
+    cancelLabel.anchor.set(0.5);
+    cancelLabel.x = -28;
+    cancelLabel.eventMode = 'static';
+    cancelLabel.cursor = 'pointer';
+
+    // Confirm button (✅)
+    const confirmBtn = new Graphics();
+    confirmBtn.circle(0, 0, 20);
+    confirmBtn.fill({ color: 0x44BB44, alpha: 0.9 });
+    confirmBtn.eventMode = 'static';
+    confirmBtn.cursor = 'pointer';
+    confirmBtn.x = 28;
+    const confirmLabel = new Text({ text: '✓', style: { fontSize: 20, fill: 0xFFFFFF, fontWeight: 'bold' } });
+    confirmLabel.anchor.set(0.5);
+    confirmLabel.x = 28;
+    confirmLabel.eventMode = 'static';
+    confirmLabel.cursor = 'pointer';
+
+    btnContainer.addChild(cancelBtn, cancelLabel, confirmBtn, confirmLabel);
+    this.sortedContainer.addChild(btnContainer);
+    this._placingPreview = btnContainer;
+    this._placingPreviewPos = { x: cx, y: cy };
+
+    // Click handlers
+    const handleCancel = (e: any) => {
+      e?.stopPropagation?.();
+      this._removePlacingPreview();
+      // Resume ghost following mode
+      if (this._placingSprite) {
+        this._placingSprite.alpha = 0.5;
+        if (this.app) {
+          this.app.stage.on('pointermove', this._onPlacingMove, this);
+        }
+      }
+    };
+
+    const handleConfirm = (e: any) => {
+      e?.stopPropagation?.();
+      const { W: w, H: h } = getViewport();
+      const posX = this._placingPreviewPos.x / w;
+      const posY = this._placingPreviewPos.y / h;
+      this._removePlacingPreview();
+      this._callbacks.onFurniturePlaced?.(this._placingInfo!.shopItemId, posX, posY);
+    };
+
+    cancelBtn.on('pointerdown', handleCancel);
+    cancelLabel.on('pointerdown', handleCancel);
+    confirmBtn.on('pointerdown', handleConfirm);
+    confirmLabel.on('pointerdown', handleConfirm);
+
+    console.log(`[Game] Placement preview at (${cx.toFixed(0)}, ${cy.toFixed(0)})`);
+  }
+
+  /** Remove the confirm/cancel preview buttons */
+  private _removePlacingPreview(): void {
+    if (this._placingPreview) {
+      this._placingPreview.destroy();
+      this._placingPreview = null;
+    }
+  }
+
   /** Cancel furniture placement mode */
   cancelPlacing(): void {
+    this._removePlacingPreview();
     if (this._placingSprite) {
       this._placingSprite.destroy();
       this._placingSprite = null;
@@ -648,6 +751,7 @@ export class Game {
     this._furnitureSprites.clear();
     this._furnitureData.clear();
     this._placingSprite = null;
+    this._placingPreview = null;
     this._placingInfo = null;
     this._ready = false;
     this._bgLoaded = false;

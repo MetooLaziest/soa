@@ -8,7 +8,7 @@ router.get('/items', async (req, res) => {
   try {
     const { rows } = await poolEpet1.query(
       `SELECT id, name, item_type, item_category, shop_tab, price_emotion, price_real,
-              image_url, description, stock, is_active
+              image_url, description, stock, is_active, yard_width, yard_height
        FROM shop_items WHERE is_active = true ORDER BY shop_tab, price_emotion`
     );
     const tabs = { food: [], furniture: [], decoration: [], map: [], toy: [] };
@@ -57,7 +57,9 @@ router.post('/config', async (req, res) => {
 router.get('/admin/items', async (_req, res) => {
   try {
     const { rows } = await poolEpet1.query(
-      `SELECT * FROM shop_items ORDER BY shop_tab, id`
+      `SELECT id, name, item_type, item_category, shop_tab, price_emotion, price_real,
+              image_url, description, stock, is_active, yard_width, yard_height
+       FROM shop_items ORDER BY shop_tab, id`
     );
     res.json({ ok: true, items: rows });
   } catch (err) {
@@ -69,14 +71,15 @@ router.get('/admin/items', async (_req, res) => {
 router.post('/admin/items', async (req, res) => {
   try {
     const { name, item_type, item_category, shop_tab, price_emotion, price_real,
-            image_url, description, stock } = req.body;
+            image_url, description, stock, yard_width, yard_height } = req.body;
     if (!name) return res.status(400).json({ error: '缺少名称' });
     const { rows: inserted } = await poolEpet1.query(
       `INSERT INTO shop_items (name, item_type, item_category, shop_tab, price_emotion, price_real,
-        image_url, description, stock)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        image_url, description, stock, yard_width, yard_height)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [name, item_type || 'virtual', item_category || 'food', shop_tab || 'food',
-       price_emotion || 0, price_real || 0, image_url || '', description || '', stock ?? -1]
+       price_emotion || 0, price_real || 0, image_url || '', description || '', stock ?? -1,
+       yard_width || 0.08, yard_height || 0.12]
     );
     res.json({ ok: true, item: inserted[0] });
   } catch (err) {
@@ -89,17 +92,18 @@ router.put('/admin/items/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, item_type, item_category, shop_tab, price_emotion, price_real,
-            image_url, description, stock, is_active } = req.body;
+            image_url, description, stock, is_active, yard_width, yard_height } = req.body;
     const { rows: updated } = await poolEpet1.query(
       `UPDATE shop_items SET
         name=COALESCE($1,name), item_type=COALESCE($2,item_type),
         item_category=COALESCE($3,item_category), shop_tab=COALESCE($4,shop_tab),
         price_emotion=COALESCE($5,price_emotion), price_real=COALESCE($6,price_real),
         image_url=COALESCE($7,image_url), description=COALESCE($8,description),
-        stock=COALESCE($9,stock), is_active=COALESCE($10,is_active)
-       WHERE id=$11 RETURNING *`,
+        stock=COALESCE($9,stock), is_active=COALESCE($10,is_active),
+        yard_width=COALESCE($11,yard_width), yard_height=COALESCE($12,yard_height)
+       WHERE id=$13 RETURNING *`,
       [name, item_type, item_category, shop_tab, price_emotion, price_real,
-       image_url, description, stock, is_active, id]
+       image_url, description, stock, is_active, yard_width, yard_height, id]
     );
     if (!updated.length) return res.status(404).json({ error: '商品不存在' });
     res.json({ ok: true, item: updated[0] });

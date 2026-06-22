@@ -324,13 +324,14 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
       alert('庭院最多放置 8 件家具！');
       return;
     }
+    // 优先使用后台配置的 yard_width/yard_height，否则 fallback 到默认表
     const defaultSize = FURNITURE_DEFAULT_SIZE[item.name] || { width: 0.08, height: 0.12 };
     const info: PlacingFurnitureInfo = {
       shopItemId: item.shop_item_id || item.id,
       name: item.name,
       imageUrl: item.image_url || '',
-      width: defaultSize.width,
-      height: defaultSize.height,
+      width: item.yard_width ? parseFloat(item.yard_width) : defaultSize.width,
+      height: item.yard_height ? parseFloat(item.yard_height) : defaultSize.height,
     };
     setPlacingFurniture(info);
     gameInstance.startPlacing(info);

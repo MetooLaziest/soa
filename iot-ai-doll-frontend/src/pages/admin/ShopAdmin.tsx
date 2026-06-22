@@ -24,6 +24,8 @@ interface ShopItem {
   description: string;
   stock: number;
   is_active: boolean;
+  yard_width: number;
+  yard_height: number;
 }
 
 export default function ShopAdmin() {
@@ -44,6 +46,8 @@ export default function ShopAdmin() {
   const [formDesc, setFormDesc] = useState('');
   const [formImageUrl, setFormImageUrl] = useState('');
   const [formStock, setFormStock] = useState(-1);
+  const [formYardWidth, setFormYardWidth] = useState(0.08);
+  const [formYardHeight, setFormYardHeight] = useState(0.12);
 
   const load = async () => {
     setLoading(true);
@@ -66,6 +70,7 @@ export default function ShopAdmin() {
   const resetForm = () => {
     setFormName(''); setFormShopTab('food'); setFormCategory('food');
     setFormPrice(0); setFormDesc(''); setFormImageUrl(''); setFormStock(-1);
+    setFormYardWidth(0.08); setFormYardHeight(0.12);
     setEditing(null); setShowForm(false);
   };
 
@@ -74,7 +79,8 @@ export default function ShopAdmin() {
     setFormName(item.name); setFormShopTab(item.shop_tab);
     setFormCategory(item.item_category); setFormPrice(item.price_emotion);
     setFormDesc(item.description || ''); setFormImageUrl(item.image_url || '');
-    setFormStock(item.stock); setShowForm(true);
+    setFormStock(item.stock); setFormYardWidth(item.yard_width || 0.08); setFormYardHeight(item.yard_height || 0.12);
+    setShowForm(true);
   };
 
   const uploadImage = async (file: File) => {
@@ -119,12 +125,14 @@ export default function ShopAdmin() {
           name: formName, shop_tab: formShopTab, item_category: formCategory,
           price_emotion: formPrice, image_url: formImageUrl,
           description: formDesc, stock: formStock,
+          yard_width: formYardWidth, yard_height: formYardHeight,
         });
       } else {
         await client.post('/epet1/shop2/admin/items', {
           name: formName, item_type: 'virtual', item_category: formCategory,
           shop_tab: formShopTab, price_emotion: formPrice,
           image_url: formImageUrl, description: formDesc, stock: formStock,
+          yard_width: formYardWidth, yard_height: formYardHeight,
         });
       }
       resetForm(); load();
@@ -205,6 +213,7 @@ export default function ShopAdmin() {
                     {SHOP_TABS.find(t => t.id === item.shop_tab)?.name || item.shop_tab} · 💛{item.price_emotion}
                     {item.stock >= 0 && ` · 库存:${item.stock}`}
                     {!item.is_active && ' · ❌已下架'}
+                    {item.item_category === 'furniture' && ` · 📐${item.yard_width}×${item.yard_height}`}
                   </div>
                 </div>
               </div>
@@ -261,6 +270,24 @@ export default function ShopAdmin() {
                     className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-purple-500" />
                 </div>
               </div>
+              {formCategory === 'furniture' && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-3">
+                  <div className="text-xs font-semibold text-amber-300">📐 庭院尺寸（占屏比例 0~1）</div>
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-400">宽度 yard_width</label>
+                      <input type="number" step="0.01" value={formYardWidth} onChange={e => setFormYardWidth(Number(e.target.value))}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-400">高度 yard_height</label>
+                      <input type="number" step="0.01" value={formYardHeight} onChange={e => setFormYardHeight(Number(e.target.value))}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">提示：0.08 = 屏幕宽度 8%，可在庭院中反复调整测试</div>
+                </div>
+              )}
               <div>
                 <label className="text-xs text-gray-400">描述</label>
                 <input value={formDesc} onChange={e => setFormDesc(e.target.value)}
