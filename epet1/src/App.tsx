@@ -302,7 +302,7 @@ const FURNITURE_DEFAULT_SIZE: Record<string, { width: number; height: number }> 
 };
 
 function InventoryModal({ onClose }: { onClose: () => void }) {
-  const { userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture, addYardFurniture, removeYardFurniture } = useGameStore();
+  const { userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture, addYardFurniture, removeYardFurniture, setRemovingFurnitureMode } = useGameStore();
   const [activeTab, setActiveTab] = useState<'food' | 'furniture' | 'postcard'>('food');
   const [inventory, setInventory] = useState<{ food: any[]; furniture: any[]; postcard: any[] }>({ food: [], furniture: [], postcard: [] });
 
@@ -361,6 +361,18 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* 内容区 */}
+      {activeTab === 'furniture' && yardFurniture.length > 0 && (
+        <button
+          onClick={() => { setRemovingFurnitureMode(true); onClose(); }}
+          style={{
+            width: '100%', marginBottom: 10, padding: '8px 12px', borderRadius: 8, border: 'none',
+            background: 'linear-gradient(135deg, #c0392b, #e74c3c)', color: '#fff',
+            fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          🔄 回收家具
+        </button>
+      )}
       {items.length === 0 ? (
         <div className="modal-empty" style={{ padding: '40px 0' }}>
           {INV_TABS.find(t => t.id === activeTab)?.empty}
@@ -733,7 +745,7 @@ function GameModal({ onClose }: { onClose: () => void }) {
 function HomePanel() {
   const { emotionPoints, yardPets, setChatPetId, setActiveModal, activeTravel,
           userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture,
-          addYardFurniture, removeYardFurniture } = useGameStore();
+          addYardFurniture, removeYardFurniture, removingFurnitureMode, setRemovingFurnitureMode } = useGameStore();
   const [toast, setToast] = useState('');
   const [otherExpanded, setOtherExpanded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -763,12 +775,16 @@ function HomePanel() {
         setGameReady(true);
       },
       onFurniturePlaced(shopItemId, posX, posY) {
-        if (!userId) return;
+        const currentUserId = useGameStore.getState().userId;
+        console.log('[App] onFurniturePlaced called:', { shopItemId, posX, posY, userId: currentUserId });
+        if (!currentUserId) { console.log('[App] no userId, abort'); return; }
         setFurnitureLoading(true);
         const info = useGameStore.getState().placingFurniture;
-        if (!info) return;
-        placeFurniture(userId, shopItemId, posX, posY, info.width, info.height)
+        console.log('[App] placingFurniture info:', info);
+        if (!info) { console.log('[App] no placingFurniture info, abort'); return; }
+        placeFurniture(currentUserId, shopItemId, posX, posY, info.width, info.height)
           .then((placed) => {
+            console.log('[App] placeFurniture success:', placed);
             addYardFurniture(placed);
             // Convert to SceneObjectData format for game rendering
             const sceneObj = {
@@ -791,6 +807,7 @@ function HomePanel() {
             setToast(`🪑 ${info.name} 已放置到庭院`);
           })
           .catch((e: any) => {
+            console.error('[App] placeFurniture error:', e);
             alert(e.message || '放置失败');
             gameRef.current?.cancelPlacing();
             setPlacingFurniture(null);
@@ -798,13 +815,16 @@ function HomePanel() {
           .finally(() => setFurnitureLoading(false));
       },
       onFurnitureRemove(furnitureId) {
-        if (!userId) return;
+        const currentUserId = useGameStore.getState().userId;
+        if (!currentUserId) return;
         if (!confirm('确定要将此家具收回背包吗？')) return;
-        removeFurniture(userId, furnitureId)
+        removeFurniture(currentUserId, furnitureId)
           .then(() => {
             removeYardFurniture(furnitureId);
             gameRef.current?.removeFurnitureSprite(furnitureId);
             setToast('🪑 家具已收回背包');
+            // Exit removing mode after one removal
+            useGameStore.getState().setRemovingFurnitureMode(false);
           })
           .catch((e: any) => {
             alert(e.message || '收回失败');
@@ -852,6 +872,16 @@ function HomePanel() {
       }
     });
   }, [yardPets, gameReady]);
+
+  // Sync removingFurnitureMode to game
+  useEffect(() => {
+    if (!gameRef.current) return;
+    if (removingFurnitureMode) {
+      gameRef.current.showRemoveButtons();
+    } else {
+      gameRef.current.hideRemoveButtons();
+    }
+  }, [removingFurnitureMode, gameReady]);
 
   return (
     <div className="home-panel">
@@ -911,6 +941,19 @@ function HomePanel() {
               gameRef.current?.cancelPlacing();
               setPlacingFurniture(null);
             }}
+          >
+            取消
+          </button>
+        </div>
+      )}
+
+      {/* 家具回收模式提示栏 */}
+      {removingFurnitureMode && !placingFurniture && (
+        <div className="placing-bar" style={{ background: 'rgba(192,57,43,0.9)' }}>
+          <span className="placing-hint">👆 点击家具上的 × 回收</span>
+          <button
+            className="placing-cancel"
+            onClick={() => setRemovingFurnitureMode(false)}
           >
             取消
           </button>

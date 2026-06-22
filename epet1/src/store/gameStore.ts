@@ -21,6 +21,7 @@ interface GameStore {
   // Furniture placement
   yardFurniture: YardFurniture[];
   placingFurniture: { shopItemId: number; name: string; imageUrl: string; width: number; height: number } | null;
+  removingFurnitureMode: boolean;
 
   setUser: (userId: number, emotionPoints: number) => void;
   setYardPets: (pets: PetInstance[]) => void;
@@ -36,6 +37,7 @@ interface GameStore {
   addYardFurniture: (f: YardFurniture) => void;
   removeYardFurniture: (id: number) => void;
   setPlacingFurniture: (f: { shopItemId: number; name: string; imageUrl: string; width: number; height: number } | null) => void;
+  setRemovingFurnitureMode: (v: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -49,6 +51,7 @@ export const useGameStore = create<GameStore>((set) => ({
   loading: true,
   yardFurniture: [],
   placingFurniture: null,
+  removingFurnitureMode: false,
 
   setUser: (userId, emotionPoints) => set({ userId, emotionPoints }),
   setYardPets: (yardPets) => set({ yardPets }),
@@ -70,4 +73,5 @@ export const useGameStore = create<GameStore>((set) => ({
   addYardFurniture: (f) => set((s) => ({ yardFurniture: [...s.yardFurniture, f] })),
   removeYardFurniture: (id) => set((s) => ({ yardFurniture: s.yardFurniture.filter((f) => f.id !== id) })),
   setPlacingFurniture: (placingFurniture) => set({ placingFurniture }),
+  setRemovingFurnitureMode: (removingFurnitureMode) => set({ removingFurnitureMode }),
 }));

@@ -121,7 +121,8 @@ module.exports = (pool) => {
   router.get('/inventory/:userId', async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT ui.*, si.name, si.image_url, si.description, si.item_type
+        `SELECT ui.*, si.name, si.image_url, si.description, si.item_type, si.item_category,
+                si.yard_width, si.yard_height
          FROM user_inventory ui
          JOIN shop_items si ON si.id = ui.shop_item_id
          WHERE ui.user_id = $1 AND ui.quantity > 0

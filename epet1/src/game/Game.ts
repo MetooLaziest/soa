@@ -46,6 +46,7 @@ export class Game {
   private _placingSprite: Sprite | null = null;   // ghost preview while placing
   private _placingPreview: Container | null = null;  // fixed preview with confirm/cancel buttons
   private _placingPreviewPos = { x: 0, y: 0 };     // confirmed position in viewport coords
+  private _removingMode = false;                  // when true, show × buttons on placed furniture
   private _placingInfo: PlacingFurnitureInfo | null = null;
   private _ready = false;
   private _bgLoaded = false;
@@ -385,8 +386,9 @@ export class Game {
       const furniture: SceneObjectData[] = data.furniture || [];
       if (furniture.length > 0) {
         await this._renderFurniture(furniture);
-        // Re-load collision map with scene objects + furniture combined
-        await collisionMap.loadFromSceneObjects([...objects, ...furniture]);
+        // Re-load collision map with scene objects + furniture (rect-only, strip image_url)
+        const furnitureCollisionData = furniture.map(f => ({ ...f, image_url: '' }));
+        await collisionMap.loadFromSceneObjects([...objects, ...furnitureCollisionData]);
         console.log(`✅ ${furniture.length} user furniture rendered & collision added`);
       }
     } catch (e) {
@@ -490,7 +492,7 @@ export class Game {
     sprite.y = f.pos_y * H;
     container.addChild(sprite);
 
-    // Remove button (×) on top-right corner
+    // Remove button (×) — hidden by default, shown in removing mode
     const btnSize = Math.max(20, Math.min(28, targetW * 0.35));
     const btnX = sprite.x + targetW * 0.4;
     const btnY = sprite.y - targetH * 0.85 + btnSize * 0.3;
@@ -502,6 +504,8 @@ export class Game {
     btnBg.cursor = 'pointer';
     btnBg.x = btnX;
     btnBg.y = btnY;
+    btnBg.visible = this._removingMode;
+    btnBg.label = 'furniture-remove-btn';
     container.addChild(btnBg);
 
     const btnLabel = new Text({ text: '×', style: { fontSize: btnSize * 0.8, fill: 0xFFFFFF, fontWeight: 'bold' } });
@@ -510,6 +514,8 @@ export class Game {
     btnLabel.y = btnY;
     btnLabel.eventMode = 'static';
     btnLabel.cursor = 'pointer';
+    btnLabel.visible = this._removingMode;
+    btnLabel.label = 'furniture-remove-btn';
     container.addChild(btnLabel);
 
     // Click handler for remove button
@@ -524,7 +530,9 @@ export class Game {
 
     this.furnitureContainer.addChild(container);
     this._furnitureSprites.set(f.id, container);
-    this._furnitureData.set(f.id, f);
+    // Store without image_url so collision uses rect mode (sprite collision unreliable for furniture)
+    const collisionData = { ...f, image_url: '' };
+    this._furnitureData.set(f.id, collisionData);
     console.log(`  🪑 Furniture: ${f.label} at (${f.pos_x.toFixed(2)}, ${f.pos_y.toFixed(2)})`);
   }
 
@@ -664,8 +672,19 @@ export class Game {
       const { W: w, H: h } = getViewport();
       const posX = this._placingPreviewPos.x / w;
       const posY = this._placingPreviewPos.y / h;
+      const shopItemId = info.shopItemId; // capture before clearing
+      console.log('[Game] handleConfirm:', { shopItemId, posX, posY });
       this._removePlacingPreview();
-      this._callbacks.onFurniturePlaced?.(this._placingInfo!.shopItemId, posX, posY);
+      // Clear ghost and placing mode immediately (before API callback)
+      if (this._placingSprite) {
+        this._placingSprite.destroy();
+        this._placingSprite = null;
+      }
+      this._placingInfo = null;
+      if (this.app) {
+        this.app.stage.off('pointermove', this._onPlacingMove, this);
+      }
+      this._callbacks.onFurniturePlaced?.(shopItemId, posX, posY);
     };
 
     cancelBtn.on('pointerdown', handleCancel);
@@ -700,14 +719,23 @@ export class Game {
 
   /** Confirm furniture placement — render the placed furniture and add collision */
   async confirmPlacement(furnitureData: SceneObjectData): Promise<void> {
-    // Remove ghost
-    this.cancelPlacing();
+    // Clean up any remaining placing state (ghost already cleared in handleConfirm)
+    this._removePlacingPreview();
+    if (this._placingSprite) {
+      this._placingSprite.destroy();
+      this._placingSprite = null;
+    }
+    this._placingInfo = null;
+    if (this.app) {
+      this.app.stage.off('pointermove', this._onPlacingMove, this);
+    }
 
     // Render the placed furniture
     await this._addFurnitureSprite(furnitureData);
 
     // Rebuild collision map: scene objects + all furniture
     const allFurniture = Array.from(this._furnitureData.values());
+    console.log('[Game] confirmPlacement collision rebuild:', allFurniture.map(f => ({ id: f.id, label: f.label, w: f.width, h: f.height, collidable: f.collidable, px: f.pos_x, py: f.pos_y })));
     await collisionMap.loadFromSceneObjects([...this._sceneObjects, ...allFurniture]);
 
     console.log(`[Game] Furniture placed: ${furnitureData.label}`);
@@ -726,6 +754,29 @@ export class Game {
     const allFurniture = Array.from(this._furnitureData.values());
     collisionMap.loadFromSceneObjects([...this._sceneObjects, ...allFurniture]);
     console.log(`[Game] Furniture sprite removed: ${furnitureId}`);
+  }
+
+  /** Show × remove buttons on all placed furniture (enter removing mode) */
+  showRemoveButtons(): void {
+    this._removingMode = true;
+    this._toggleRemoveButtons(true);
+  }
+
+  /** Hide × remove buttons on all placed furniture (exit removing mode) */
+  hideRemoveButtons(): void {
+    this._removingMode = false;
+    this._toggleRemoveButtons(false);
+  }
+
+  /** Toggle visibility of all furniture remove buttons */
+  private _toggleRemoveButtons(visible: boolean): void {
+    for (const container of this._furnitureSprites.values()) {
+      for (const child of container.children) {
+        if (child.label === 'furniture-remove-btn') {
+          child.visible = visible;
+        }
+      }
+    }
   }
 
   /** Sort petContainer children by Y position (lower Y = farther = drawn first) */

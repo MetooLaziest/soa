@@ -71,6 +71,15 @@ export class CollisionMap {
           const resp = await fetch(url);
           const blob = await resp.blob();
           const bmp = await createImageBitmap(blob);
+
+          // Fallback to rect if sprite dimensions are 0 (broken/empty image)
+          if (bmp.width === 0 || bmp.height === 0) {
+            bmp.close();
+            console.warn(`⚠️ Sprite collision 0x0, fallback to rect: ${o.label}`);
+            obs.push({ xMin, yMin, xMax, yMax, label: o.label });
+            continue;
+          }
+
           const canvas = document.createElement('canvas');
           canvas.width = bmp.width;
           canvas.height = bmp.height;

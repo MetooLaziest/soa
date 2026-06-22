@@ -10,7 +10,7 @@ router.get('/:userId', async (req, res) => {
     const { rows: rows } = await poolEpet1.query(
       `SELECT ui.id, ui.quantity, ui.item_category, ui.source,
               si.id as shop_item_id, si.name, si.item_type, si.image_url, si.description,
-              si.price_emotion
+              si.price_emotion, si.yard_width, si.yard_height
        FROM user_inventory ui
        JOIN shop_items si ON si.id = ui.shop_item_id
        WHERE ui.user_id = $1 AND ui.quantity > 0
@@ -32,6 +32,8 @@ router.get('/:userId', async (req, res) => {
         description: row.description,
         source: row.source,
         price_emotion: row.price_emotion,
+        yard_width: row.yard_width,
+        yard_height: row.yard_height,
       });
     }
 
