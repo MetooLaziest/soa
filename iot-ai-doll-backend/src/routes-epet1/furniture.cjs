@@ -49,6 +49,16 @@ module.exports = (pool) => {
         return res.status(400).json({ success: false, error: `庭院最多放置 ${MAX_YARD_FURNITURE} 件家具` });
       }
 
+      // 唯一性检查：同一家具不能重复放置到庭院
+      const dupRes = await client.query(
+        'SELECT id FROM yard_furniture WHERE user_id = $1 AND shop_item_id = $2',
+        [user_id, shop_item_id]
+      );
+      if (dupRes.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: '该家具已在庭院中，不能重复放置' });
+      }
+
       // 检查背包中是否有该家具且数量足够
       const invRes = await client.query(
         'SELECT id, quantity FROM user_inventory WHERE user_id = $1 AND shop_item_id = $2 AND quantity > 0',

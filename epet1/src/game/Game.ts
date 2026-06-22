@@ -42,6 +42,7 @@ export class Game {
   private _sceneObjects: SceneObjectData[] = [];  // from API
   private _sceneSprites: Sprite[] = [];           // rendered scene object sprites
   private _furnitureSprites = new Map<number, Container>(); // furniture id → container (sprite + remove btn)
+  private _furnitureData = new Map<number, SceneObjectData>(); // furniture id → data (for collision rebuild)
   private _placingSprite: Sprite | null = null;   // ghost preview while placing
   private _placingInfo: PlacingFurnitureInfo | null = null;
   private _ready = false;
@@ -122,7 +123,7 @@ export class Game {
   /** Handle click on empty yard area — move the nearest pet to click position, or place furniture */
   private _handleStageClick(cx: number, cy: number): void {
     // If in furniture placement mode, place the furniture
-    if (this._placingInfo && this._placingSprite) {
+    if (this._placingInfo) {
       const { W, H } = getViewport();
       const posX = cx / W;
       const posY = cy / H;
@@ -380,8 +381,8 @@ export class Game {
       const furniture: SceneObjectData[] = data.furniture || [];
       if (furniture.length > 0) {
         await this._renderFurniture(furniture);
-        // Add furniture to collision map
-        await collisionMap.loadFromSceneObjects(furniture);
+        // Re-load collision map with scene objects + furniture combined
+        await collisionMap.loadFromSceneObjects([...objects, ...furniture]);
         console.log(`✅ ${furniture.length} user furniture rendered & collision added`);
       }
     } catch (e) {
@@ -448,66 +449,79 @@ export class Game {
   private async _addFurnitureSprite(f: SceneObjectData): Promise<void> {
     if (!this.furnitureContainer) return;
     const { W, H } = getViewport();
+    const targetW = f.width * W;
+    const targetH = f.height * H;
 
+    const container = new Container();
+    container.label = `furniture-${f.id}`;
+
+    let sprite: Container;
     try {
       const base = `${window.location.protocol}//${window.location.host}`;
       const url = f.image_url.startsWith('/') ? `${base}${f.image_url}` : f.image_url;
       const tex = await Assets.load(url);
-      if (!tex) return;
-
-      const container = new Container();
-      container.label = `furniture-${f.id}`;
-
-      const sprite = new Sprite(tex);
-      sprite.anchor.set(0.5, 0.85);
-      sprite.x = f.pos_x * W;
-      sprite.y = f.pos_y * H;
-      const targetW = f.width * W;
-      const targetH = f.height * H;
+      if (!tex) throw new Error('no texture');
+      const s = new Sprite(tex);
+      s.anchor.set(0.5, 0.85);
       const scaleX = targetW / tex.width;
       const scaleY = targetH / tex.height;
-      const s = Math.min(scaleX, scaleY);
-      sprite.scale.set(s);
-      container.addChild(sprite);
-
-      // Remove button (×) on top-right corner
-      const btnSize = Math.max(20, Math.min(28, targetW * 0.35));
-      const btnX = sprite.x + targetW * 0.4;
-      const btnY = sprite.y - targetH * 0.85 + btnSize * 0.3;
-
-      const btnBg = new Graphics();
-      btnBg.circle(0, 0, btnSize / 2);
-      btnBg.fill({ color: 0xFF4444, alpha: 0.85 });
-      btnBg.eventMode = 'static';
-      btnBg.cursor = 'pointer';
-      btnBg.x = btnX;
-      btnBg.y = btnY;
-      container.addChild(btnBg);
-
-      const btnLabel = new Text({ text: '×', style: { fontSize: btnSize * 0.8, fill: 0xFFFFFF, fontWeight: 'bold' } });
-      btnLabel.anchor.set(0.5);
-      btnLabel.x = btnX;
-      btnLabel.y = btnY;
-      btnLabel.eventMode = 'static';
-      btnLabel.cursor = 'pointer';
-      container.addChild(btnLabel);
-
-      // Click handler for remove button
-      const furnitureId = f.id;
-      const handleRemove = (e: any) => {
-        e.stopPropagation?.();
-        console.log(`[Game] Remove furniture: ${furnitureId}`);
-        this._callbacks.onFurnitureRemove?.(furnitureId);
-      };
-      btnBg.on('pointerdown', handleRemove);
-      btnLabel.on('pointerdown', handleRemove);
-
-      this.furnitureContainer.addChild(container);
-      this._furnitureSprites.set(f.id, container);
-      console.log(`  🪑 Furniture: ${f.label} at (${f.pos_x.toFixed(2)}, ${f.pos_y.toFixed(2)})`);
+      s.scale.set(Math.min(scaleX, scaleY));
+      sprite = s;
     } catch (e) {
-      console.warn(`  Failed to load furniture: ${f.label}`, e);
+      // Image not found — use colored placeholder
+      console.warn(`[Game] Furniture image missing: ${f.label}, using placeholder`);
+      const g = new Graphics();
+      g.roundRect(-targetW / 2, -targetH * 0.85, targetW, targetH, 6);
+      g.fill({ color: 0xC49B2A, alpha: 0.5 });
+      g.stroke({ color: 0x8B6914, width: 2 });
+      const label = new Text({ text: f.label, style: { fontSize: 14, fill: 0xFFFFFF, fontWeight: 'bold' } });
+      label.anchor.set(0.5);
+      label.x = 0;
+      label.y = -targetH * 0.35;
+      g.addChild(label);
+      sprite = g;
     }
+
+    sprite.x = f.pos_x * W;
+    sprite.y = f.pos_y * H;
+    container.addChild(sprite);
+
+    // Remove button (×) on top-right corner
+    const btnSize = Math.max(20, Math.min(28, targetW * 0.35));
+    const btnX = sprite.x + targetW * 0.4;
+    const btnY = sprite.y - targetH * 0.85 + btnSize * 0.3;
+
+    const btnBg = new Graphics();
+    btnBg.circle(0, 0, btnSize / 2);
+    btnBg.fill({ color: 0xFF4444, alpha: 0.85 });
+    btnBg.eventMode = 'static';
+    btnBg.cursor = 'pointer';
+    btnBg.x = btnX;
+    btnBg.y = btnY;
+    container.addChild(btnBg);
+
+    const btnLabel = new Text({ text: '×', style: { fontSize: btnSize * 0.8, fill: 0xFFFFFF, fontWeight: 'bold' } });
+    btnLabel.anchor.set(0.5);
+    btnLabel.x = btnX;
+    btnLabel.y = btnY;
+    btnLabel.eventMode = 'static';
+    btnLabel.cursor = 'pointer';
+    container.addChild(btnLabel);
+
+    // Click handler for remove button
+    const furnitureId = f.id;
+    const handleRemove = (e: any) => {
+      e.stopPropagation?.();
+      console.log(`[Game] Remove furniture: ${furnitureId}`);
+      this._callbacks.onFurnitureRemove?.(furnitureId);
+    };
+    btnBg.on('pointerdown', handleRemove);
+    btnLabel.on('pointerdown', handleRemove);
+
+    this.furnitureContainer.addChild(container);
+    this._furnitureSprites.set(f.id, container);
+    this._furnitureData.set(f.id, f);
+    console.log(`  🪑 Furniture: ${f.label} at (${f.pos_x.toFixed(2)}, ${f.pos_y.toFixed(2)})`);
   }
 
   /** Start furniture placement mode — shows ghost preview following cursor */
@@ -519,32 +533,46 @@ export class Game {
     const base = `${window.location.protocol}//${window.location.host}`;
     const url = info.imageUrl.startsWith('/') ? `${base}${info.imageUrl}` : info.imageUrl;
 
+    const { W, H } = getViewport();
+    const targetW = info.width * W;
+    const targetH = info.height * H;
+
     Assets.load(url).then((tex) => {
       if (!tex || !this.sortedContainer) return;
       const sprite = new Sprite(tex);
       sprite.anchor.set(0.5, 0.85);
       sprite.alpha = 0.5; // ghost preview
       sprite.label = 'placing-ghost';
-
-      const { W, H } = getViewport();
-      const targetW = info.width * W;
-      const targetH = info.height * H;
       const scaleX = targetW / tex.width;
       const scaleY = targetH / tex.height;
       sprite.scale.set(Math.min(scaleX, scaleY));
-
       sprite.x = W / 2;
       sprite.y = H / 2;
-
       this.sortedContainer.addChild(sprite);
       this._placingSprite = sprite;
-
-      // Move ghost with pointer
-      this.app!.stage.on('pointermove', this._onPlacingMove, this);
-      console.log(`[Game] Placement mode: ${info.name}`);
-    }).catch((e) => {
-      console.warn('Failed to load furniture preview:', e);
+    }).catch(() => {
+      // Image failed — show colored placeholder rectangle
+      console.warn('[Game] Furniture image not found, using placeholder for:', info.name);
+      const g = new Graphics();
+      g.roundRect(-targetW / 2, -targetH * 0.85, targetW, targetH, 6);
+      g.fill({ color: 0xC49B2A, alpha: 0.35 });
+      g.stroke({ color: 0x8B6914, width: 2, alpha: 0.6 });
+      // Label
+      const label = new Text({ text: info.name, style: { fontSize: 14, fill: 0x8B6914, fontWeight: 'bold' } });
+      label.anchor.set(0.5);
+      label.x = 0;
+      label.y = -targetH * 0.35;
+      g.addChild(label);
+      g.x = W / 2;
+      g.y = H / 2;
+      g.label = 'placing-ghost';
+      this.sortedContainer.addChild(g);
+      this._placingSprite = g as any;
     });
+
+    // Move ghost with pointer
+    this.app!.stage.on('pointermove', this._onPlacingMove, this);
+    console.log(`[Game] Placement mode: ${info.name}`);
   }
 
   /** Move the ghost preview sprite with the pointer */
@@ -575,8 +603,9 @@ export class Game {
     // Render the placed furniture
     await this._addFurnitureSprite(furnitureData);
 
-    // Add to collision map
-    await collisionMap.loadFromSceneObjects([furnitureData]);
+    // Rebuild collision map: scene objects + all furniture
+    const allFurniture = Array.from(this._furnitureData.values());
+    await collisionMap.loadFromSceneObjects([...this._sceneObjects, ...allFurniture]);
 
     console.log(`[Game] Furniture placed: ${furnitureData.label}`);
   }
@@ -589,7 +618,10 @@ export class Game {
       container.destroy();
       this._furnitureSprites.delete(furnitureId);
     }
-    // Note: collision map reload happens on next scene load, which is acceptable
+    this._furnitureData.delete(furnitureId);
+    // Rebuild collision map: scene objects + remaining furniture
+    const allFurniture = Array.from(this._furnitureData.values());
+    collisionMap.loadFromSceneObjects([...this._sceneObjects, ...allFurniture]);
     console.log(`[Game] Furniture sprite removed: ${furnitureId}`);
   }
 
@@ -614,6 +646,7 @@ export class Game {
     this._sceneObjects = [];
     this._sceneSprites = [];
     this._furnitureSprites.clear();
+    this._furnitureData.clear();
     this._placingSprite = null;
     this._placingInfo = null;
     this._ready = false;

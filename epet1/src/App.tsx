@@ -389,16 +389,26 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
               )}
               {/* 家具布置按钮 */}
               {activeTab === 'furniture' && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handlePlaceFurniture(item); }}
-                  style={{
-                    marginTop: 6, padding: '4px 10px', borderRadius: 6, border: 'none',
-                    background: 'linear-gradient(135deg, #8B6914, #C49B2A)', color: '#fff',
-                    fontSize: 11, fontWeight: 600, cursor: 'pointer', width: '100%',
-                  }}
-                >
-                  🏗️ 布置
-                </button>
+                yardFurniture.some(f => String(f.shop_item_id) === String(item.shop_item_id || item.id)) ? (
+                  <div style={{
+                    marginTop: 6, padding: '4px 10px', borderRadius: 6,
+                    background: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.35)',
+                    fontSize: 11, fontWeight: 500, textAlign: 'center',
+                  }}>
+                    ✅ 已放置
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handlePlaceFurniture(item); }}
+                    style={{
+                      marginTop: 6, padding: '4px 10px', borderRadius: 6, border: 'none',
+                      background: 'linear-gradient(135deg, #8B6914, #C49B2A)', color: '#fff',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer', width: '100%',
+                    }}
+                  >
+                    🏗️ 布置
+                  </button>
+                )
               )}
               {item.duplicate_count !== undefined && item.duplicate_count > 0 && (
                 <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 10 }}>重复 ×{item.duplicate_count}</div>

@@ -46,6 +46,18 @@ module.exports = (pool) => {
 
       const shopItem = item.rows[0];
 
+      // 家具唯一性检查：已拥有则不能再次购买
+      if (shopItem.item_category === 'furniture') {
+        const owned = await client.query(
+          'SELECT id FROM user_inventory WHERE user_id = $1 AND shop_item_id = $2 AND quantity > 0',
+          [user_id, shop_item_id]
+        );
+        if (owned.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ success: false, error: '该家具已拥有，不能重复购买' });
+        }
+      }
+
       // 检查库存
       if (shopItem.stock === 0) {
         await client.query('ROLLBACK');
