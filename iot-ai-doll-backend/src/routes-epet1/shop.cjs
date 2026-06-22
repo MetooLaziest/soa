@@ -94,10 +94,10 @@ module.exports = (pool) => {
 
       // 加入背包
       await client.query(
-        `INSERT INTO user_inventory (user_id, shop_item_id, quantity)
-         VALUES ($1, $2, 1)
+        `INSERT INTO user_inventory (user_id, shop_item_id, quantity, item_category, source)
+         VALUES ($1, $2, 1, $3, 'shop')
          ON CONFLICT (user_id, shop_item_id) DO UPDATE SET quantity = user_inventory.quantity + 1`,
-        [user_id, shop_item_id]
+        [user_id, shop_item_id, shopItem.item_category]
       );
 
       await client.query('COMMIT');
