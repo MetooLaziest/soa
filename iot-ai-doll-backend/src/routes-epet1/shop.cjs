@@ -101,7 +101,13 @@ module.exports = (pool) => {
       );
 
       await client.query('COMMIT');
-      res.json({ success: true, item: shopItem });
+
+      // 返回扣款后剩余情绪值
+      const afterRes = await client.query(
+        'SELECT emotion_points FROM users WHERE id = $1',
+        [user_id]
+      );
+      res.json({ success: true, item: shopItem, remaining_emotion: afterRes.rows[0]?.emotion_points ?? 0 });
     } catch (err) {
       await client.query('ROLLBACK');
       console.error('shop buy error:', err);

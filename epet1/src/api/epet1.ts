@@ -245,7 +245,7 @@ export async function buyItem(
   userId: number,
   itemId: number
 ): Promise<{ success: boolean; remaining_emotion: number }> {
-  const res = await post<any>('/shop/buy', { user_id: userId, item_id: itemId });
+  const res = await post<any>('/shop/buy', { user_id: userId, shop_item_id: itemId });
   return { success: res.success, remaining_emotion: res.remaining_emotion };
 }
 
