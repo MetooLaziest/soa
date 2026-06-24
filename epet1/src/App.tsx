@@ -1006,17 +1006,13 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   // 开场视频拦截
   // ═══════════════════════════════════════════════════
   const [introVideo, setIntroVideo] = useState<{ id: number; video_url: string; duration_sec: number; name: string } | null>(null);
-  const [introChecked, setIntroChecked] = useState(false);  // 是否已检查过开场视频
-  const [showIntro, setShowIntro] = useState(false);          // 是否正在播放开场视频
-
-  // 找到当前对话的宠物 (需要在 video 检查前)
-  const pet = yardPets.find((p) => p.id === chatPetId) || allPets.find((p) => p.id === chatPetId) || yardPets[0];
+  const introCheckedRef = useRef(false);
 
   // 检查开场视频
   useEffect(() => {
-    if (introChecked || !pet?.pet_model_id) return;
+    if (introCheckedRef.current || !pet?.pet_model_id) return;
+    introCheckedRef.current = true;
     let cancelled = false;
-    setIntroChecked(true);
     (async () => {
       try {
         const res = await fetch(`/api/epet1/intro-video/match?pet_model_id=${pet.pet_model_id}&growth_level=${pet.growth_level}`);
@@ -1030,7 +1026,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [pet?.pet_model_id, pet?.growth_level, introChecked]);
+  }, [pet?.pet_model_id, pet?.growth_level]);
 
   // 开场视频播放完毕
   const handleIntroComplete = useCallback(() => {
