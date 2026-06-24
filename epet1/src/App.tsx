@@ -746,7 +746,8 @@ function GameModal({ onClose }: { onClose: () => void }) {
 function HomePanel() {
   const { emotionPoints, yardPets, setChatPetId, setActiveModal, activeTravel,
           userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture,
-          addYardFurniture, removeYardFurniture, removingFurnitureMode, setRemovingFurnitureMode } = useGameStore();
+          addYardFurniture, removeYardFurniture, removingFurnitureMode, setRemovingFurnitureMode,
+          setIntroVideoData } = useGameStore();
   const [toast, setToast] = useState('');
   const [otherExpanded, setOtherExpanded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -767,10 +768,22 @@ function HomePanel() {
         const pet = petsRef.current.get(petId);
         if (!pet) return;
         console.log('[App] onPetTap:', petId, pet);
-        // 直接进入互动页（可抚摸+对话）
         setChatPetId(pet.id);
-        setActiveModal('chat');
-        console.log('[App] chatPetId set, activeModal=chat');
+        // 先检查是否有开场视频
+        (async () => {
+          try {
+            const res = await fetch(`/api/epet1/intro-video/match?pet_model_id=${pet.pet_model_id}&growth_level=${pet.growth_level}`);
+            const data = await res.json();
+            if (data.success && data.video) {
+              setIntroVideoData(data.video);
+              setActiveModal('intro-video');
+            } else {
+              setActiveModal('chat');
+            }
+          } catch {
+            setActiveModal('chat');
+          }
+        })();
       },
       onReady() {
         setGameReady(true);
@@ -1003,41 +1016,11 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
 
   // ═══════════════════════════════════════════════════
-  // 开场视频拦截
+  // 开场视频已移到 App 层级，ChatPage 不再处理
   // ═══════════════════════════════════════════════════
-  const [introVideo, setIntroVideo] = useState<{ id: number; video_url: string; duration_sec: number; name: string } | null>(null);
-  const introCheckedRef = useRef(false);
 
-  // 检查开场视频
-  useEffect(() => {
-    if (introCheckedRef.current || !pet?.pet_model_id) return;
-    introCheckedRef.current = true;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/epet1/intro-video/match?pet_model_id=${pet.pet_model_id}&growth_level=${pet.growth_level}`);
-        const data = await res.json();
-        if (!cancelled && data.success && data.video) {
-          setIntroVideo(data.video);
-          setShowIntro(true);
-        }
-      } catch (e) {
-        console.error('[ChatPage] 开场视频查询失败:', e);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [pet?.pet_model_id, pet?.growth_level]);
-
-  // 开场视频播放完毕
-  const handleIntroComplete = useCallback(() => {
-    setShowIntro(false);
-    setIntroVideo(null);
-  }, []);
-
-  // 如果正在播放开场视频
-  if (showIntro && introVideo) {
-    return <IntroVideoPlayer video={introVideo} onComplete={handleIntroComplete} />;
-  }
+  // 找到当前对话的宠物
+  const pet = yardPets.find((p) => p.id === chatPetId) || allPets.find((p) => p.id === chatPetId) || yardPets[0];
 
   // ═══════════════════════════════════════════════════
   // 原有 ChatPage 逻辑
@@ -1244,7 +1227,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 // ─── App 根组件 ──────────────────────────────────────────────
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, activeModal, setActiveModal,
-          setYardFurniture } = useGameStore();
+          setYardFurniture, introVideoData, setIntroVideoData } = useGameStore();
 
   useEffect(() => {
     const init = async () => {
@@ -1289,6 +1272,15 @@ export default function App() {
       {activeModal === 'shop' && <ShopModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'inventory' && <InventoryModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'game' && <GameModal onClose={() => setActiveModal(null)} />}
+      {activeModal === 'intro-video' && introVideoData && (
+        <IntroVideoPlayer
+          video={introVideoData}
+          onComplete={() => {
+            setIntroVideoData(null);
+            setActiveModal('chat');
+          }}
+        />
+      )}
       {activeModal === 'chat' && <ChatPage onClose={() => { setActiveModal(null); }} />}
     </div>
   );

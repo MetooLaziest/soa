@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PetInstance, TravelRecord, YardFurniture } from '../api/epet1';
 
-type ModalType = 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | null;
+type ModalType = 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | null;
 
 interface GameStore {
   // User
@@ -16,6 +16,8 @@ interface GameStore {
   activeModal: ModalType;
   // Chat target
   chatPetId: number | null;
+  // Intro video data
+  introVideoData: { id: number; video_url: string; duration_sec: number; name: string } | null;
   // Loading
   loading: boolean;
   // Furniture placement
@@ -31,6 +33,7 @@ interface GameStore {
   setActiveTravel: (t: TravelRecord | null) => void;
   setActiveModal: (m: ModalType) => void;
   setChatPetId: (id: number | null) => void;
+  setIntroVideoData: (data: { id: number; video_url: string; duration_sec: number; name: string } | null) => void;
   setLoading: (v: boolean) => void;
   refreshPet: (updated: PetInstance) => void;
   setYardFurniture: (f: YardFurniture[]) => void;
@@ -48,6 +51,7 @@ export const useGameStore = create<GameStore>((set) => ({
   activeTravel: null,
   activeModal: null,
   chatPetId: null,
+  introVideoData: null,
   loading: true,
   yardFurniture: [],
   placingFurniture: null,
@@ -61,6 +65,7 @@ export const useGameStore = create<GameStore>((set) => ({
   setActiveTravel: (activeTravel) => set({ activeTravel }),
   setActiveModal: (activeModal) => set({ activeModal }),
   setChatPetId: (chatPetId) => set({ chatPetId }),
+  setIntroVideoData: (introVideoData) => set({ introVideoData }),
   setLoading: (loading) => set({ loading }),
 
   refreshPet: (updated) =>
