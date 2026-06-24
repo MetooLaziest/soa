@@ -1014,13 +1014,14 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 
   // 检查开场视频
   useEffect(() => {
-    if (introChecked || !pet) return;
+    if (introChecked || !pet?.pet_model_id) return;
+    let cancelled = false;
     setIntroChecked(true);
     (async () => {
       try {
         const res = await fetch(`/api/epet1/intro-video/match?pet_model_id=${pet.pet_model_id}&growth_level=${pet.growth_level}`);
         const data = await res.json();
-        if (data.success && data.video) {
+        if (!cancelled && data.success && data.video) {
           setIntroVideo(data.video);
           setShowIntro(true);
         }
@@ -1028,13 +1029,14 @@ function ChatPage({ onClose }: { onClose: () => void }) {
         console.error('[ChatPage] 开场视频查询失败:', e);
       }
     })();
-  }, [pet, introChecked]);
+    return () => { cancelled = true; };
+  }, [pet?.pet_model_id, pet?.growth_level, introChecked]);
 
   // 开场视频播放完毕
-  const handleIntroComplete = () => {
+  const handleIntroComplete = useCallback(() => {
     setShowIntro(false);
     setIntroVideo(null);
-  };
+  }, []);
 
   // 如果正在播放开场视频
   if (showIntro && introVideo) {
