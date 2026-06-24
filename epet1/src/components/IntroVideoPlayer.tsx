@@ -3,8 +3,9 @@
  * 
  * 全屏播放，不可跳过，播放完毕后渐隐过渡到互动页。
  * 加载失败/超时时自动跳过。
+ * 移动端自动播放被阻止时，显示"点击播放"按钮。
  */
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface IntroVideoData {
   id: number;
@@ -25,6 +26,7 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
   const [fadeIn, setFadeIn] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [needUserClick, setNeedUserClick] = useState(false); // 自动播放被阻止
 
   // 进场动画
   useEffect(() => {
@@ -32,15 +34,27 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
     return () => clearTimeout(t);
   }, []);
 
-  // 超时兜底：如果视频 duration_sec * 1.5 秒后还没结束，强制跳过
+  // 尝试自动播放，如果被阻止则显示点击按钮
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const p = v.play();
+    if (p) {
+      p.catch(() => {
+        // 自动播放被阻止（常见于 iOS Safari）
+        setNeedUserClick(true);
+      });
+    }
+  }, []);
+
+  // 超时兜底
   useEffect(() => {
     const timeout = setTimeout(() => {
       handleComplete();
-    }, video.duration_sec * 1000 * 1.5 + 3000); // 1.5x 时长 + 3s 缓冲
+    }, video.duration_sec * 1000 * 1.5 + 3000);
     return () => clearTimeout(timeout);
   }, [video.duration_sec]);
 
-  // 更新进度
   const handleTimeUpdate = () => {
     const v = videoRef.current;
     if (!v || !v.duration) return;
@@ -49,12 +63,12 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
     setRemaining(Math.max(0, Math.ceil(v.duration - v.currentTime)));
   };
 
-  const handleComplete = () => {
+  const handleComplete = useCallback(() => {
     setFadeOut(true);
     setTimeout(() => {
       onComplete();
     }, 400);
-  };
+  }, [onComplete]);
 
   const handleVideoEnded = () => {
     handleComplete();
@@ -62,7 +76,6 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
 
   const handleVideoError = () => {
     setLoadError(true);
-    // 加载失败，3秒后自动跳过
     setTimeout(() => {
       onComplete();
     }, 3000);
@@ -72,11 +85,23 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
     setLoadError(false);
   };
 
+  // 用户点击播放按钮
+  const handleUserPlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.play().catch(() => {
+      setLoadError(true);
+      setTimeout(() => onComplete(), 3000);
+    });
+    setNeedUserClick(false);
+  };
+
   return (
     <div
       className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black transition-opacity duration-300 ${
         fadeIn ? 'opacity-0' : fadeOut ? 'opacity-0' : 'opacity-100'
       }`}
+      onClick={needUserClick ? handleUserPlay : undefined}
     >
       {/* 视频播放器 */}
       <video
@@ -93,6 +118,21 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
         style={{ maxHeight: 'calc(100vh - 60px)' }}
       />
 
+      {/* 自动播放被阻止，显示点击播放按钮 */}
+      {needUserClick && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+          <button
+            onClick={handleUserPlay}
+            className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+          >
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+              <div className="w-0 h-0 border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent border-l-[20px] border-l-white ml-1" />
+            </div>
+            <span className="text-sm text-white/80">点击播放开场视频</span>
+          </button>
+        </div>
+      )}
+
       {/* 加载失败提示 */}
       {loadError && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80">
@@ -105,12 +145,10 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
 
       {/* 底部进度条 */}
       <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-8 bg-gradient-to-t from-black/60 to-transparent">
-        {/* 视频名称 */}
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-white/60">{video.name || '开场视频'}</span>
           <span className="text-xs text-white/60">{remaining}s</span>
         </div>
-        {/* 进度条 */}
         <div className="h-1 rounded-full bg-white/20 overflow-hidden">
           <div
             className="h-full rounded-full bg-white/80 transition-all duration-300"
