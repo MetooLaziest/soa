@@ -18,6 +18,22 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import client from '../../api/client';
 
+// ═══════════════════════════════════════════════════
+// 开场视频配置类型
+// ═══════════════════════════════════════════════════
+interface IntroVideo {
+  id: number;
+  pet_model_id: number;
+  name: string;
+  time_start: string;
+  time_end: string;
+  growth_level: number;
+  video_url: string;
+  duration_sec: number;
+  is_active: boolean;
+  sort_order: number;
+}
+
 const LAYERS = [
   {
     key: 'identity_anchor',
@@ -97,6 +113,24 @@ export default function CompanionEdit() {
   const [testResp, setTestResp] = useState('');
   const [testing, setTesting] = useState(false);
 
+  // ═══════════════════════════════════════════════════
+  // 开场视频配置
+  // ═══════════════════════════════════════════════════
+  const [introVideos, setIntroVideos] = useState<IntroVideo[]>([]);
+  const [introLoading, setIntroLoading] = useState(false);
+  const [introUploading, setIntroUploading] = useState(false);
+  const [introEditId, setIntroEditId] = useState<number | null>(null);
+  const [showIntroForm, setShowIntroForm] = useState(false);
+  const introFileRef = useRef<HTMLInputElement>(null);
+  const [introForm, setIntroForm] = useState({
+    name: '',
+    time_start: '08:00',
+    time_end: '12:00',
+    growth_level: 0,
+    video_url: '',
+    duration_sec: 30,
+  });
+
   useEffect(() => {
     loadData();
   }, [id]);
@@ -125,11 +159,28 @@ export default function CompanionEdit() {
         });
         setAnimations(m.animations || {});
       }
+      // 加载开场视频配置
+      await loadIntroVideos();
     } catch (err) {
       console.error('加载失败', err);
       setError('加载失败: ' + (err as any).message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadIntroVideos = async () => {
+    if (!id) return;
+    setIntroLoading(true);
+    try {
+      const res = await client.get(`/admin/intro-videos?pet_model_id=${id}`);
+      if (res.data?.success) {
+        setIntroVideos(res.data.videos || []);
+      }
+    } catch (err) {
+      console.error('加载开场视频失败:', err);
+    } finally {
+      setIntroLoading(false);
     }
   };
 
@@ -230,7 +281,7 @@ export default function CompanionEdit() {
 
   return (
     <div className="space-y-5 p-5 max-w-6xl mx-auto">
-      {/* 隐藏的 file input */}
+      {/* 隐藏的 file input (图片) */}
       <input
         ref={fileInputRef}
         type="file"
@@ -427,6 +478,223 @@ export default function CompanionEdit() {
           <div className="rounded-lg bg-black/30 p-3 text-sm text-gray-300 whitespace-pre-wrap min-h-[60px]">
             {testResp}
           </div>
+        )}
+      </div>
+
+      {/* ═══════ 开场视频配置 ═══════ */}
+      <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4">
+        <h3 className="text-sm font-medium text-gray-300 border-b border-white/10 pb-2">
+          🎬 互动页开场视频 — 进入互动页时先播放视频，播完才能进入
+        </h3>
+        <p className="text-xs text-gray-500">
+          按时间段 + 成长等级配置。同一时间段不同等级可播放不同视频。无配置时直接进入互动页。
+          时间重叠时按入库顺序优先（先添加的优先）。
+        </p>
+
+        {/* 隐藏的视频上传 input */}
+        <input
+          ref={introFileRef}
+          type="file"
+          accept="video/mp4,video/webm"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file || !id) return;
+            setIntroUploading(true);
+            try {
+              const fd = new FormData();
+              fd.append('file', file);
+              fd.append('pet_model_id', id);
+              const res = await client.post('/admin/intro-videos/upload', fd, {
+                timeout: 10 * 60 * 1000,
+              });
+              if (res.data?.success) {
+                setIntroForm((f) => ({ ...f, video_url: res.data.url }));
+                alert('视频上传成功');
+              }
+            } catch (err: any) {
+              alert('上传失败: ' + (err?.response?.data?.error || err.message));
+            } finally {
+              setIntroUploading(false);
+            }
+          }}
+          style={{ display: 'none' }}
+        />
+
+        {/* 新增/编辑表单 */}
+        {showIntroForm && (
+          <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-orange-300">
+                {introEditId ? '编辑视频配置' : '新增视频配置'}
+              </span>
+              <button onClick={() => { setShowIntroForm(false); setIntroEditId(null); }} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="配置名称">
+                <input value={introForm.name} onChange={(e) => setIntroForm({ ...introForm, name: e.target.value })}
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1.5 text-white text-sm" placeholder="如：早晨问候" />
+              </Field>
+              <Field label="适用成长等级">
+                <select value={introForm.growth_level} onChange={(e) => setIntroForm({ ...introForm, growth_level: Number(e.target.value) })}
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1.5 text-white text-sm">
+                  <option value={0}>通用（所有等级）</option>
+                  <option value={1}>Lv.1</option>
+                  <option value={2}>Lv.2</option>
+                  <option value={3}>Lv.3</option>
+                  <option value={4}>Lv.4</option>
+                  <option value={5}>Lv.5</option>
+                </select>
+              </Field>
+              <Field label="起始时间">
+                <input type="time" value={introForm.time_start} onChange={(e) => setIntroForm({ ...introForm, time_start: e.target.value })}
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1.5 text-white text-sm" />
+              </Field>
+              <Field label="截止时间">
+                <input type="time" value={introForm.time_end} onChange={(e) => setIntroForm({ ...introForm, time_end: e.target.value })}
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1.5 text-white text-sm" />
+              </Field>
+              <Field label="视频时长(秒)">
+                <input type="number" value={introForm.duration_sec} onChange={(e) => setIntroForm({ ...introForm, duration_sec: Number(e.target.value) })}
+                  className="w-full rounded bg-white/5 border border-white/10 px-2 py-1.5 text-white text-sm" min={1} max={120} />
+              </Field>
+              <Field label="视频文件">
+                <div className="flex items-center gap-2">
+                  {introForm.video_url ? (
+                    <span className="text-xs text-green-400 truncate max-w-[120px]">已上传</span>
+                  ) : (
+                    <span className="text-xs text-gray-500">未上传</span>
+                  )}
+                  <button onClick={() => introFileRef.current?.click()} disabled={introUploading}
+                    className="rounded bg-orange-500 px-3 py-1 text-xs text-white hover:bg-orange-600 disabled:opacity-50">
+                    {introUploading ? '上传中...' : '上传 MP4'}
+                  </button>
+                </div>
+              </Field>
+            </div>
+            {/* 视频预览 */}
+            {introForm.video_url && (
+              <div className="rounded-lg bg-black/30 p-2">
+                <video src={introForm.video_url} className="w-full max-h-40 rounded" controls />
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setShowIntroForm(false); setIntroEditId(null); }}
+                className="rounded-lg bg-slate-700 px-4 py-1.5 text-sm text-gray-300 hover:bg-slate-600">取消</button>
+              <button onClick={async () => {
+                if (!introForm.video_url) { alert('请先上传视频文件'); return; }
+                if (!introForm.time_start || !introForm.time_end) { alert('请设置时间段'); return; }
+                try {
+                  if (introEditId) {
+                    await client.put(`/admin/intro-videos/${introEditId}`, {
+                      ...introForm, pet_model_id: Number(id),
+                    });
+                  } else {
+                    await client.post('/admin/intro-videos', {
+                      ...introForm, pet_model_id: Number(id),
+                    });
+                  }
+                  setShowIntroForm(false);
+                  setIntroEditId(null);
+                  setIntroForm({ name: '', time_start: '08:00', time_end: '12:00', growth_level: 0, video_url: '', duration_sec: 30 });
+                  await loadIntroVideos();
+                } catch (err: any) {
+                  alert('保存失败: ' + (err?.response?.data?.error || err.message));
+                }
+              }}
+                className="rounded-lg bg-orange-500 px-4 py-1.5 text-sm text-white hover:bg-orange-600">
+                {introEditId ? '更新' : '添加'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 新增按钮 */}
+        {!showIntroForm && (
+          <button
+            onClick={() => {
+              setIntroForm({ name: '', time_start: '08:00', time_end: '12:00', growth_level: 0, video_url: '', duration_sec: 30 });
+              setIntroEditId(null);
+              setShowIntroForm(true);
+            }}
+            className="rounded-lg border border-dashed border-orange-500/40 px-4 py-2 text-sm text-orange-300 hover:bg-orange-500/10 transition w-full"
+          >
+            + 新增开场视频配置
+          </button>
+        )}
+
+        {/* 按时间段分组展示 */}
+        {introLoading ? (
+          <div className="text-xs text-gray-500 py-4 text-center">加载中...</div>
+        ) : introVideos.length === 0 ? (
+          <div className="text-xs text-gray-500 py-4 text-center">暂无开场视频配置，互动页将直接进入</div>
+        ) : (
+          (() => {
+            // 按时间段分组
+            const groups: Record<string, IntroVideo[]> = {};
+            for (const v of introVideos) {
+              const key = `${v.time_start.slice(0,5)}~${v.time_end.slice(0,5)}`;
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(v);
+            }
+            return Object.entries(groups).map(([slot, videos]) => (
+              <div key={slot} className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-white">🕐 {slot}</span>
+                  <span className="text-xs text-gray-500">({videos.length} 个配置)</span>
+                </div>
+                <div className="space-y-1.5">
+                  {videos.sort((a, b) => a.growth_level - b.growth_level).map((v) => (
+                    <div key={v.id} className="flex items-center gap-3 rounded bg-white/5 px-3 py-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                        v.growth_level === 0
+                          ? 'bg-blue-500/20 text-blue-300'
+                          : 'bg-green-500/20 text-green-300'
+                      }`}>{v.growth_level === 0 ? '通用' : `Lv.${v.growth_level}`}</span>
+                      <span className="text-xs text-gray-300 truncate flex-1">{v.name || v.video_url.split('/').pop()}</span>
+                      <span className="text-xs text-gray-500">{v.duration_sec}s</span>
+                      {!v.is_active && <span className="text-xs text-red-400">停用</span>}
+                      {/* 预览 */}
+                      <button onClick={() => {
+                        const w = window.open('', '_blank', 'width=400,height=300');
+                        if (w) { w.document.write(`<video src="${v.video_url}" autoplay controls style="width:100%;height:100%;background:#000"></video>`); w.document.title = v.name || '预览'; }
+                      }} className="text-xs text-blue-400 hover:text-blue-300">预览</button>
+                      {/* 编辑 */}
+                      <button onClick={() => {
+                        setIntroEditId(v.id);
+                        setIntroForm({
+                          name: v.name,
+                          time_start: v.time_start.slice(0,5),
+                          time_end: v.time_end.slice(0,5),
+                          growth_level: v.growth_level,
+                          video_url: v.video_url,
+                          duration_sec: v.duration_sec,
+                        });
+                        setShowIntroForm(true);
+                      }} className="text-xs text-orange-400 hover:text-orange-300">编辑</button>
+                      {/* 启用/停用 */}
+                      <button onClick={async () => {
+                        try {
+                          await client.put(`/admin/intro-videos/${v.id}`, { is_active: !v.is_active });
+                          await loadIntroVideos();
+                        } catch (err: any) { alert('操作失败: ' + (err?.response?.data?.error || err.message)); }
+                      }} className={`text-xs ${v.is_active ? 'text-yellow-400 hover:text-yellow-300' : 'text-green-400 hover:text-green-300'}`}>
+                        {v.is_active ? '停用' : '启用'}
+                      </button>
+                      {/* 删除 */}
+                      <button onClick={async () => {
+                        if (!confirm(`删除配置「${v.name || v.id}」？视频文件将保留在服务器上。`)) return;
+                        try {
+                          await client.delete(`/admin/intro-videos/${v.id}`);
+                          await loadIntroVideos();
+                        } catch (err: any) { alert('删除失败: ' + (err?.response?.data?.error || err.message)); }
+                      }} className="text-xs text-red-400 hover:text-red-300">删除</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()
         )}
       </div>
 

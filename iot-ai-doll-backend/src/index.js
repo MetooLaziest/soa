@@ -24,6 +24,7 @@ import epetFishingRoutes from './routes/epet-fishing.js';
 import epetInventoryRoutes from './routes/epet-inventory.js';
 import epetShop2Routes from './routes/epet-shop2.js';
 import epetSpotdiffRoutes from './routes/epet-spotdiff.js';
+import adminIntroVideosRoutes from './routes/admin-intro-videos.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -68,6 +69,8 @@ app.use('/api/admin/pets', adminPetsRoutes);
 app.use('/api/admin/rag-kbs', adminRagRoutes);
 app.use('/api/admin/models', adminModelsRoutes);
 app.use('/api/admin/yard-scenes', adminYardScenesRoutes);
+app.use('/api/admin/intro-videos', adminIntroVideosRoutes);
+app.use('/api/epet1/intro-video', adminIntroVideosRoutes);
 
 
 // ========== EPET1 公开接口（无需admin权限）==========

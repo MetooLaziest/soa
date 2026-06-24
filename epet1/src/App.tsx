@@ -27,6 +27,7 @@ import {
 } from './api/epet1';
 import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture } from './api/epet1';
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
+import IntroVideoPlayer from './components/IntroVideoPlayer';
 import './App.css';
 
 // ─── 宠物图片映射 ────────────────────────────────────────────
@@ -1001,6 +1002,49 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   } = useGameStore();
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
 
+  // ═══════════════════════════════════════════════════
+  // 开场视频拦截
+  // ═══════════════════════════════════════════════════
+  const [introVideo, setIntroVideo] = useState<{ id: number; video_url: string; duration_sec: number; name: string } | null>(null);
+  const [introChecked, setIntroChecked] = useState(false);  // 是否已检查过开场视频
+  const [showIntro, setShowIntro] = useState(false);          // 是否正在播放开场视频
+
+  // 找到当前对话的宠物 (需要在 video 检查前)
+  const pet = yardPets.find((p) => p.id === chatPetId) || allPets.find((p) => p.id === chatPetId) || yardPets[0];
+
+  // 检查开场视频
+  useEffect(() => {
+    if (introChecked || !pet) return;
+    setIntroChecked(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/epet1/intro-video/match?pet_model_id=${pet.pet_model_id}&growth_level=${pet.growth_level}`);
+        const data = await res.json();
+        if (data.success && data.video) {
+          setIntroVideo(data.video);
+          setShowIntro(true);
+        }
+      } catch (e) {
+        console.error('[ChatPage] 开场视频查询失败:', e);
+      }
+    })();
+  }, [pet, introChecked]);
+
+  // 开场视频播放完毕
+  const handleIntroComplete = () => {
+    setShowIntro(false);
+    setIntroVideo(null);
+  };
+
+  // 如果正在播放开场视频
+  if (showIntro && introVideo) {
+    return <IntroVideoPlayer video={introVideo} onComplete={handleIntroComplete} />;
+  }
+
+  // ═══════════════════════════════════════════════════
+  // 原有 ChatPage 逻辑
+  // ═══════════════════════════════════════════════════
+
   // 最后一条助理消息（显示在回复框）
   const lastAssistantMessage = messages
     .filter(m => m.role === 'assistant')
@@ -1032,8 +1076,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
     return () => { cancelled = true; };
   }, []);
 
-  // 找到当前对话的宠物
-  const pet = yardPets.find((p) => p.id === chatPetId) || allPets.find((p) => p.id === chatPetId) || yardPets[0];
+  // (pet 已在上方定义)
 
   /** 通用发送逻辑 */
   const doSend = async (message?: string, touchArea?: string) => {
