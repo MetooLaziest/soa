@@ -73,6 +73,7 @@ export default function Match3Admin() {
   const [iconSort, setIconSort] = useState(0);
   const [iconActive, setIconActive] = useState(true);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [uploadingLevelBg, setUploadingLevelBg] = useState(false);
 
   // Level form
   const [showLevelForm, setShowLevelForm] = useState(false);
@@ -547,8 +548,32 @@ export default function Match3Admin() {
                   {/* 背景图 */}
                   <div>
                     <label className="text-xs text-gray-400">🎨 关卡背景图</label>
-                    <input value={levelBgUrl} onChange={e => setLevelBgUrl(e.target.value)} placeholder="/epet/static/xxx.png"
-                      className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-purple-500" />
+                    <div className="mt-1 flex gap-2">
+                      <input value={levelBgUrl} onChange={e => setLevelBgUrl(e.target.value)} placeholder="/epet/static/xxx.png"
+                        className="flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-purple-500" />
+                      <label className={`cursor-pointer rounded-lg px-3 py-2 text-xs font-medium ${uploadingLevelBg ? 'bg-gray-600 text-gray-400' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}>
+                        {uploadingLevelBg ? '...' : '上传'}
+                        <input type="file" accept="image/*" className="hidden" disabled={uploadingLevelBg}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setUploadingLevelBg(true);
+                            try {
+                              const form = new FormData();
+                              form.append('file', file);
+                              form.append('type', 'game-assets');
+                              const res = await client.post('/game-assets/upload', form, { timeout: 300000 });
+                              if (res.data?.asset?.url) setLevelBgUrl(res.data.asset.url);
+                            } catch (err: any) {
+                              alert('上传失败: ' + (err.response?.data?.error || err.message));
+                            } finally {
+                              setUploadingLevelBg(false);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
                     {levelBgUrl && (
                       <img src={levelBgUrl} alt="bg preview" className="mt-2 h-24 w-full rounded-lg object-cover opacity-70" />
                     )}
