@@ -527,6 +527,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<number | null>(null);
   const [match3Passed, setMatch3Passed] = useState<Record<number, boolean>>({});
+  const [ownedFurnitureIds, setOwnedFurnitureIds] = useState<Set<number>>(new Set());
 
   const SHOP_TABS = [
     { id: 'food', name: '🥘 食材' },
@@ -546,6 +547,19 @@ function ShopModal({ onClose }: { onClose: () => void }) {
         setBgImage(configData.config.background_image);
       }
       setLoading(false);
+
+      // 加载用户已拥有的家具 ID
+      if (userId) {
+        fetch(`/api/epet1/inventory/${userId}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.ok) {
+              const furn = (data.categories?.furniture || []) as any[];
+              setOwnedFurnitureIds(new Set(furn.map(f => f.shop_item_id || f.id)));
+            }
+          })
+          .catch(() => {});
+      }
 
       // 检查有 match3_level_id 的商品是否已通关
       if (userId && itemsData.ok) {
@@ -588,6 +602,9 @@ function ShopModal({ onClose }: { onClose: () => void }) {
     try {
       const res = await buyItem(userId, item.id);
       setEmotionPoints(res.remaining_emotion);
+      if (item.item_category === 'furniture') {
+        setOwnedFurnitureIds(prev => new Set([...prev, item.id]));
+      }
       alert(`✅ 购买成功！${item.name}`);
     } catch (e: any) {
       alert(e.message || '购买失败');
@@ -688,18 +705,18 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <button
                   onClick={() => handleBuy(item)}
-                  disabled={buying === item.id || (emotionPoints < item.price_emotion && (!item.match3_level_id || match3Passed[item.id])) || item.stock === 0}
+                  disabled={buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) || (emotionPoints < item.price_emotion && (!item.match3_level_id || match3Passed[item.id]))}
                   style={{
                     width: '100%', padding: '5px 0', border: 'none', borderRadius: 6,
                     fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                    background: (buying === item.id || item.stock === 0)
+                    background: (buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)))
                       ? '#ddd' : item.match3_level_id && !match3Passed[item.id]
                       ? 'linear-gradient(135deg, #FF6B35, #FF4500)'
                       : 'linear-gradient(135deg, #FFD700, #FFA500)',
-                    color: (buying === item.id || item.stock === 0) ? '#999' : '#fff',
+                    color: (buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id))) ? '#999' : '#fff',
                   }}
                 >
-                  {item.stock === 0 ? '售罄' : buying === item.id ? '...' : item.match3_level_id && !match3Passed[item.id] ? '🎮 挑战解锁' : '购买'}
+                  {item.stock === 0 ? '售罄' : (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) ? '已购买' : buying === item.id ? '...' : item.match3_level_id && !match3Passed[item.id] ? '🎮 挑战解锁' : '购买'}
                 </button>
               </div>
             ))}
