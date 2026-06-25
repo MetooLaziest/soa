@@ -79,7 +79,7 @@ export class Game {
       this.bgContainer = new Container();
       app.stage.addChild(this.bgContainer);
 
-      // Load yard background
+      // Load yard background (initially with default, updated by _loadSceneConfig)
       this._loadBackground();
 
       // Layer 1: Y-sorted objects (pets, tree trunks, fences, etc.)
@@ -172,11 +172,24 @@ export class Game {
     this._callbacks.onReady?.();
   }
 
-  private async _loadBackground() {
+  private _sceneBgUrl: string | null = null;
+
+  /** Load background image — uses scene bg_image_url if available, falls back to default */
+  private async _loadBackground(urlOverride?: string): Promise<void> {
     if (!this.bgContainer) return;
     try {
-      const bgUrl = `${window.location.protocol}//${window.location.host}/epet/static/yard-bg.png`;
+      const bgUrl = urlOverride
+        || this._sceneBgUrl
+        || `${window.location.protocol}//${window.location.host}/epet/static/yard-bg.png`;
       const tex = await Assets.load(bgUrl);
+
+      // Remove old background if exists
+      const oldBg = this.bgContainer.getChildByLabel('yard-bg');
+      if (oldBg) {
+        this.bgContainer.removeChild(oldBg);
+        oldBg.destroy();
+      }
+
       const bg = new Sprite(tex);
       bg.label = 'yard-bg';
 
@@ -191,7 +204,7 @@ export class Game {
 
       this.bgContainer.addChild(bg);
       this._bgLoaded = true;
-      console.log('✅ Background loaded:', { size: `${tex.width}x${tex.height}`, scale, viewport: `${W}x${H}` });
+      console.log('✅ Background loaded:', bgUrl, { size: `${tex.width}x${tex.height}`, scale, viewport: `${W}x${H}` });
       this._notifyReady();
     } catch (e) {
       console.warn('Background load failed:', e);
@@ -463,6 +476,15 @@ export class Game {
       if (data.scene.walk_bounds) {
         walkBounds = data.scene.walk_bounds;
         console.log('✅ Walk bounds from API:', walkBounds);
+      }
+
+      // Update background image from API
+      if (data.scene.bg_image_url) {
+        this._sceneBgUrl = data.scene.bg_image_url.startsWith('/')
+          ? `${window.location.protocol}//${window.location.host}${data.scene.bg_image_url}`
+          : data.scene.bg_image_url;
+        // Reload background with the API-provided URL
+        await this._loadBackground(this._sceneBgUrl);
       }
 
       // Load collision obstacles from scene objects
