@@ -34,6 +34,22 @@ interface IntroVideo {
   sort_order: number;
 }
 
+// ═══════════════════════════════════════════════════
+// 定时行为配置类型
+// ═══════════════════════════════════════════════════
+interface PetBehavior {
+  id: number;
+  pet_model_id: number;
+  name: string;
+  behavior_type: string;
+  time_start: string;
+  time_end: string;
+  position_x: number | null;
+  position_y: number | null;
+  is_active: boolean;
+  sort_order: number;
+}
+
 const LAYERS = [
   {
     key: 'identity_anchor',
@@ -161,6 +177,8 @@ export default function CompanionEdit() {
       }
       // 加载开场视频配置
       await loadIntroVideos();
+      // 加载定时行为配置
+      await loadBehaviors();
     } catch (err) {
       console.error('加载失败', err);
       setError('加载失败: ' + (err as any).message);
@@ -181,6 +199,39 @@ export default function CompanionEdit() {
       console.error('加载开场视频失败:', err);
     } finally {
       setIntroLoading(false);
+    }
+  };
+
+  // ═══════════════════════════════════════════════════
+  // 定时行为配置
+  // ═══════════════════════════════════════════════════
+  const [behaviors, setBehaviors] = useState<PetBehavior[]>([]);
+  const [behaviorLoading, setBehaviorLoading] = useState(false);
+  const [showBehaviorForm, setShowBehaviorForm] = useState(false);
+  const [behaviorEditId, setBehaviorEditId] = useState<number | null>(null);
+  const [behaviorForm, setBehaviorForm] = useState({
+    name: '',
+    behavior_type: 'idle',
+    time_start: '08:00',
+    time_end: '12:00',
+    position_x: '' as string,
+    position_y: '' as string,
+    is_active: true,
+    sort_order: 0,
+  });
+
+  const loadBehaviors = async () => {
+    if (!id) return;
+    setBehaviorLoading(true);
+    try {
+      const res = await client.get(`/admin/pet-behaviors?pet_model_id=${id}`);
+      if (res.data?.success) {
+        setBehaviors(res.data.behaviors || []);
+      }
+    } catch (err) {
+      console.error('加载定时行为失败:', err);
+    } finally {
+      setBehaviorLoading(false);
     }
   };
 
@@ -416,9 +467,9 @@ export default function CompanionEdit() {
           庭院 Sprite（多状态/多帧）— 用于在 yard 中行走动画
         </h3>
         <p className="text-xs text-gray-500">
-          每种状态可上传多张 PNG, 代码按数组顺序拼接。可同时维护 walk / idle / eat / shake / sleep 等状态。
+          每种状态可上传多张 PNG, 代码按数组顺序拼接。可同时维护 walk / idle / eat / shake / sleep / work 等状态。
         </p>
-        {(['walk', 'idle', 'eat', 'shake', 'sleep'] as const).map((type) => (
+        {(['walk', 'idle', 'eat', 'shake', 'sleep', 'work'] as const).map((type) => (
           <div key={type} className="rounded-lg bg-white/5 p-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-white capitalize">{type}</span>
@@ -695,6 +746,171 @@ export default function CompanionEdit() {
               </div>
             ));
           })()
+        )}
+      </div>
+
+      {/* ═══════ 定时行为配置 ═══════ */}
+      <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+          <h3 className="text-sm font-medium text-gray-300">
+            🐾 庭院定时行为 — 在指定时间段内，宠物执行特定行为（散步/吃饭/睡觉/工作等）
+          </h3>
+          <button
+            onClick={() => {
+              setBehaviorEditId(null);
+              setBehaviorForm({
+                name: '',
+                behavior_type: 'idle',
+                time_start: '08:00',
+                time_end: '12:00',
+                position_x: '',
+                position_y: '',
+                is_active: true,
+                sort_order: 0,
+              });
+              setShowBehaviorForm(true);
+            }}
+            className="rounded bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-600"
+          >
+            + 新增行为配置
+          </button>
+        </div>
+        <p className="text-xs text-gray-500">
+          行为类型对应庭院 Sprite 中的动画帧（idle/walk/eat/sleep/shake/work），
+          用户点击屏幕引导宠物移动后，中断当前行为恢复随机走动1分钟，无后续交互则回到定时行为。
+        </p>
+
+        {/* 新增/编辑表单 */}
+        {showBehaviorForm && (
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 space-y-3">
+            <h4 className="text-sm font-medium text-white">
+              {behaviorEditId ? '编辑行为配置' : '新增行为配置'}
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="行为名称">
+                <input value={behaviorForm.name} onChange={(e) => setBehaviorForm({ ...behaviorForm, name: e.target.value })}
+                  className="w-full rounded bg-white/10 px-3 py-1.5 text-sm text-white border border-white/10" placeholder="如：午睡、下午茶" />
+              </Field>
+              <Field label="行为类型">
+                <select value={behaviorForm.behavior_type} onChange={(e) => setBehaviorForm({ ...behaviorForm, behavior_type: e.target.value })}
+                  className="w-full rounded bg-white/10 px-3 py-1.5 text-sm text-white border border-white/10">
+                  <option value="idle">idle (站立/待机)</option>
+                  <option value="walk">walk (散步)</option>
+                  <option value="eat">eat (吃饭)</option>
+                  <option value="sleep">sleep (睡觉)</option>
+                  <option value="shake">shake (抖动/玩耍)</option>
+                  <option value="work">work (工作)</option>
+                </select>
+              </Field>
+              <Field label="开始时间">
+                <input type="time" value={behaviorForm.time_start} onChange={(e) => setBehaviorForm({ ...behaviorForm, time_start: e.target.value })}
+                  className="w-full rounded bg-white/10 px-3 py-1.5 text-sm text-white border border-white/10" />
+              </Field>
+              <Field label="结束时间">
+                <input type="time" value={behaviorForm.time_end} onChange={(e) => setBehaviorForm({ ...behaviorForm, time_end: e.target.value })}
+                  className="w-full rounded bg-white/10 px-3 py-1.5 text-sm text-white border border-white/10" />
+              </Field>
+              <Field label="位置 X (0~1, 留空=原位)">
+                <input type="number" step="0.01" min="0" max="1" value={behaviorForm.position_x}
+                  onChange={(e) => setBehaviorForm({ ...behaviorForm, position_x: e.target.value })}
+                  className="w-full rounded bg-white/10 px-3 py-1.5 text-sm text-white border border-white/10" placeholder="0.5" />
+              </Field>
+              <Field label="位置 Y (0~1, 留空=原位)">
+                <input type="number" step="0.01" min="0" max="1" value={behaviorForm.position_y}
+                  onChange={(e) => setBehaviorForm({ ...behaviorForm, position_y: e.target.value })}
+                  className="w-full rounded bg-white/10 px-3 py-1.5 text-sm text-white border border-white/10" placeholder="0.6" />
+              </Field>
+              <Field label="排序 (小=优先)">
+                <input type="number" value={behaviorForm.sort_order}
+                  onChange={(e) => setBehaviorForm({ ...behaviorForm, sort_order: Number(e.target.value) })}
+                  className="w-full rounded bg-white/10 px-3 py-1.5 text-sm text-white border border-white/10" />
+              </Field>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={async () => {
+                try {
+                  const payload: any = {
+                    pet_model_id: Number(id),
+                    name: behaviorForm.name,
+                    behavior_type: behaviorForm.behavior_type,
+                    time_start: behaviorForm.time_start,
+                    time_end: behaviorForm.time_end,
+                    position_x: behaviorForm.position_x ? Number(behaviorForm.position_x) : null,
+                    position_y: behaviorForm.position_y ? Number(behaviorForm.position_y) : null,
+                    is_active: behaviorForm.is_active,
+                    sort_order: behaviorForm.sort_order,
+                  };
+                  if (behaviorEditId) {
+                    await client.put(`/admin/pet-behaviors/${behaviorEditId}`, payload);
+                  } else {
+                    await client.post('/admin/pet-behaviors', payload);
+                  }
+                  setShowBehaviorForm(false);
+                  await loadBehaviors();
+                } catch (err: any) {
+                  alert('保存失败: ' + (err?.response?.data?.error || err.message));
+                }
+              }} className="rounded bg-blue-500 px-4 py-1.5 text-xs text-white hover:bg-blue-600">
+                保存
+              </button>
+              <button onClick={() => setShowBehaviorForm(false)}
+                className="rounded bg-white/10 px-4 py-1.5 text-xs text-gray-400 hover:bg-white/20">
+                取消
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 行为列表 */}
+        {behaviorLoading ? (
+          <div className="text-xs text-gray-500 py-4 text-center">加载中...</div>
+        ) : behaviors.length === 0 ? (
+          <div className="text-xs text-gray-500 py-4 text-center">暂无定时行为配置，宠物将随机走动</div>
+        ) : (
+          <div className="space-y-2">
+            {behaviors.map((b) => (
+              <div key={b.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+                <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-purple-500/20 text-purple-300">
+                  {b.behavior_type}
+                </span>
+                <span className="text-sm text-white truncate flex-1">{b.name || b.behavior_type}</span>
+                <span className="text-xs text-gray-400">🕐 {b.time_start?.slice(0,5)} ~ {b.time_end?.slice(0,5)}</span>
+                {b.position_x != null && b.position_y != null && (
+                  <span className="text-xs text-gray-500">📍({b.position_x?.toFixed(2)}, {b.position_y?.toFixed(2)})</span>
+                )}
+                {!b.is_active && <span className="text-xs text-red-400">停用</span>}
+                <button onClick={() => {
+                  setBehaviorEditId(b.id);
+                  setBehaviorForm({
+                    name: b.name,
+                    behavior_type: b.behavior_type,
+                    time_start: b.time_start?.slice(0,5),
+                    time_end: b.time_end?.slice(0,5),
+                    position_x: b.position_x != null ? String(b.position_x) : '',
+                    position_y: b.position_y != null ? String(b.position_y) : '',
+                    is_active: b.is_active,
+                    sort_order: b.sort_order,
+                  });
+                  setShowBehaviorForm(true);
+                }} className="text-xs text-orange-400 hover:text-orange-300">编辑</button>
+                <button onClick={async () => {
+                  try {
+                    await client.put(`/admin/pet-behaviors/${b.id}`, { is_active: !b.is_active });
+                    await loadBehaviors();
+                  } catch (err: any) { alert('操作失败: ' + (err?.response?.data?.error || err.message)); }
+                }} className={`text-xs ${b.is_active ? 'text-yellow-400 hover:text-yellow-300' : 'text-green-400 hover:text-green-300'}`}>
+                  {b.is_active ? '停用' : '启用'}
+                </button>
+                <button onClick={async () => {
+                  if (!confirm(`删除行为配置「${b.name || b.id}」？`)) return;
+                  try {
+                    await client.delete(`/admin/pet-behaviors/${b.id}`);
+                    await loadBehaviors();
+                  } catch (err: any) { alert('删除失败: ' + (err?.response?.data?.error || err.message)); }
+                }} className="text-xs text-red-400 hover:text-red-300">删除</button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

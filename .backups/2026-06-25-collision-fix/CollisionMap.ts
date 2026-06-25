@@ -27,7 +27,7 @@ export interface RectObstacle {
 /** Per-sprite pixel collision data */
 interface SpriteCollision {
   label: string;
-  /** Viewport-fraction bounds matching render (anchor 0.5, 0.85, aspect-fit) */
+  /** Viewport-fraction bounds matching render (anchor 0.5, 0.85) */
   xMin: number;
   yMin: number;
   xMax: number;
@@ -36,58 +36,6 @@ interface SpriteCollision {
   pixels: Uint8ClampedArray;
   pixelW: number;
   pixelH: number;
-} /**
- * Compute the actual viewport-fraction collision bounds for an object,
- * accounting for aspect-fit (Math.min(scaleX, scaleY)) scaling
- * and the anchor (0.5, 0.85) used in PixiJS rendering.
- *
- * This mirrors the rendering logic in Game.ts:
- *   targetW = width * W, targetH = height * H
- *   scale = Math.min(targetW / imgW, targetH / imgH)
- *   actualW = imgW * scale, actualH = imgH * scale
- *   sprite at (pos_x * W, pos_y * H) with anchor (0.5, 0.85)
- *   → visual bounds in viewport px:
- *       left   = pos_x * W - actualW / 2
- *       top    = pos_y * H - actualH * 0.85
- *       right  = pos_x * W + actualW / 2
- *       bottom = pos_y * H + actualH * 0.15
- *   → in viewport-fraction (divide by W, H):
- *       xMin = pos_x - actualW / (2 * W) = pos_x - (actualW/W) / 2
- *       xMax = pos_x + (actualW/W) / 2
- *       yMin = pos_y - (actualH/H) * 0.85
- *       yMax = pos_y + (actualH/H) * 0.15
- */
-function computeCollisionBounds(
-  o: { pos_x: number; pos_y: number; width: number; height: number },
-  imgW: number, imgH: number,
-): { xMin: number; yMin: number; xMax: number; yMax: number } {
-  const scaleX = o.width / imgW;
-  const scaleY = o.height / imgH;
-  const actualScale = Math.min(scaleX, scaleY);
-  const actualW = imgW * actualScale; // in viewport-fraction (width units)
-  const actualH = imgH * actualScale; // in viewport-fraction (height units)
-
-  return {
-    xMin: o.pos_x - actualW / 2,
-    xMax: o.pos_x + actualW / 2,
-    yMin: o.pos_y - actualH * 0.85,
-    yMax: o.pos_y + actualH * 0.15,
-  };
-}
-
-/**
- * Compute collision bounds for objects without images (rect-only mode).
- * Uses the full width/height as-is (no aspect-fit), matching the admin editor preview.
- */
-function computeRectCollisionBounds(
-  o: { pos_x: number; pos_y: number; width: number; height: number },
-): { xMin: number; yMin: number; xMax: number; yMax: number } {
-  return {
-    xMin: o.pos_x - o.width / 2,
-    xMax: o.pos_x + o.width / 2,
-    yMin: o.pos_y - o.height * 0.85,
-    yMax: o.pos_y + o.height * 0.15,
-  };
 }
 
 const ALPHA_THRESHOLD = 30; // alpha > 30 = solid
@@ -110,6 +58,12 @@ export class CollisionMap {
     for (const o of objects) {
       if (!o.collidable) continue;
 
+      // Bounds matching render anchor (0.5, 0.85)
+      const xMin = o.pos_x - o.width / 2;
+      const xMax = o.pos_x + o.width / 2;
+      const yMin = o.pos_y - o.height * 0.85;
+      const yMax = o.pos_y + o.height * 0.15;
+
       if (o.image_url) {
         try {
           const base = `${window.location.protocol}//${window.location.host}`;
@@ -122,12 +76,9 @@ export class CollisionMap {
           if (bmp.width === 0 || bmp.height === 0) {
             bmp.close();
             console.warn(`⚠️ Sprite collision 0x0, fallback to rect: ${o.label}`);
-            obs.push({ ...computeRectCollisionBounds(o), label: o.label });
+            obs.push({ xMin, yMin, xMax, yMax, label: o.label });
             continue;
           }
-
-          // Compute aspect-fit collision bounds (matching PixiJS rendering)
-          const bounds = computeCollisionBounds(o, bmp.width, bmp.height);
 
           const canvas = document.createElement('canvas');
           canvas.width = bmp.width;
@@ -139,23 +90,20 @@ export class CollisionMap {
 
           spriteCols.push({
             label: o.label,
-            xMin: bounds.xMin,
-            yMin: bounds.yMin,
-            xMax: bounds.xMax,
-            yMax: bounds.yMax,
+            xMin, yMin, xMax, yMax,
             pixels: imgData.data,
             pixelW: bmp.width,
             pixelH: bmp.height,
           });
-          console.log(`✅ Sprite collision (aspect-fit): ${o.label} (${bmp.width}x${bmp.height}), bounds=`, bounds);
+          console.log(`✅ Sprite collision: ${o.label} (${bmp.width}x${bmp.height})`);
         } catch (e) {
           console.warn(`Failed to load sprite for collision: ${o.label}`, e);
           // Fallback to rect
-          obs.push({ ...computeRectCollisionBounds(o), label: o.label });
+          obs.push({ xMin, yMin, xMax, yMax, label: o.label });
         }
       } else {
         // No image — use rect collision
-        obs.push({ ...computeRectCollisionBounds(o), label: o.label });
+        obs.push({ xMin, yMin, xMax, yMax, label: o.label });
       }
     }
 

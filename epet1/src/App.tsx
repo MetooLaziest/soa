@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, type ReactNode, type MouseEvent, type KeyboardEvent, type ChangeEvent, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useGameStore } from './store/gameStore';
 import SpotDifference from './games/SpotDifference';
 import Fishing from './games/Fishing';
@@ -787,6 +788,8 @@ function HomePanel() {
       },
       onReady() {
         setGameReady(true);
+        // 启动定时行为轮询（每60秒查一次）
+        g.startBehaviorPolling(60000);
       },
       onFurniturePlaced(shopItemId, posX, posY) {
         const currentUserId = useGameStore.getState().userId;
@@ -852,6 +855,7 @@ function HomePanel() {
     g.init(canvas).catch(console.error);
 
     return () => {
+      g.stopBehaviorPolling();
       g.destroy();
       gameRef.current = null;
     };
@@ -885,6 +889,11 @@ function HomePanel() {
         });
       }
     });
+
+    // 宠物列表变化后立即触发一次行为轮询
+    if (yardPets.length > 0) {
+      g.pollBehaviorsOnce?.();
+    }
   }, [yardPets, gameReady]);
 
   // Sync removingFurnitureMode to game
@@ -1272,14 +1281,15 @@ export default function App() {
       {activeModal === 'shop' && <ShopModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'inventory' && <InventoryModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'game' && <GameModal onClose={() => setActiveModal(null)} />}
-      {activeModal === 'intro-video' && introVideoData && (
+      {activeModal === 'intro-video' && introVideoData && createPortal(
         <IntroVideoPlayer
           video={introVideoData}
           onComplete={() => {
             setIntroVideoData(null);
             setActiveModal('chat');
           }}
-        />
+        />,
+        document.body
       )}
       {activeModal === 'chat' && <ChatPage onClose={() => { setActiveModal(null); }} />}
     </div>

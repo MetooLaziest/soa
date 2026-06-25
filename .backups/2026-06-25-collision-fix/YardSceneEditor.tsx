@@ -32,45 +32,6 @@ interface Scene {
   walk_bounds: { xMin: number; xMax: number; yMin: number; yMax: number };
 }
 
-/**
- * Compute the actual viewport-fraction display bounds for an object,
- * accounting for aspect-fit (Math.min(scaleX, scaleY)) scaling
- * and the anchor (0.5, 0.85) used in PixiJS rendering.
- *
- * Returns CSS left/top/width/height in percentage values
- * that match what PixiJS renders in epet.
- */
-function computeAspectFitStyle(
-  obj: { pos_x: number; pos_y: number; width: number; height: number },
-  imgNaturalW: number | undefined,
-  imgNaturalH: number | undefined,
-): { left: string; top: string; width: string; height: string } {
-  // If no image natural size, fall back to full rect (no aspect-fit)
-  if (!imgNaturalW || !imgNaturalH || imgNaturalW === 0 || imgNaturalH === 0) {
-    return {
-      left: `${(obj.pos_x - obj.width / 2) * 100}%`,
-      top: `${(obj.pos_y - obj.height * 0.85) * 100}%`,
-      width: `${obj.width * 100}%`,
-      height: `${obj.height * 100}%`,
-    };
-  }
-
-  // Mirror PixiJS: Math.min(scaleX, scaleY)
-  const scaleX = obj.width / imgNaturalW;
-  const scaleY = obj.height / imgNaturalH;
-  const actualScale = Math.min(scaleX, scaleY);
-  const actualW = imgNaturalW * actualScale; // in viewport-fraction units
-  const actualH = imgNaturalH * actualScale;
-
-  // anchor(0.5, 0.85): left = pos_x - actualW/2, top = pos_y - actualH*0.85
-  return {
-    left: `${(obj.pos_x - actualW / 2) * 100}%`,
-    top: `${(obj.pos_y - actualH * 0.85) * 100}%`,
-    width: `${actualW * 100}%`,
-    height: `${actualH * 100}%`,
-  };
-}
-
 const OBJ_TYPES = [
   { value: 'tree', label: '🌳 树木', icon: '🌳' },
   { value: 'fence', label: '🪵 围栏', icon: '🪵' },
@@ -106,9 +67,6 @@ export default function YardSceneEditor() {
     origY: number;
     mode: 'move' | 'resize';
   } | null>(null);
-
-  // Track natural dimensions of loaded images for aspect-fit rendering
-  const imgSizes = useRef<Map<number, { w: number; h: number }>>(new Map());
 
   const selectedObj = objects.find(o => o.id === selectedId);
 
@@ -284,18 +242,16 @@ export default function YardSceneEditor() {
             const isSelected = obj.id === selectedId;
             const isCollider = obj.collidable || obj.object_type === 'collider';
             const ot = OBJ_TYPES.find(t => t.value === obj.object_type);
-            const imgSize = imgSizes.current.get(obj.id);
-            const style = computeAspectFitStyle(obj, imgSize?.w, imgSize?.h);
 
             return (
               <div
                 key={obj.id}
                 className="absolute group"
                 style={{
-                  left: style.left,
-                  top: style.top,
-                  width: style.width,
-                  height: style.height,
+                  left: `${(obj.pos_x - obj.width / 2) * 100}%`,
+                  top: `${(obj.pos_y - obj.height * 0.85) * 100}%`,
+                  width: `${obj.width * 100}%`,
+                  height: `${obj.height * 100}%`,
                   border: isSelected ? SELECTED_BORDER : (isCollider ? `1px dashed ${COLLIDER_BORDER}` : '1px solid rgba(255,255,255,0.1)'),
                   background: isCollider ? COLLIDER_COLOR : 'rgba(255,255,255,0.05)',
                   borderRadius: 4,
@@ -305,35 +261,15 @@ export default function YardSceneEditor() {
                 onMouseDown={e => handleMouseDown(e, obj, 'move')}
                 onClick={e => { e.stopPropagation(); setSelectedId(obj.id); }}
               >
-                {/* Actual image with aspect-fit */}
-                {obj.image_url && (
-                  <img
-                    src={obj.image_url}
-                    alt={obj.label}
-                    className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                    draggable={false}
-                    onLoad={(e) => {
-                      const img = e.currentTarget;
-                      if (img.naturalWidth && img.naturalHeight) {
-                        imgSizes.current.set(obj.id, { w: img.naturalWidth, h: img.naturalHeight });
-                        // Force re-render after natural dimensions are known
-                        setObjects(prev => [...prev]);
-                      }
-                    }}
-                  />
-                )}
-
                 {/* Label */}
                 <div className="absolute -top-5 left-0 text-[10px] text-white/70 whitespace-nowrap pointer-events-none">
                   {ot?.icon} {obj.label}
                 </div>
 
-                {/* Type icon (only if no image) */}
-                {!obj.image_url && (
-                  <div className="absolute inset-0 flex items-center justify-center text-lg opacity-50 pointer-events-none">
-                    {ot?.icon || '?'}
-                  </div>
-                )}
+                {/* Type icon */}
+                <div className="absolute inset-0 flex items-center justify-center text-lg opacity-50 pointer-events-none">
+                  {ot?.icon || '?'}
+                </div>
 
                 {/* Resize handle */}
                 {isSelected && (

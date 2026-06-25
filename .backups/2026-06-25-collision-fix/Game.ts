@@ -477,8 +477,9 @@ export class Game {
       const furniture: SceneObjectData[] = data.furniture || [];
       if (furniture.length > 0) {
         await this._renderFurniture(furniture);
-        // Re-load collision map with scene objects + furniture (pixel collision for both)
-        await collisionMap.loadFromSceneObjects([...objects, ...furniture]);
+        // Re-load collision map with scene objects + furniture (rect-only, strip image_url)
+        const furnitureCollisionData = furniture.map(f => ({ ...f, image_url: '' }));
+        await collisionMap.loadFromSceneObjects([...objects, ...furnitureCollisionData]);
         console.log(`✅ ${furniture.length} user furniture rendered & collision added`);
       }
     } catch (e) {
@@ -620,8 +621,9 @@ export class Game {
 
     this.furnitureContainer.addChild(container);
     this._furnitureSprites.set(f.id, container);
-    // Store full data including image_url for pixel-accurate collision
-    this._furnitureData.set(f.id, f);
+    // Store without image_url so collision uses rect mode (sprite collision unreliable for furniture)
+    const collisionData = { ...f, image_url: '' };
+    this._furnitureData.set(f.id, collisionData);
     console.log(`  🪑 Furniture: ${f.label} at (${f.pos_x.toFixed(2)}, ${f.pos_y.toFixed(2)})`);
   }
 
