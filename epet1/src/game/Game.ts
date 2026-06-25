@@ -79,8 +79,8 @@ export class Game {
       this.bgContainer = new Container();
       app.stage.addChild(this.bgContainer);
 
-      // Load yard background (initially with default, updated by _loadSceneConfig)
-      this._loadBackground();
+      // Background will be loaded by _loadSceneConfig after getting bg_image_url from API
+      // (fallback to default if no API scene)
 
       // Layer 1: Y-sorted objects (pets, tree trunks, fences, etc.)
       this.sortedContainer = new Container();
@@ -181,7 +181,6 @@ export class Game {
       const bgUrl = urlOverride
         || this._sceneBgUrl
         || `${window.location.protocol}//${window.location.host}/epet/static/yard-bg.png`;
-      const tex = await Assets.load(bgUrl);
 
       // Remove old background if exists
       const oldBg = this.bgContainer.getChildByLabel('yard-bg');
@@ -190,6 +189,10 @@ export class Game {
         oldBg.destroy();
       }
 
+      // Clear PixiJS asset cache for this URL to force reload
+      try { Assets.get(bgUrl) && Assets.dispose(bgUrl); } catch (_e) { /* not cached yet, ok */ }
+
+      const tex = await Assets.load(bgUrl);
       const bg = new Sprite(tex);
       bg.label = 'yard-bg';
 
@@ -478,14 +481,13 @@ export class Game {
         console.log('✅ Walk bounds from API:', walkBounds);
       }
 
-      // Update background image from API
+      // Load/update background image from API (or fallback to default)
       if (data.scene.bg_image_url) {
         this._sceneBgUrl = data.scene.bg_image_url.startsWith('/')
           ? `${window.location.protocol}//${window.location.host}${data.scene.bg_image_url}`
           : data.scene.bg_image_url;
-        // Reload background with the API-provided URL
-        await this._loadBackground(this._sceneBgUrl);
       }
+      await this._loadBackground();
 
       // Load collision obstacles from scene objects
       const objects: SceneObjectData[] = data.objects || [];
