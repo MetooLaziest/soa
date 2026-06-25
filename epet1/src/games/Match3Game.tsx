@@ -56,8 +56,8 @@ interface LevelConfig {
 // 游戏常量
 // ═══════════════════════════════════════════════════════════
 
-const SMALL_BOMB_ICON_ID = -1;   // 小炸弹的特殊 iconId
-const BIG_BOMB_ICON_ID = -2;     // 大炸弹的特殊 iconId
+// 小炸弹和大炸弹的真实 ID 从图标列表动态获取
+// (不再用 -1/-2 假 ID，这样才能匹配数据库里的图标数据)
 
 // 计分
 const SCORE_3 = 30;   // 3连每个图标
@@ -103,6 +103,20 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
   const movesLeftRef = useRef(movesLeft);
   const levelConfigRef = useRef(levelConfig);
   const iconsRef = useRef(icons);
+
+  // 炸弹图标真实 ID（从 icons map 中动态查找）
+  const getSmallBombIconId = useCallback(() => {
+    for (const [id, info] of iconsRef.current) {
+      if (info.icon_type === 'small_bomb') return id;
+    }
+    return -1;
+  }, []);
+  const getBigBombIconId = useCallback(() => {
+    for (const [id, info] of iconsRef.current) {
+      if (info.icon_type === 'big_bomb') return id;
+    }
+    return -2;
+  }, []);
 
   boardRef.current = board;
   phaseRef.current = phase;
@@ -460,10 +474,10 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
       setBoard(newBoard);
 
       // 下落填充后继续
-      applyGravityAndFill(newBoard, () => {
+      applyGravityAndFill(newBoard, (updatedBoard) => {
         chainRef.current = 0;
         setChain(0);
-        checkAndProcess(newBoard);
+        checkAndProcess(updatedBoard);
       });
     }, ANIM_BOMB);
   }, []);
@@ -531,10 +545,10 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
       setBombCells(new Set());
       setBoard(newBoard);
 
-      applyGravityAndFill(newBoard, () => {
+      applyGravityAndFill(newBoard, (updatedBoard) => {
         chainRef.current = 0;
         setChain(0);
-        checkAndProcess(newBoard);
+        checkAndProcess(updatedBoard);
       });
     }, ANIM_BOMB);
   }, []);
@@ -600,7 +614,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
         if (specialCells.has(key)) {
           const specialType = specialCells.get(key)!;
           newBoard[r][c] = {
-            iconId: specialType === 'big_bomb' ? BIG_BOMB_ICON_ID : SMALL_BOMB_ICON_ID,
+            iconId: specialType === 'big_bomb' ? getBigBombIconId() : getSmallBombIconId(),
             iconType: specialType,
             isFalling: false,
             isEliminating: false,
@@ -615,8 +629,8 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
       setEliminatingCells(new Set());
       setBoard(newBoard);
 
-      applyGravityAndFill(newBoard, () => {
-        checkAndProcess(newBoard);
+      applyGravityAndFill(newBoard, (updatedBoard) => {
+        checkAndProcess(updatedBoard);
       });
     }, ANIM_ELIMINATE);
   }, [findMatches]);
@@ -635,7 +649,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
   }, [findMatches, processMatchesAfterSwap]);
 
   // ─── 下落填充 ────────────────────────────────────
-  const applyGravityAndFill = useCallback((currentBoard: (Cell | null)[][], onComplete: () => void) => {
+  const applyGravityAndFill = useCallback((currentBoard: (Cell | null)[][], onComplete: (updatedBoard: (Cell | null)[][]) => void) => {
     const level = levelConfigRef.current;
     if (!level) { onComplete(); return; }
 
@@ -693,7 +707,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
         row.map(cell => cell ? { ...cell, isFalling: false } : null)
       );
       setBoard(cleared);
-      onComplete();
+      onComplete(cleared);
     }, ANIM_FALL);
   }, []);
 
