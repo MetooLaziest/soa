@@ -104,16 +104,16 @@ router.get('/levels', async (_req, res) => {
 /** POST /api/admin/match3/levels — 创建关卡 */
 router.post('/levels', async (req, res) => {
   try {
-    const { name, grid_rows, grid_cols, grid_shape, score_target, max_moves, available_icons, difficulty, is_active } = req.body;
+    const { name, grid_rows, grid_cols, grid_shape, score_target, max_moves, available_icons, difficulty, is_active, bg_image_url } = req.body;
     if (!name) return res.status(400).json({ error: '缺少名称' });
     const { rows: [row] } = await poolEpet1.query(
-      `INSERT INTO match3_levels (name, grid_rows, grid_cols, grid_shape, score_target, max_moves, available_icons, difficulty, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO match3_levels (name, grid_rows, grid_cols, grid_shape, score_target, max_moves, available_icons, difficulty, is_active, bg_image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [name, grid_rows || 8, grid_cols || 8,
        JSON.stringify(grid_shape || []),
        score_target || 1000, max_moves || 20,
        JSON.stringify(available_icons || []),
-       difficulty || 1, is_active !== false]
+       difficulty || 1, is_active !== false, bg_image_url || null]
     );
     res.json({ success: true, level: row });
   } catch (e) {
@@ -125,7 +125,7 @@ router.post('/levels', async (req, res) => {
 router.put('/levels/:id', async (req, res) => {
   try {
     const levelId = Number(req.params.id);
-    const { name, grid_rows, grid_cols, grid_shape, score_target, max_moves, available_icons, difficulty, is_active } = req.body;
+    const { name, grid_rows, grid_cols, grid_shape, score_target, max_moves, available_icons, difficulty, is_active, bg_image_url } = req.body;
     const sets = [];
     const vals = [];
     let idx = 1;
@@ -139,6 +139,7 @@ router.put('/levels/:id', async (req, res) => {
     if (available_icons !== undefined) { sets.push(`available_icons = $${idx++}`); vals.push(JSON.stringify(available_icons)); }
     if (difficulty !== undefined) { sets.push(`difficulty = $${idx++}`); vals.push(difficulty); }
     if (is_active !== undefined) { sets.push(`is_active = $${idx++}`); vals.push(is_active); }
+    if (bg_image_url !== undefined) { sets.push(`bg_image_url = $${idx++}`); vals.push(bg_image_url); }
 
     if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
     vals.push(levelId);

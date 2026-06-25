@@ -2,6 +2,11 @@
  * 消消乐（开心连连看）— React + TypeScript 实现
  * 支持不规则棋盘、6种普通图标 + 2种特殊图标（小炸弹/大炸弹）
  * 完整游戏循环：交换 → 检测 → 消除 → 下落 → 再检测（连锁）
+ * 
+ * 规则：
+ * - 3连消除 | 4连→小炸弹(消整列) | 5连→大炸弹(消全同类+周围1格)
+ * - 小炸弹/大炸弹不在初始化出现，仅通过4连/5连合成
+ * - 炸弹与相邻图标交换即触发效果（不需要3消）
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -32,17 +37,19 @@ interface IconInfo {
   id: number;
   image_url: string;
   name: string;
+  icon_type: string;       // 'normal' | 'small_bomb' | 'big_bomb'
 }
 
 interface LevelConfig {
   id: number;
   name: string;
   grid_shape: number[][];     // 二维数组，1=有格 0=无格
-  rows: number;
-  cols: number;
+  rows: number;              // mapped from grid_rows
+  cols: number;              // mapped from grid_cols
   available_icons: number[];  // 可用图标ID列表（6种普通）
-  target_score: number;
+  target_score: number;       // mapped from score_target
   max_moves: number;
+  bg_image_url: string | null; // 关卡背景图
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -95,6 +102,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
   const scoreRef = useRef(score);
   const movesLeftRef = useRef(movesLeft);
   const levelConfigRef = useRef(levelConfig);
+  const iconsRef = useRef(icons);
 
   boardRef.current = board;
   phaseRef.current = phase;
@@ -102,6 +110,79 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
   scoreRef.current = score;
   movesLeftRef.current = movesLeft;
   levelConfigRef.current = levelConfig;
+  iconsRef.current = icons;
+
+  // ─── 随机选图标（仅普通图标，排除炸弹） ─────────
+  function pickRandomIcon(available: number[]): number {
+    // 过滤掉炸弹类型的图标，只从普通图标中随机选
+    const iconMap = iconsRef.current;
+    const normalIcons = available.filter(id => {
+      const info = iconMap.get(id);
+      return !info || info.icon_type === 'normal';
+    });
+    const pool = normalIcons.length > 0 ? normalIcons : available;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // ─── 检测初始是否有 3 连 ────────────────────────
+  function hasInitialMatch(brd: (Cell | null)[][], row: number, col: number, iconId: number): boolean {
+    if (col >= 2) {
+      const c1 = brd[row]?.[col - 1];
+      const c2 = brd[row]?.[col - 2];
+      if (c1 && c2 && c1.iconId === iconId && c2.iconId === iconId) return true;
+    }
+    if (row >= 2) {
+      const c1 = brd[row - 1]?.[col];
+      const c2 = brd[row - 2]?.[col];
+      if (c1 && c2 && c1.iconId === iconId && c2.iconId === iconId) return true;
+    }
+    return false;
+  }
+
+  // ─── 初始化棋盘（仅填充普通图标，不生成炸弹） ───
+  function initBoard(level: LevelConfig, iconMap: Map<number, IconInfo>) {
+    const { rows, cols, grid_shape, available_icons } = level;
+    const newBoard: (Cell | null)[][] = [];
+
+    // 只用普通图标初始化
+    const normalIconIds = available_icons.filter(id => {
+      const info = iconMap.get(id);
+      return !info || info.icon_type === 'normal';
+    });
+    const fillIcons = normalIconIds.length > 0 ? normalIconIds : available_icons;
+
+    for (let r = 0; r < rows; r++) {
+      newBoard[r] = [];
+      for (let c = 0; c < cols; c++) {
+        if (!grid_shape[r] || !grid_shape[r][c]) {
+          newBoard[r][c] = null;
+          continue;
+        }
+        let iconId = fillIcons[Math.floor(Math.random() * fillIcons.length)];
+        let attempts = 0;
+        while (attempts < 50 && hasInitialMatch(newBoard, r, c, iconId)) {
+          iconId = fillIcons[Math.floor(Math.random() * fillIcons.length)];
+          attempts++;
+        }
+        newBoard[r][c] = {
+          iconId,
+          iconType: 'normal',
+          isFalling: false,
+          isEliminating: false,
+          row: r,
+          col: c,
+        };
+      }
+    }
+
+    setBoard(newBoard);
+    setPhase('idle');
+    console.log('✅ Match3 board initialized:', rows, 'x', cols, ', cells:', newBoard.flat().filter(c => c !== null).length);
+    setScore(0);
+    setChain(0);
+    setSelected(null);
+    setResult(null);
+  }
 
   // ─── 加载关卡配置和图标 ─────────────────────────
   useEffect(() => {
@@ -110,10 +191,22 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
         // 加载关卡配置
         const levelRes = await fetch(`/api/epet1/match3/levels/${levelId}`);
         const levelData = await levelRes.json();
-        if (!levelData.ok && !levelData.level) {
+        if (!levelData.success || !levelData.level) {
           throw new Error(levelData.error || '加载关卡失败');
         }
-        const level: LevelConfig = levelData.level || levelData;
+        const raw = levelData.level;
+        const level: LevelConfig = {
+          id: raw.id,
+          name: raw.name,
+          grid_shape: raw.grid_shape,
+          rows: raw.grid_rows || raw.rows || 8,
+          cols: raw.grid_cols || raw.cols || 8,
+          available_icons: raw.available_icons,
+          target_score: raw.score_target ?? raw.target_score ?? 0,
+          max_moves: raw.max_moves,
+          bg_image_url: raw.bg_image_url || null,
+        };
+        console.log('✅ Match3 level loaded:', level);
 
         // 加载图标列表
         const iconRes = await fetch('/api/epet1/match3/icons');
@@ -121,9 +214,10 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
         const iconMap = new Map<number, IconInfo>();
         if (iconData.icons) {
           for (const icon of iconData.icons) {
-            iconMap.set(icon.id, icon);
+            iconMap.set(icon.id, { ...icon, icon_type: icon.icon_type || 'normal' });
           }
         }
+        console.log('✅ Match3 icons:', [...iconMap.entries()].map(([k, v]) => `${k}:${v.name}(${v.icon_type})`));
 
         setLevelConfig(level);
         setIcons(iconMap);
@@ -142,73 +236,11 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     load();
   }, [levelId]);
 
-  // ─── 初始化棋盘 ─────────────────────────────────
-  const initBoard = useCallback((level: LevelConfig, iconMap: Map<number, IconInfo>) => {
-    const { rows, cols, grid_shape, available_icons } = level;
-    const newBoard: (Cell | null)[][] = [];
-
-    for (let r = 0; r < rows; r++) {
-      newBoard[r] = [];
-      for (let c = 0; c < cols; c++) {
-        if (!grid_shape[r] || !grid_shape[r][c]) {
-          newBoard[r][c] = null; // 无格
-          continue;
-        }
-
-        // 随机选一个图标，避免初始 3 连
-        let iconId = pickRandomIcon(available_icons);
-        let attempts = 0;
-        while (attempts < 50 && hasInitialMatch(newBoard, r, c, iconId)) {
-          iconId = pickRandomIcon(available_icons);
-          attempts++;
-        }
-
-        newBoard[r][c] = {
-          iconId,
-          iconType: 'normal',
-          isFalling: false,
-          isEliminating: false,
-          row: r,
-          col: c,
-        };
-      }
-    }
-
-    setBoard(newBoard);
-    setPhase('idle');
-    setScore(0);
-    setChain(0);
-    setSelected(null);
-    setResult(null);
-  }, []);
-
-  // ─── 随机选图标 ─────────────────────────────────
-  const pickRandomIcon = (available: number[]): number => {
-    return available[Math.floor(Math.random() * available.length)];
-  };
-
-  // ─── 检测初始是否有 3 连 ────────────────────────
-  const hasInitialMatch = (board: (Cell | null)[][], row: number, col: number, iconId: number): boolean => {
-    // 横向检查：左边连续 2 个同 iconId
-    if (col >= 2) {
-      const c1 = board[row]?.[col - 1];
-      const c2 = board[row]?.[col - 2];
-      if (c1 && c2 && c1.iconId === iconId && c2.iconId === iconId) return true;
-    }
-    // 纵向检查：上边连续 2 个同 iconId
-    if (row >= 2) {
-      const c1 = board[row - 1]?.[col];
-      const c2 = board[row - 2]?.[col];
-      if (c1 && c2 && c1.iconId === iconId && c2.iconId === iconId) return true;
-    }
-    return false;
-  };
-
   // ─── 检测所有连线 ─────────────────────────────────
   const findMatches = useCallback((board: (Cell | null)[][]): { cells: Set<string>; horizontal: Map<string, number>; vertical: Map<string, number> } => {
     const matched = new Set<string>();
-    const horizontal = new Map<string, number>(); // key: "r,c_start", value: length
-    const vertical = new Map<string, number>();   // key: "c,r_start", value: length
+    const horizontal = new Map<string, number>();
+    const vertical = new Map<string, number>();
     const level = levelConfigRef.current;
     if (!level) return { cells: matched, horizontal, vertical };
 
@@ -273,32 +305,27 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
   const handleCellClick = useCallback((row: number, col: number) => {
     if (phaseRef.current !== 'idle') return;
     const currentBoard = boardRef.current;
-    if (!currentBoard[row]?.[col]) return; // 无格
+    if (!currentBoard[row]?.[col]) return;
 
     if (!selected) {
-      // 选中
       setSelected({ row, col });
       return;
     }
 
-    // 点同一个格子：取消选中
     if (selected.row === row && selected.col === col) {
       setSelected(null);
       return;
     }
 
-    // 检查是否相邻
     const isAdjacent =
       (Math.abs(selected.row - row) === 1 && selected.col === col) ||
       (Math.abs(selected.col - col) === 1 && selected.row === row);
 
     if (!isAdjacent) {
-      // 不相邻，重新选中
       setSelected({ row, col });
       return;
     }
 
-    // 相邻，尝试交换
     const sr = selected.row;
     const sc = selected.col;
     setSelected(null);
@@ -321,16 +348,19 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     newBoard[r1][c1] = { ...newBoard[r2][c2]!, row: r1, col: c1 };
     newBoard[r2][c2] = { ...temp, row: r2, col: c2 };
 
-    // 检查是否涉及炸弹
     const swapped1 = newBoard[r1][c1]!;
     const swapped2 = newBoard[r2][c2]!;
 
-    // 如果交换方之一是小炸弹
+    // 如果交换方之一是小炸弹 → 交换即触发
     if (swapped1.iconType === 'small_bomb' || swapped2.iconType === 'small_bomb') {
       const bombCell = swapped1.iconType === 'small_bomb' ? swapped1 : swapped2;
-      const otherCell = swapped1.iconType === 'small_bomb' ? swapped2 : swapped1;
       const bombRow = bombCell.row;
       const bombCol = bombCell.col;
+
+      // 消耗一步
+      const newMoves = movesLeftRef.current - 1;
+      setMovesLeft(newMoves);
+      movesLeftRef.current = newMoves;
 
       setTimeout(() => {
         setSwapAnim(null);
@@ -340,13 +370,18 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
       return;
     }
 
-    // 如果交换方之一是大炸弹
+    // 如果交换方之一是大炸弹 → 交换即触发
     if (swapped1.iconType === 'big_bomb' || swapped2.iconType === 'big_bomb') {
       const bombCell = swapped1.iconType === 'big_bomb' ? swapped1 : swapped2;
       const otherCell = swapped1.iconType === 'big_bomb' ? swapped2 : swapped1;
       const bombRow = bombCell.row;
       const bombCol = bombCell.col;
-      const targetIconId = otherCell.iconId;
+      const targetIconId = otherCell.iconType === 'normal' ? otherCell.iconId : -1;
+
+      // 消耗一步
+      const newMoves = movesLeftRef.current - 1;
+      setMovesLeft(newMoves);
+      movesLeftRef.current = newMoves;
 
       setTimeout(() => {
         setSwapAnim(null);
@@ -365,7 +400,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
         setSwapAnim({ from: { row: r2, col: c2 }, to: { row: r1, col: c1 } });
         setTimeout(() => {
           setSwapAnim(null);
-          setBoard(boardRef.current); // 恢复原样
+          setBoard(boardRef.current);
           setPhase('idle');
         }, ANIM_SWAP);
       }, ANIM_SWAP);
@@ -416,7 +451,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     scoreRef.current = newScore;
 
     setTimeout(() => {
-      // 标记消除
+      // 清除被消除的格子
       eliminated.forEach(key => {
         const [r, c] = key.split(',').map(Number);
         if (newBoard[r]) newBoard[r][c] = null;
@@ -424,9 +459,8 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
       setBombCells(new Set());
       setBoard(newBoard);
 
-      // 下落填充
+      // 下落填充后继续
       applyGravityAndFill(newBoard, () => {
-        // 下落后继续检测
         chainRef.current = 0;
         setChain(0);
         checkAndProcess(newBoard);
@@ -443,18 +477,31 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     const newBoard = currentBoard.map(row => row.map(cell => cell ? { ...cell } : null));
     const eliminated = new Set<string>();
 
-    // 消除所有同类普通图标
-    for (let r = 0; r < level.rows; r++) {
-      for (let c = 0; c < level.cols; c++) {
-        if (newBoard[r]?.[c] && newBoard[r][c]!.iconType === 'normal' && newBoard[r][c]!.iconId === targetIconId) {
-          eliminated.add(`${r},${c}`);
-          // 上下左右 1 格
-          for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-            const nr = r + dr;
-            const nc = c + dc;
-            if (nr >= 0 && nr < level.rows && nc >= 0 && nc < level.cols && level.grid_shape[nr]?.[nc]) {
-              eliminated.add(`${nr},${nc}`);
+    if (targetIconId > 0) {
+      // 消除所有同类普通图标
+      for (let r = 0; r < level.rows; r++) {
+        for (let c = 0; c < level.cols; c++) {
+          if (newBoard[r]?.[c] && newBoard[r][c]!.iconType === 'normal' && newBoard[r][c]!.iconId === targetIconId) {
+            eliminated.add(`${r},${c}`);
+            // 上下左右 1 格
+            for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+              const nr = r + dr;
+              const nc = c + dc;
+              if (nr >= 0 && nr < level.rows && nc >= 0 && nc < level.cols && level.grid_shape[nr]?.[nc]) {
+                eliminated.add(`${nr},${nc}`);
+              }
             }
+          }
+        }
+      }
+    } else {
+      // 如果没有目标图标（两个炸弹互换等），消除炸弹周围3x3
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = bombRow + dr;
+          const nc = bombCol + dc;
+          if (nr >= 0 && nr < level.rows && nc >= 0 && nc < level.cols && level.grid_shape[nr]?.[nc]) {
+            eliminated.add(`${nr},${nc}`);
           }
         }
       }
@@ -496,7 +543,6 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
   const processMatchesAfterSwap = useCallback((currentBoard: (Cell | null)[][]) => {
     const { cells: matches, horizontal, vertical } = findMatches(currentBoard);
     if (matches.size === 0) {
-      // 无连线，检查是否结束
       checkGameEnd();
       return;
     }
@@ -504,69 +550,53 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     setPhase('eliminating');
     setEliminatingCells(matches);
 
-    // 计算得分和生成特殊图标
     let roundScore = 0;
     const newChain = chainRef.current + 1;
     setChain(newChain);
     chainRef.current = newChain;
 
-    // 分析横竖连线长度，确定每个位置的分数和特殊图标
-    const specialCells = new Map<string, 'small_bomb' | 'big_bomb'>(); // 位置 → 特殊类型
+    const specialCells = new Map<string, 'small_bomb' | 'big_bomb'>();
 
-    // 处理横向连线
     horizontal.forEach((len, key) => {
       const [r, cStart] = key.split(',').map(Number);
       const perIcon = len >= 5 ? SCORE_5 : len >= 4 ? SCORE_4 : SCORE_3;
       roundScore += perIcon * len;
-
-      // 在消除位置生成特殊图标
       if (len >= 5) {
-        // 5连：在中间位置生成大炸弹
         const midC = cStart + Math.floor(len / 2);
         specialCells.set(`${r},${midC}`, 'big_bomb');
       } else if (len >= 4) {
-        // 4连：在消除位置生成小炸弹
         const bombC = cStart + Math.floor(len / 2);
         specialCells.set(`${r},${bombC}`, 'small_bomb');
       }
     });
 
-    // 处理纵向连线
     vertical.forEach((len, key) => {
       const [c, rStart] = key.split(',').map(Number);
       const perIcon = len >= 5 ? SCORE_5 : len >= 4 ? SCORE_4 : SCORE_3;
       roundScore += perIcon * len;
-
       if (len >= 5) {
         const midR = rStart + Math.floor(len / 2);
-        // 如果这个位置已经有大炸弹，保留大炸弹
         if (!specialCells.has(`${midR},${c}`)) {
           specialCells.set(`${midR},${c}`, 'big_bomb');
         }
       } else if (len >= 4) {
         const bombR = rStart + Math.floor(len / 2);
-        // 如果已是大炸弹则不降级
         if (specialCells.get(`${bombR},${c}`) !== 'big_bomb') {
           specialCells.set(`${bombR},${c}`, 'small_bomb');
         }
       }
     });
 
-    // 连锁倍率
     roundScore *= newChain;
-
     const newScore = scoreRef.current + roundScore;
     setScore(newScore);
     scoreRef.current = newScore;
 
-    // 消除动画
     setTimeout(() => {
       const newBoard = currentBoard.map(row => row.map(cell => cell ? { ...cell } : null));
 
-      // 标记消除
       matches.forEach(key => {
         const [r, c] = key.split(',').map(Number);
-        // 如果这个位置要生成特殊图标，保留并替换类型
         if (specialCells.has(key)) {
           const specialType = specialCells.get(key)!;
           newBoard[r][c] = {
@@ -585,9 +615,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
       setEliminatingCells(new Set());
       setBoard(newBoard);
 
-      // 下落填充
       applyGravityAndFill(newBoard, () => {
-        // 下落后继续检测（连锁）
         checkAndProcess(newBoard);
       });
     }, ANIM_ELIMINATE);
@@ -599,7 +627,6 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     if (matches.size > 0) {
       processMatchesAfterSwap(currentBoard);
     } else {
-      // 无连线，检查死局
       if (isDeadBoard(currentBoard)) {
         shuffleBoard(currentBoard);
       }
@@ -619,24 +646,23 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
 
     // 逐列处理下落
     for (let c = 0; c < cols; c++) {
-      // 找到该列所有有效格
       const validRows: number[] = [];
       for (let r = 0; r < rows; r++) {
         if (grid_shape[r]?.[c]) validRows.push(r);
       }
 
-      // 从下往上，将非空格子下移
-      const cells: (Cell | null)[] = [];
+      // 从下往上收集非空格子（保持相对顺序）
+      const cells: Cell[] = [];
       for (const r of validRows) {
         if (newBoard[r][c]) {
           cells.push(newBoard[r][c]!);
         }
       }
 
-      // 空位数 = 有效格数 - 已有格子数
+      // 空位数
       const emptyCount = validRows.length - cells.length;
 
-      // 生成新图标填充顶部空位
+      // 生成新的普通图标填充顶部空位
       const newCells: Cell[] = [];
       for (let i = 0; i < emptyCount; i++) {
         const iconId = pickRandomIcon(available_icons);
@@ -645,7 +671,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
           iconType: 'normal',
           isFalling: true,
           isEliminating: false,
-          row: -1, // 临时标记为从上方落入
+          row: -1,
           col: c,
         });
       }
@@ -662,9 +688,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
 
     setBoard(newBoard);
 
-    // 等待下落动画完成
     setTimeout(() => {
-      // 清除 falling 标记
       const cleared = newBoard.map(row =>
         row.map(cell => cell ? { ...cell, isFalling: false } : null)
       );
@@ -673,7 +697,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     }, ANIM_FALL);
   }, []);
 
-  // ─── 检查死局（没有可用交换能产生连线） ─────────
+  // ─── 检查死局 ────────────────────────────────────
   const isDeadBoard = useCallback((currentBoard: (Cell | null)[][]): boolean => {
     const level = levelConfigRef.current;
     if (!level) return false;
@@ -689,6 +713,12 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
           [testBoard[r][c], testBoard[r][c + 1]] = [testBoard[r][c + 1], testBoard[r][c]];
           if (testBoard[r][c]) { testBoard[r][c]!.row = r; testBoard[r][c]!.col = c; }
           if (testBoard[r][c + 1]) { testBoard[r][c + 1]!.row = r; testBoard[r][c + 1]!.col = c + 1; }
+
+          // 炸弹交换也算有效移动
+          if (testBoard[r][c]?.iconType !== 'normal' || testBoard[r][c + 1]?.iconType !== 'normal') {
+            return false;
+          }
+
           const { cells: m } = findMatches(testBoard);
           if (m.size > 0) return false;
         }
@@ -699,6 +729,11 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
           [testBoard[r][c], testBoard[r + 1][c]] = [testBoard[r + 1][c], testBoard[r][c]];
           if (testBoard[r][c]) { testBoard[r][c]!.row = r; testBoard[r][c]!.col = c; }
           if (testBoard[r + 1][c]) { testBoard[r + 1][c]!.row = r + 1; testBoard[r + 1][c]!.col = c; }
+
+          if (testBoard[r][c]?.iconType !== 'normal' || testBoard[r + 1][c]?.iconType !== 'normal') {
+            return false;
+          }
+
           const { cells: m } = findMatches(testBoard);
           if (m.size > 0) return false;
         }
@@ -711,11 +746,10 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
   const shuffleBoard = useCallback((currentBoard: (Cell | null)[][]) => {
     const level = levelConfigRef.current;
     if (!level) return;
-    const { rows, cols, grid_shape, available_icons } = level;
+    const { rows, cols, available_icons } = level;
 
     const newBoard = currentBoard.map(row => row.map(cell => cell ? { ...cell } : null));
 
-    // 收集所有普通图标
     const normalIcons: number[] = [];
     const positions: [number, number][] = [];
 
@@ -728,20 +762,17 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
       }
     }
 
-    // 洗牌
     for (let i = normalIcons.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [normalIcons[i], normalIcons[j]] = [normalIcons[j], normalIcons[i]];
     }
 
-    // 重新分配
     positions.forEach(([r, c], i) => {
       newBoard[r][c]!.iconId = normalIcons[i];
     });
 
     setBoard(newBoard);
 
-    // 如果还是死局，递归打乱（最多3次）
     if (isDeadBoard(newBoard)) {
       setTimeout(() => shuffleBoard(newBoard), 100);
     }
@@ -756,14 +787,11 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     const currentMoves = movesLeftRef.current;
 
     if (currentScore >= level.target_score) {
-      // 通关
       setPhase('ended');
       setResult('pass');
-      // 上报成绩
       reportResult(true, currentScore, level.max_moves - currentMoves);
       onPass(currentScore);
     } else if (currentMoves <= 0) {
-      // 步数用完，未达标
       setPhase('ended');
       setResult('fail');
       reportResult(false, currentScore, level.max_moves - currentMoves);
@@ -818,21 +846,40 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
 
   if (!levelConfig) return null;
 
-  const { rows, cols, grid_shape, target_score } = levelConfig;
+  const { rows, cols, grid_shape, target_score, bg_image_url } = levelConfig;
 
-  // 格子大小自适应
+  // 格子大小自适应（竖屏优化：允许更大的棋盘）
   const cellSize = Math.min(
     (window.innerWidth - 32) / cols,
-    (window.innerHeight * 0.6) / rows,
+    ((window.innerHeight - 120) * 0.65) / rows,  // 留出信息栏和按钮空间
     50
   );
   const gap = 3;
   const boardWidth = cols * (cellSize + gap) - gap;
   const boardHeight = rows * (cellSize + gap) - gap;
 
+  // 背景图样式
+  const bgStyle: React.CSSProperties = bg_image_url
+    ? { backgroundImage: `url(${bg_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' };
+
   // 图标渲染
   const renderIcon = (cell: Cell) => {
     if (cell.iconType === 'small_bomb') {
+      const iconInfo = icons.get(cell.iconId);
+      if (iconInfo?.image_url) {
+        return (
+          <div style={{
+            width: '100%', height: '100%', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            background: 'linear-gradient(135deg, #FF6B35, #FF4500)',
+            borderRadius: cellSize * 0.15, overflow: 'hidden', padding: 2,
+            boxShadow: '0 2px 8px rgba(255,69,0,0.4)',
+          }}>
+            <img src={iconInfo.image_url} alt={iconInfo.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+        );
+      }
       return (
         <div style={{
           width: '100%', height: '100%', display: 'flex',
@@ -849,6 +896,20 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     }
 
     if (cell.iconType === 'big_bomb') {
+      const iconInfo = icons.get(cell.iconId);
+      if (iconInfo?.image_url) {
+        return (
+          <div style={{
+            width: '100%', height: '100%', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            background: 'linear-gradient(135deg, #9B59B6, #8E44AD)',
+            borderRadius: cellSize * 0.15, overflow: 'hidden', padding: 2,
+            boxShadow: '0 2px 8px rgba(142,68,173,0.4)',
+          }}>
+            <img src={iconInfo.image_url} alt={iconInfo.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+        );
+      }
       return (
         <div style={{
           width: '100%', height: '100%', display: 'flex',
@@ -883,7 +944,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
       );
     }
 
-    // 无图片时的 fallback：彩色方块
+    // 无图片 fallback
     const colorIdx = cell.iconId % 6;
     const fallbackColors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A29BFE', '#FD79A8', '#00B894'];
     const fallbackEmojis = ['🔴', '🟢', '🟡', '🟣', '🩷', '🟩'];
@@ -907,6 +968,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         width: '100%', height: '100%', padding: '0 16px',
         maxWidth: 420, margin: '0 auto',
+        ...bgStyle,
       }}>
         {/* 顶部信息栏 */}
         <div style={{
@@ -953,7 +1015,6 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
           borderRadius: 12,
           padding: gap,
         }}>
-          {/* 渲染格子 */}
           {board.map((row, r) =>
             row.map((cell, c) => {
               if (!cell || !grid_shape[r]?.[c]) return null;
@@ -964,7 +1025,6 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
               const isSwappingOut = swapAnim?.from.row === r && swapAnim?.from.col === c;
               const isSwappingIn = swapAnim?.to.row === r && swapAnim?.to.col === c;
 
-              // 交换动画偏移
               let transform = '';
               if (swapAnim) {
                 if (isSwappingOut) {
@@ -978,13 +1038,11 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
                 }
               }
 
-              // 消除动画
               const eliminateStyle = isEliminating ? {
                 transform: 'scale(0.3)', opacity: 0,
                 transition: `transform ${ANIM_ELIMINATE}ms ease, opacity ${ANIM_ELIMINATE}ms ease`,
               } : {};
 
-              // 炸弹闪光
               const bombStyle = isBomb ? {
                 animation: `match3BombFlash ${ANIM_BOMB}ms ease-out`,
               } : {};
@@ -1006,7 +1064,6 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
                     ...bombStyle,
                   }}
                 >
-                  {/* 选中高亮 */}
                   {isSelected && (
                     <div style={{
                       position: 'absolute', inset: -3,
@@ -1017,7 +1074,6 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
                     }} />
                   )}
 
-                  {/* 图标 */}
                   <div style={{
                     width: '100%', height: '100%',
                     transform: isSelected ? 'scale(1.08)' : 'scale(1)',
@@ -1031,7 +1087,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
           )}
         </div>
 
-        {/* 底部：退出按钮 */}
+        {/* 底部退出按钮 */}
         <button
           onClick={onQuit}
           style={{
@@ -1079,7 +1135,6 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
         )}
       </div>
 
-      {/* CSS 动画 */}
       <style>{`
         @keyframes match3SelectPulse {
           0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.4); }

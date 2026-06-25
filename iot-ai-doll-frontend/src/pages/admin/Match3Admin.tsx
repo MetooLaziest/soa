@@ -24,6 +24,7 @@ interface Match3Level {
   available_icons: number[];
   difficulty: number;
   is_active: boolean;
+  bg_image_url?: string;
 }
 
 const ICON_TYPES = [
@@ -85,6 +86,7 @@ export default function Match3Admin() {
   const [levelAvailableIcons, setLevelAvailableIcons] = useState<number[]>([]);
   const [levelDifficulty, setLevelDifficulty] = useState(1);
   const [levelActive, setLevelActive] = useState(true);
+  const [levelBgUrl, setLevelBgUrl] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -166,7 +168,7 @@ export default function Match3Admin() {
     setLevelName(''); setLevelRows(8); setLevelCols(8);
     setLevelShape(Array.from({ length: 8 }, () => Array(8).fill(1)));
     setLevelScoreTarget(1000); setLevelMaxMoves(20);
-    setLevelAvailableIcons([]); setLevelDifficulty(1); setLevelActive(true);
+    setLevelAvailableIcons([]); setLevelDifficulty(1); setLevelActive(true); setLevelBgUrl('');
   };
 
   const openEditLevel = (level: Match3Level) => {
@@ -188,6 +190,7 @@ export default function Match3Admin() {
     setLevelAvailableIcons(Array.isArray(availIcons) ? availIcons : []);
     setLevelScoreTarget(level.score_target); setLevelMaxMoves(level.max_moves);
     setLevelDifficulty(level.difficulty); setLevelActive(level.is_active);
+    setLevelBgUrl(level.bg_image_url || '');
     setShowLevelForm(true);
   };
 
@@ -200,13 +203,13 @@ export default function Match3Admin() {
         await client.put(`/admin/match3/levels/${editingLevel.id}`, {
           name: levelName, grid_rows: levelRows, grid_cols: levelCols,
           grid_shape: shape, score_target: levelScoreTarget, max_moves: levelMaxMoves,
-          available_icons: levelAvailableIcons, difficulty: levelDifficulty, is_active: levelActive,
+          available_icons: levelAvailableIcons, difficulty: levelDifficulty, is_active: levelActive, bg_image_url: levelBgUrl,
         });
       } else {
         await client.post('/admin/match3/levels', {
           name: levelName, grid_rows: levelRows, grid_cols: levelCols,
           grid_shape: shape, score_target: levelScoreTarget, max_moves: levelMaxMoves,
-          available_icons: levelAvailableIcons, difficulty: levelDifficulty, is_active: levelActive,
+          available_icons: levelAvailableIcons, difficulty: levelDifficulty, is_active: levelActive, bg_image_url: levelBgUrl,
         });
       }
       resetLevelForm(); load();
@@ -539,6 +542,16 @@ export default function Match3Admin() {
                     <input type="checkbox" checked={levelActive} onChange={e => setLevelActive(e.target.checked)}
                       className="h-4 w-4 rounded accent-purple-500" />
                     <span className="text-sm text-gray-300">{levelActive ? '启用' : '禁用'}</span>
+                  </div>
+
+                  {/* 背景图 */}
+                  <div>
+                    <label className="text-xs text-gray-400">🎨 关卡背景图</label>
+                    <input value={levelBgUrl} onChange={e => setLevelBgUrl(e.target.value)} placeholder="/epet/static/xxx.png"
+                      className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-purple-500" />
+                    {levelBgUrl && (
+                      <img src={levelBgUrl} alt="bg preview" className="mt-2 h-24 w-full rounded-lg object-cover opacity-70" />
+                    )}
                   </div>
                 </div>
 
