@@ -21,6 +21,7 @@ const navItems = [
   { key: 'fishing', label: '钓鱼管理', icon: '🎣', path: '/admin/fishing' },
   { key: 'shop', label: '商店管理', icon: '🛍️', path: '/admin/shop' },
   { key: 'spotdiff', label: '找不同管理', icon: '🔍', path: '/admin/spotdiff' },
+  { key: 'match3', label: '消消乐管理', icon: '💎', path: '/admin/match3' },
   { key: 'yard-editor', label: '庭院地图编辑', icon: '🗺️', path: '/admin/yard-editor' },
 ];
 

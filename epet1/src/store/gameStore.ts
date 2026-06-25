@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PetInstance, TravelRecord, YardFurniture } from '../api/epet1';
 
-type ModalType = 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | null;
+type ModalType = 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | 'match3' | null;
 
 interface GameStore {
   // User
@@ -24,6 +24,9 @@ interface GameStore {
   yardFurniture: YardFurniture[];
   placingFurniture: { shopItemId: number; name: string; imageUrl: string; width: number; height: number } | null;
   removingFurnitureMode: boolean;
+  // Match3 消消乐
+  match3LevelId: number | null;
+  match3ShopItemId: number | null;
 
   setUser: (userId: number, emotionPoints: number) => void;
   setYardPets: (pets: PetInstance[]) => void;
@@ -41,6 +44,7 @@ interface GameStore {
   removeYardFurniture: (id: number) => void;
   setPlacingFurniture: (f: { shopItemId: number; name: string; imageUrl: string; width: number; height: number } | null) => void;
   setRemovingFurnitureMode: (v: boolean) => void;
+  setMatch3LevelId: (levelId: number | null, shopItemId?: number | null) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -56,6 +60,8 @@ export const useGameStore = create<GameStore>((set) => ({
   yardFurniture: [],
   placingFurniture: null,
   removingFurnitureMode: false,
+  match3LevelId: null,
+  match3ShopItemId: null,
 
   setUser: (userId, emotionPoints) => set({ userId, emotionPoints }),
   setYardPets: (yardPets) => set({ yardPets }),
@@ -79,4 +85,5 @@ export const useGameStore = create<GameStore>((set) => ({
   removeYardFurniture: (id) => set((s) => ({ yardFurniture: s.yardFurniture.filter((f) => f.id !== id) })),
   setPlacingFurniture: (placingFurniture) => set({ placingFurniture }),
   setRemovingFurnitureMode: (removingFurnitureMode) => set({ removingFurnitureMode }),
+  setMatch3LevelId: (levelId, shopItemId) => set({ match3LevelId: levelId, match3ShopItemId: shopItemId ?? null }),
 }));

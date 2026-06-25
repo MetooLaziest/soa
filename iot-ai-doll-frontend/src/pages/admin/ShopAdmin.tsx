@@ -26,6 +26,7 @@ interface ShopItem {
   is_active: boolean;
   yard_width: number;
   yard_height: number;
+  match3_level_id: number | null;
 }
 
 export default function ShopAdmin() {
@@ -48,16 +49,20 @@ export default function ShopAdmin() {
   const [formStock, setFormStock] = useState(-1);
   const [formYardWidth, setFormYardWidth] = useState(0.08);
   const [formYardHeight, setFormYardHeight] = useState(0.12);
+  const [formMatch3LevelId, setFormMatch3LevelId] = useState<number | null>(null);
+  const [match3Levels, setMatch3Levels] = useState<{id: number; name: string; difficulty: number}[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [itemsRes, configRes] = await Promise.all([
+      const [itemsRes, configRes, match3Res] = await Promise.all([
         client.get('/epet1/shop2/admin/items'),
         client.get('/epet1/shop2/config'),
+        client.get('/admin/match3/levels'),
       ]);
       setItems(itemsRes.data.items || []);
       setBgImage(configRes.data.config?.background_image || '');
+      setMatch3Levels((match3Res.data.levels || []).map((l: any) => ({ id: l.id, name: l.name, difficulty: l.difficulty })));
     } catch (err) {
       console.error('加载失败:', err);
     } finally {
@@ -70,7 +75,7 @@ export default function ShopAdmin() {
   const resetForm = () => {
     setFormName(''); setFormShopTab('food'); setFormCategory('food');
     setFormPrice(0); setFormDesc(''); setFormImageUrl(''); setFormStock(-1);
-    setFormYardWidth(0.08); setFormYardHeight(0.12);
+    setFormYardWidth(0.08); setFormYardHeight(0.12); setFormMatch3LevelId(null);
     setEditing(null); setShowForm(false);
   };
 
@@ -80,6 +85,7 @@ export default function ShopAdmin() {
     setFormCategory(item.item_category); setFormPrice(item.price_emotion);
     setFormDesc(item.description || ''); setFormImageUrl(item.image_url || '');
     setFormStock(item.stock); setFormYardWidth(item.yard_width || 0.08); setFormYardHeight(item.yard_height || 0.12);
+    setFormMatch3LevelId(item.match3_level_id || null);
     setShowForm(true);
   };
 
@@ -126,6 +132,7 @@ export default function ShopAdmin() {
           price_emotion: formPrice, image_url: formImageUrl,
           description: formDesc, stock: formStock,
           yard_width: formYardWidth, yard_height: formYardHeight,
+          match3_level_id: formMatch3LevelId,
         });
       } else {
         await client.post('/epet1/shop2/admin/items', {
@@ -133,6 +140,7 @@ export default function ShopAdmin() {
           shop_tab: formShopTab, price_emotion: formPrice,
           image_url: formImageUrl, description: formDesc, stock: formStock,
           yard_width: formYardWidth, yard_height: formYardHeight,
+          match3_level_id: formMatch3LevelId,
         });
       }
       resetForm(); load();
@@ -214,6 +222,7 @@ export default function ShopAdmin() {
                     {item.stock >= 0 && ` · 库存:${item.stock}`}
                     {!item.is_active && ' · ❌已下架'}
                     {item.item_category === 'furniture' && ` · 📐${item.yard_width}×${item.yard_height}`}
+                    {item.match3_level_id && ' · 💎需通关'}
                   </div>
                 </div>
               </div>
@@ -288,6 +297,20 @@ export default function ShopAdmin() {
                   <div className="text-xs text-gray-500">提示：0.08 = 屏幕宽度 8%，可在庭院中反复调整测试</div>
                 </div>
               )}
+              {/* 消消乐关卡 */}
+              <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 space-y-2">
+                <div className="text-xs font-semibold text-cyan-300">💎 消消乐通关限制</div>
+                <select value={formMatch3LevelId ?? ''} onChange={e => setFormMatch3LevelId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                  <option value="" className="bg-slate-800">无限制（不需要通关）</option>
+                  {match3Levels.map(l => (
+                    <option key={l.id} value={l.id} className="bg-slate-800">
+                      {l.name} (难度{l.difficulty})
+                    </option>
+                  ))}
+                </select>
+                <div className="text-xs text-gray-500">购买此商品需要先通关指定消消乐关卡</div>
+              </div>
               <div>
                 <label className="text-xs text-gray-400">描述</label>
                 <input value={formDesc} onChange={e => setFormDesc(e.target.value)}

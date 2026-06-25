@@ -58,6 +58,18 @@ module.exports = (pool) => {
         }
       }
 
+      // 消消乐通关检查
+      if (shopItem.match3_level_id) {
+        const passedRes = await client.query(
+          `SELECT 1 FROM match3_records WHERE user_id = $1 AND level_id = $2 AND passed = true LIMIT 1`,
+          [user_id, shopItem.match3_level_id]
+        );
+        if (passedRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ success: false, error: '需要先通过消消乐关卡才能购买此物品' });
+        }
+      }
+
       // 检查库存
       if (shopItem.stock === 0) {
         await client.query('ROLLBACK');

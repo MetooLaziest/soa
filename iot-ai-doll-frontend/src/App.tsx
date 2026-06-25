@@ -28,6 +28,7 @@ import YardSceneEditor from './pages/admin/YardSceneEditor';
 import FishingAdmin from './pages/admin/FishingAdmin';
 import ShopAdmin from './pages/admin/ShopAdmin';
 import SpotDiffAdmin from './pages/admin/SpotDiffAdmin';
+import Match3Admin from './pages/admin/Match3Admin';
 import CompanionRAG from './pages/admin/CompanionRAG';
 import RAGList from './pages/admin/RAGKnowledgeBases';
 import RAGEdit from './pages/admin/RAGEdit';
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="fishing" element={<FishingAdmin />} />
           <Route path="shop" element={<ShopAdmin />} />
           <Route path="spotdiff" element={<SpotDiffAdmin />} />
+          <Route path="match3" element={<Match3Admin />} />
         </Route>
 
         {/* 兜底 */}

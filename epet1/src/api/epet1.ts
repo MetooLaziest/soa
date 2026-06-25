@@ -330,6 +330,71 @@ export async function moveFurniture(
   return res.furniture;
 }
 
+// ─── 消消乐 (Match3) ────────────────────────────────────────────
+
+export interface Match3Level {
+  id: number;
+  name: string;
+  grid_shape: number[][];
+  rows: number;
+  cols: number;
+  available_icons: number[];
+  target_score: number;
+  max_moves: number;
+}
+
+export interface Match3Icon {
+  id: number;
+  image_url: string;
+  name: string;
+}
+
+export interface Match3Record {
+  ok: boolean;
+  score: number;
+  passed: boolean;
+}
+
+/** 获取消消乐关卡配置 */
+export async function fetchMatch3Level(levelId: number): Promise<Match3Level> {
+  const res = await get<any>(`/match3/levels/${levelId}`);
+  return res.level || res;
+}
+
+/** 获取消消乐图标列表 */
+export async function fetchMatch3Icons(): Promise<Match3Icon[]> {
+  const res = await get<any>('/match3/icons');
+  return res.icons || [];
+}
+
+/** 上报消消乐成绩 */
+export async function recordMatch3Score(
+  userId: number,
+  levelId: number,
+  score: number,
+  passed: boolean,
+  movesUsed: number
+): Promise<Match3Record> {
+  const res = await post<any>('/match3/record', {
+    user_id: userId,
+    level_id: levelId,
+    score,
+    passed,
+    moves_used: movesUsed,
+  });
+  return res;
+}
+
+/** 检查消消乐是否已通关 */
+export async function checkMatch3Passed(userId: number, shopItemId: number): Promise<boolean> {
+  try {
+    const res = await get<any>(`/match3/check/${userId}/${shopItemId}`);
+    return res.passed || false;
+  } catch {
+    return false;
+  }
+}
+
 // ─── 小游戏 ─────────────────────────────────────────────────
 
 /** 可玩游戏列表 */

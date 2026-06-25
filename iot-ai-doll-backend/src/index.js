@@ -27,6 +27,7 @@ import epetSpotdiffRoutes from './routes/epet-spotdiff.js';
 import adminIntroVideosRoutes from './routes/admin-intro-videos.js';
 import adminPetBehaviorsRoutes from './routes/admin-pet-behaviors.js';
 import adminExecRoutes from './routes/admin-exec.js';
+import match3AdminRoutes from './routes/admin-match3.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -76,6 +77,7 @@ app.use('/api/admin/pet-behaviors', adminPetBehaviorsRoutes);
 app.use('/api/epet1/intro-video', adminIntroVideosRoutes);
 app.use('/api/epet1/pet-behavior', adminPetBehaviorsRoutes);
 app.use('/api/admin/exec', adminExecRoutes);
+app.use('/api/admin/match3', match3AdminRoutes);
 
 
 // ========== EPET1 公开接口（无需admin权限）==========
@@ -97,6 +99,7 @@ app.use('/api/epet1/fishing',    epetFishingRoutes);
 app.use('/api/epet1/inventory',  epetInventoryRoutes);
 app.use('/api/epet1/shop2',     epetShop2Routes);
 app.use('/api/epet1/spotdiff',  epetSpotdiffRoutes);
+app.use('/api/epet1/match3',    requireCjs('./routes-epet1/match3.cjs')(poolEpet1));
 // 静态文件服务（前端构建产物）
 app.use(express.static(join(__dirname, '../frontend')));
 app.get('*', (req, res) => {

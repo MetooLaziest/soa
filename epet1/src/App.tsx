@@ -4,6 +4,7 @@ import { useGameStore } from './store/gameStore';
 import SpotDifference from './games/SpotDifference';
 import Fishing from './games/Fishing';
 import CookFish from './games/CookFish';
+import Match3Game from './games/Match3Game';
 import {
   getOrCreateUser,
   fetchYardPets,
@@ -519,12 +520,13 @@ function DriftModal({ onClose }: { onClose: () => void }) {
 
 // ─── 商店 Modal ─────────────────────────────────────────────
 function ShopModal({ onClose }: { onClose: () => void }) {
-  const { userId, emotionPoints, setEmotionPoints } = useGameStore();
+  const { userId, emotionPoints, setEmotionPoints, setActiveModal, setMatch3LevelId } = useGameStore();
   const [activeTab, setActiveTab] = useState<string>('food');
   const [tabs, setTabs] = useState<Record<string, any[]>>({});
   const [bgImage, setBgImage] = useState('');
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<number | null>(null);
+  const [match3Passed, setMatch3Passed] = useState<Record<number, boolean>>({});
 
   const SHOP_TABS = [
     { id: 'food', name: '🥘 食材' },
@@ -544,11 +546,39 @@ function ShopModal({ onClose }: { onClose: () => void }) {
         setBgImage(configData.config.background_image);
       }
       setLoading(false);
+
+      // 检查有 match3_level_id 的商品是否已通关
+      if (userId && itemsData.ok) {
+        const allItems = Object.values(itemsData.tabs || {}).flat();
+        const match3Items = allItems.filter((item: any) => item.match3_level_id);
+        if (match3Items.length > 0) {
+          Promise.all(
+            match3Items.map((item: any) =>
+              fetch(`/api/epet1/match3/check/${userId}/${item.id}`)
+                .then(r => r.json())
+                .then(data => ({ id: item.id, passed: data.passed || false }))
+                .catch(() => ({ id: item.id, passed: false }))
+            )
+          ).then(results => {
+            const passedMap: Record<number, boolean> = {};
+            results.forEach(r => { passedMap[r.id] = r.passed; });
+            setMatch3Passed(passedMap);
+          });
+        }
+      }
     }).catch(() => setLoading(false));
-  }, []);
+  }, [userId]);
 
   const handleBuy = async (item: any) => {
     if (!userId) return;
+
+    // 如果有 match3_level_id 且未通关，走消消乐流程
+    if (item.match3_level_id && !match3Passed[item.id]) {
+      setMatch3LevelId(item.match3_level_id, item.id);
+      setActiveModal('match3');
+      return;
+    }
+
     if (emotionPoints < item.price_emotion) {
       alert(`情绪值不足！需要 ${item.price_emotion}，你有 ${emotionPoints}`);
       return;
@@ -642,23 +672,34 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#333', marginBottom: 2,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.name}
+                  {item.match3_level_id && !match3Passed[item.id] && (
+                    <span style={{
+                      display: 'inline-block', marginLeft: 4, padding: '0 4px',
+                      borderRadius: 4, fontSize: 9, verticalAlign: 'middle',
+                      background: 'linear-gradient(135deg, #FF6B35, #FF4500)',
+                      color: '#fff', fontWeight: 700,
+                    }}>
+                      消消乐
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, color: '#8B6914', fontWeight: 600, marginBottom: 6 }}>
                   💛 {item.price_emotion}
                 </div>
                 <button
                   onClick={() => handleBuy(item)}
-                  disabled={buying === item.id || emotionPoints < item.price_emotion || item.stock === 0}
+                  disabled={buying === item.id || (emotionPoints < item.price_emotion && (!item.match3_level_id || match3Passed[item.id])) || item.stock === 0}
                   style={{
                     width: '100%', padding: '5px 0', border: 'none', borderRadius: 6,
                     fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                    background: (buying === item.id || emotionPoints < item.price_emotion || item.stock === 0)
-                      ? '#ddd' : 'linear-gradient(135deg, #FFD700, #FFA500)',
-                    color: (buying === item.id || emotionPoints < item.price_emotion || item.stock === 0)
-                      ? '#999' : '#fff',
+                    background: (buying === item.id || item.stock === 0)
+                      ? '#ddd' : item.match3_level_id && !match3Passed[item.id]
+                      ? 'linear-gradient(135deg, #FF6B35, #FF4500)'
+                      : 'linear-gradient(135deg, #FFD700, #FFA500)',
+                    color: (buying === item.id || item.stock === 0) ? '#999' : '#fff',
                   }}
                 >
-                  {item.stock === 0 ? '售罄' : buying === item.id ? '...' : '购买'}
+                  {item.stock === 0 ? '售罄' : buying === item.id ? '...' : item.match3_level_id && !match3Passed[item.id] ? '🎮 挑战解锁' : '购买'}
                 </button>
               </div>
             ))}
@@ -1236,7 +1277,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 // ─── App 根组件 ──────────────────────────────────────────────
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, activeModal, setActiveModal,
-          setYardFurniture, introVideoData, setIntroVideoData } = useGameStore();
+          setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId } = useGameStore();
 
   useEffect(() => {
     const init = async () => {
@@ -1281,6 +1322,34 @@ export default function App() {
       {activeModal === 'shop' && <ShopModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'inventory' && <InventoryModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'game' && <GameModal onClose={() => setActiveModal(null)} />}
+      {activeModal === 'match3' && match3LevelId && (
+        <Match3Game
+          levelId={match3LevelId}
+          userId={userId || 0}
+          onPass={(score) => {
+            // 通关后自动触发购买
+            const shopItemId = useGameStore.getState().match3ShopItemId;
+            if (shopItemId && userId) {
+              buyItem(userId, shopItemId)
+                .then(res => {
+                  useGameStore.getState().setEmotionPoints(res.remaining_emotion);
+                  alert(`🎉 通关！购买成功！`);
+                })
+                .catch(e => alert(e.message || '购买失败'));
+            }
+            useGameStore.getState().setMatch3LevelId(null);
+            setActiveModal(null);
+          }}
+          onFail={(score) => {
+            useGameStore.getState().setMatch3LevelId(null);
+            setActiveModal(null);
+          }}
+          onQuit={() => {
+            useGameStore.getState().setMatch3LevelId(null);
+            setActiveModal(null);
+          }}
+        />
+      )}
       {activeModal === 'intro-video' && introVideoData && createPortal(
         <IntroVideoPlayer
           video={introVideoData}
