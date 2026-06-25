@@ -13,6 +13,7 @@ export interface SceneObjectData {
   image_url: string;
   collidable: boolean;
   sort_priority: number;
+  is_user_furniture?: boolean;
 }
 
 /** A rectangle obstacle in viewport-fraction coords (0-1) */
@@ -109,6 +110,13 @@ export class CollisionMap {
 
     for (const o of objects) {
       if (!o.collidable) continue;
+
+      // 家具一律用 rect 碰撞（用配置的 width/height 全尺寸计算），
+      // 确保碰撞框和视觉一致（不受图片宽高比 vs 配置比例差异影响）
+      if (o.is_user_furniture) {
+        obs.push({ ...computeRectCollisionBounds(o), label: o.label });
+        continue;
+      }
 
       if (o.image_url) {
         try {

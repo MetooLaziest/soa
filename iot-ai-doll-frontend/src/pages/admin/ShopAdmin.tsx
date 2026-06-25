@@ -49,6 +49,7 @@ export default function ShopAdmin() {
   const [formStock, setFormStock] = useState(-1);
   const [formYardWidth, setFormYardWidth] = useState(0.08);
   const [formYardHeight, setFormYardHeight] = useState(0.12);
+  const [formImageRatio, setFormImageRatio] = useState<number | null>(null); // imgH / imgW
   const [formMatch3LevelId, setFormMatch3LevelId] = useState<number | null>(null);
   const [match3Levels, setMatch3Levels] = useState<{id: number; name: string; difficulty: number}[]>([]);
 
@@ -76,7 +77,21 @@ export default function ShopAdmin() {
     setFormName(''); setFormShopTab('food'); setFormCategory('food');
     setFormPrice(0); setFormDesc(''); setFormImageUrl(''); setFormStock(-1);
     setFormYardWidth(0.08); setFormYardHeight(0.12); setFormMatch3LevelId(null);
+    setFormImageRatio(null);
     setEditing(null); setShowForm(false);
+  };
+
+  // Detect image ratio from URL (for editing existing items)
+  const detectImageRatio = (url: string) => {
+    if (!url) { setFormImageRatio(null); return; }
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        const ratio = img.naturalHeight / img.naturalWidth;
+        setFormImageRatio(ratio);
+      }
+    };
+    img.src = url;
   };
 
   const openEdit = (item: ShopItem) => {
@@ -85,6 +100,12 @@ export default function ShopAdmin() {
     setFormCategory(item.item_category); setFormPrice(item.price_emotion);
     setFormDesc(item.description || ''); setFormImageUrl(item.image_url || '');
     setFormStock(item.stock); setFormYardWidth(item.yard_width || 0.08); setFormYardHeight(item.yard_height || 0.12);
+    // Auto-detect image ratio for furniture
+    if (item.item_category === 'furniture' && item.image_url) {
+      detectImageRatio(item.image_url);
+    } else {
+      setFormImageRatio(null);
+    }
     setFormMatch3LevelId(item.match3_level_id || null);
     setShowForm(true);
   };
@@ -92,6 +113,22 @@ export default function ShopAdmin() {
   const uploadImage = async (file: File) => {
     setUploadingImg(true);
     try {
+      // Auto-detect image dimensions before upload
+      const imgDim = await new Promise<{ w: number; h: number }>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve({ w: 0, h: 0 });
+        img.src = URL.createObjectURL(file);
+      });
+      if (imgDim.w > 0 && imgDim.h > 0) {
+        const ratio = imgDim.h / imgDim.w;
+        setFormImageRatio(ratio);
+        // Auto-adjust yard_height if yard_width is set
+        if (formYardWidth > 0) {
+          setFormYardHeight(Number((formYardWidth * ratio).toFixed(4)));
+        }
+      }
+
       const form = new FormData();
       form.append('file', file);
       form.append('type', 'game-assets');
@@ -285,16 +322,35 @@ export default function ShopAdmin() {
                   <div className="flex gap-3">
                     <div className="flex-1">
                       <label className="text-xs text-gray-400">宽度 yard_width</label>
-                      <input type="number" step="0.01" value={formYardWidth} onChange={e => setFormYardWidth(Number(e.target.value))}
+                      <input type="number" step="0.01" value={formYardWidth} 
+                        onChange={e => {
+                          const w = Number(e.target.value);
+                          setFormYardWidth(w);
+                          if (formImageRatio && w > 0) {
+                            setFormYardHeight(Number((w * formImageRatio).toFixed(4)));
+                          }
+                        }}
                         className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
                     <div className="flex-1">
-                      <label className="text-xs text-gray-400">高度 yard_height</label>
-                      <input type="number" step="0.01" value={formYardHeight} onChange={e => setFormYardHeight(Number(e.target.value))}
-                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-amber-500" />
+                      <label className="text-xs text-gray-400">
+                        高度 yard_height
+                        {formImageRatio ? ' 🔒自动' : ''}
+                      </label>
+                      <input type="number" step="0.01" value={formYardHeight} 
+                        onChange={e => {
+                          if (!formImageRatio) {
+                            setFormYardHeight(Number(e.target.value));
+                          }
+                        }}
+                        readOnly={!!formImageRatio}
+                        className={`mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none ${formImageRatio ? 'bg-white/5 text-gray-400' : 'bg-white/10 text-white focus:ring-2 focus:ring-amber-500'}`} />
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500">提示：0.08 = 屏幕宽度 8%，可在庭院中反复调整测试</div>
+                  {formImageRatio && (
+                    <div className="text-xs text-amber-200/70">📐 图片比例 {formImageRatio.toFixed(3)}:1 — 改宽度自动算高度，确保碰撞框=视觉框</div>
+                  )}
+                  <div className="text-xs text-gray-500">提示：0.08 = 屏幕宽度 8%，上传图片后高度按比例自动计算</div>
                 </div>
               )}
               {/* 消消乐关卡 */}
