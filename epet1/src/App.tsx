@@ -584,7 +584,10 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
             <div key={i} style={{
               background: 'rgba(0,0,0,0.04)', borderRadius: 10, padding: 10,
               textAlign: 'center', border: '1px solid rgba(0,0,0,0.06)',
-            }}>
+              cursor: activeTab === 'postcard' ? 'pointer' : 'default',
+            }}
+              onClick={() => activeTab === 'postcard' && setActiveModal('postcard')}
+            >
               <div style={{
                 width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
                 background: 'rgba(0,0,0,0.06)', display: 'flex',
