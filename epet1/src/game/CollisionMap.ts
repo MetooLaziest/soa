@@ -113,11 +113,44 @@ export class CollisionMap {
     for (const o of objects) {
       if (!o.collidable) continue;
 
-      // 家具用 aspect-fit rect 碰撞（与渲染一致，不受图片宽高比 vs 配置比例差异影响）
+      // 家具用像素级 sprite 碰撞（与场景对象一致，排除透明区域空白）
       if (o.is_user_furniture) {
-        // 如果有图片信息，用 aspect-fit 计算；否则 fallback 到全尺寸 rect
-        if (o.img_pixel_w && o.img_pixel_h) {
-          obs.push({ ...computeCollisionBounds(o, o.img_pixel_w, o.img_pixel_h), label: o.label });
+        if (o.image_url) {
+          try {
+            const base = `${window.location.protocol}//${window.location.host}`;
+            const url = o.image_url.startsWith('/') ? `${base}${o.image_url}` : o.image_url;
+            const resp = await fetch(url);
+            const blob = await resp.blob();
+            const bmp = await createImageBitmap(blob);
+
+            if (bmp.width === 0 || bmp.height === 0) {
+              bmp.close();
+              console.warn(`⚠️ Furniture sprite collision 0x0, fallback to rect: ${o.label}`);
+              obs.push({ ...computeCollisionBounds(o, o.img_pixel_w || 1, o.img_pixel_h || 1), label: o.label });
+              continue;
+            }
+
+            const bounds = computeCollisionBounds(o, bmp.width, bmp.height);
+            const canvas = document.createElement('canvas');
+            canvas.width = bmp.width;
+            canvas.height = bmp.height;
+            const ctx = canvas.getContext('2d')!;
+            ctx.drawImage(bmp, 0, 0);
+            const imgData = ctx.getImageData(0, 0, bmp.width, bmp.height);
+            bmp.close();
+
+            spriteCols.push({
+              label: o.label,
+              xMin: bounds.xMin, yMin: bounds.yMin,
+              xMax: bounds.xMax, yMax: bounds.yMax,
+              pixels: imgData.data,
+              pixelW: bmp.width, pixelH: bmp.height,
+            });
+            console.log(`✅ Furniture sprite collision: ${o.label} (${bmp.width}x${bmp.height}), bounds=`, bounds);
+          } catch (e) {
+            console.warn(`Failed to load furniture sprite for collision: ${o.label}`, e);
+            obs.push({ ...computeCollisionBounds(o, o.img_pixel_w || 1, o.img_pixel_h || 1), label: o.label });
+          }
         } else {
           obs.push({ ...computeRectCollisionBounds(o), label: o.label });
         }
