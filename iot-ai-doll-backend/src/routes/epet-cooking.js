@@ -107,7 +107,7 @@ router.post('/cook', async (req, res) => {
       let match = true;
       for (const reqIng of reqIngs) {
         const userIng = ingredients.find(
-          i => i.shop_item_id === reqIng.ingredient_shop_item_id && (i.quantity || 1) === reqIng.quantity
+          i => String(i.shop_item_id) === String(reqIng.ingredient_shop_item_id) && (i.quantity || 1) === reqIng.quantity
         );
         if (!userIng) { match = false; break; }
       }
