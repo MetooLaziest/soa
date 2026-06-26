@@ -9,7 +9,7 @@ router.get('/items', async (req, res) => {
     const { rows } = await poolEpet1.query(
       `SELECT id, name, item_type, item_category, shop_tab, price_emotion, price_real,
               image_url, description, stock, is_active, yard_width, yard_height, match3_level_id
-       FROM shop_items WHERE is_active = true ORDER BY shop_tab, price_emotion`
+       FROM shop_items WHERE is_active = true AND purchasable = true ORDER BY shop_tab, price_emotion`
     );
     const tabs = { food: [], furniture: [], decoration: [], map: [], toy: [] };
     for (const item of rows) {
@@ -58,7 +58,7 @@ router.get('/admin/items', async (_req, res) => {
   try {
     const { rows } = await poolEpet1.query(
       `SELECT id, name, item_type, item_category, shop_tab, price_emotion, price_real,
-              image_url, description, stock, is_active, yard_width, yard_height, match3_level_id
+              image_url, description, stock, is_active, purchasable, yard_width, yard_height, match3_level_id
        FROM shop_items ORDER BY shop_tab, id`
     );
     res.json({ ok: true, items: rows });
@@ -92,7 +92,7 @@ router.put('/admin/items/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, item_type, item_category, shop_tab, price_emotion, price_real,
-            image_url, description, stock, is_active, yard_width, yard_height, match3_level_id } = req.body;
+            image_url, description, stock, is_active, purchasable, yard_width, yard_height, match3_level_id } = req.body;
     const { rows: updated } = await poolEpet1.query(
       `UPDATE shop_items SET
         name=COALESCE($1,name), item_type=COALESCE($2,item_type),
@@ -100,11 +100,12 @@ router.put('/admin/items/:id', async (req, res) => {
         price_emotion=COALESCE($5,price_emotion), price_real=COALESCE($6,price_real),
         image_url=COALESCE($7,image_url), description=COALESCE($8,description),
         stock=COALESCE($9,stock), is_active=COALESCE($10,is_active),
-        yard_width=COALESCE($11,yard_width), yard_height=COALESCE($12,yard_height),
-        match3_level_id=$13
-       WHERE id=$14 RETURNING *`,
+        purchasable=COALESCE($11,purchasable),
+        yard_width=COALESCE($12,yard_width), yard_height=COALESCE($13,yard_height),
+        match3_level_id=$14
+       WHERE id=$15 RETURNING *`,
       [name, item_type, item_category, shop_tab, price_emotion, price_real,
-       image_url, description, stock, is_active, yard_width, yard_height,
+       image_url, description, stock, is_active, purchasable, yard_width, yard_height,
        match3_level_id === undefined ? null : (match3_level_id || null), id]
     );
     if (!updated.length) return res.status(404).json({ error: '商品不存在' });

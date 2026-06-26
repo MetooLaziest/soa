@@ -14,7 +14,7 @@ module.exports = (pool) => {
         `SELECT si.*, pm.name as required_pet_name
          FROM shop_items si
          LEFT JOIN pet_models pm ON pm.id = si.pet_model_id_required
-         WHERE si.is_active = true
+         WHERE si.is_active = true AND si.purchasable = true
          ORDER BY si.item_type, si.price_emotion`
       );
       res.json({ success: true, items: result.rows });
@@ -45,6 +45,12 @@ module.exports = (pool) => {
       }
 
       const shopItem = item.rows[0];
+
+      // 不可购买检查
+      if (!shopItem.purchasable) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: '该物品不可购买' });
+      }
 
       // 家具唯一性检查：已拥有则不能再次购买
       if (shopItem.item_category === 'furniture') {

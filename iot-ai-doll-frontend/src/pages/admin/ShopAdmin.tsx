@@ -10,6 +10,7 @@ const SHOP_TABS = [
   { id: 'decoration', name: '✨ 装扮' },
   { id: 'map', name: '🗺️ 地图' },
   { id: 'toy', name: '🎨 潮玩' },
+  { id: 'hidden', name: '🔒 系统内部' },
 ];
 
 interface ShopItem {
@@ -27,6 +28,7 @@ interface ShopItem {
   yard_width: number;
   yard_height: number;
   match3_level_id: number | null;
+  purchasable: boolean;
 }
 
 export default function ShopAdmin() {
@@ -51,6 +53,7 @@ export default function ShopAdmin() {
   const [formYardHeight, setFormYardHeight] = useState(0.12);
   const [formImageRatio, setFormImageRatio] = useState<number | null>(null); // imgH / imgW
   const [formMatch3LevelId, setFormMatch3LevelId] = useState<number | null>(null);
+  const [formPurchasable, setFormPurchasable] = useState(true);
   const [match3Levels, setMatch3Levels] = useState<{id: number; name: string; difficulty: number}[]>([]);
 
   const load = async () => {
@@ -77,6 +80,7 @@ export default function ShopAdmin() {
     setFormName(''); setFormShopTab('food'); setFormCategory('food');
     setFormPrice(0); setFormDesc(''); setFormImageUrl(''); setFormStock(-1);
     setFormYardWidth(0.08); setFormYardHeight(0.12); setFormMatch3LevelId(null);
+    setFormPurchasable(true);
     setFormImageRatio(null);
     setEditing(null); setShowForm(false);
   };
@@ -107,6 +111,7 @@ export default function ShopAdmin() {
       setFormImageRatio(null);
     }
     setFormMatch3LevelId(item.match3_level_id || null);
+    setFormPurchasable(item.purchasable !== false);
     setShowForm(true);
   };
 
@@ -170,6 +175,7 @@ export default function ShopAdmin() {
           description: formDesc, stock: formStock,
           yard_width: formYardWidth, yard_height: formYardHeight,
           match3_level_id: formMatch3LevelId,
+          purchasable: formPurchasable,
         });
       } else {
         await client.post('/epet1/shop2/admin/items', {
@@ -178,6 +184,7 @@ export default function ShopAdmin() {
           image_url: formImageUrl, description: formDesc, stock: formStock,
           yard_width: formYardWidth, yard_height: formYardHeight,
           match3_level_id: formMatch3LevelId,
+          purchasable: formPurchasable,
         });
       }
       resetForm(); load();
@@ -258,6 +265,7 @@ export default function ShopAdmin() {
                     {SHOP_TABS.find(t => t.id === item.shop_tab)?.name || item.shop_tab} · 💛{item.price_emotion}
                     {item.stock >= 0 && ` · 库存:${item.stock}`}
                     {!item.is_active && ' · ❌已下架'}
+                    {item.purchasable === false && ' · 🔒不可购买'}
                     {item.item_category === 'furniture' && ` · 📐${item.yard_width}×${item.yard_height}`}
                     {item.match3_level_id && ' · 💎需通关'}
                   </div>
@@ -366,6 +374,20 @@ export default function ShopAdmin() {
                   ))}
                 </select>
                 <div className="text-xs text-gray-500">购买此商品需要先通关指定消消乐关卡</div>
+              </div>
+              {/* purchasable 开关 */}
+              <div className="flex items-center justify-between rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3">
+                <div>
+                  <div className="text-xs font-semibold text-yellow-300">🛒 允许用户购买</div>
+                  <div className="text-xs text-gray-500">关闭后，用户在商店中看不到该物品（系统内部使用）</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormPurchasable(!formPurchasable)}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${formPurchasable ? 'bg-green-500' : 'bg-gray-600'}`}
+                >
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${formPurchasable ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
               </div>
               <div>
                 <label className="text-xs text-gray-400">描述</label>

@@ -127,8 +127,8 @@ router.post('/cook', async (req, res) => {
       // 如果菜谱没有关联 shop_item，自动创建
       if (!dishShopItemId) {
         const { rows: inserted } = await client.query(
-          `INSERT INTO shop_items (name, item_type, item_category, price_emotion, image_url, description)
-           VALUES ($1, 'virtual', 'dish', 0, $2, $3) RETURNING id`,
+          `INSERT INTO shop_items (name, item_type, item_category, price_emotion, image_url, description, purchasable, shop_tab)
+           VALUES ($1, 'virtual', 'dish', 0, $2, $3, false, 'hidden') RETURNING id`,
           [matchedRecipe.name, matchedRecipe.image_url, matchedRecipe.description || '']
         );
         dishShopItemId = inserted[0].id;
@@ -332,8 +332,8 @@ router.post('/admin/recipes', async (req, res) => {
 
     // 自动创建 shop_item
     const { rows: shopInserted } = await client.query(
-      `INSERT INTO shop_items (name, item_type, item_category, price_emotion, image_url, description)
-       VALUES ($1, 'virtual', 'dish', 0, $2, $3) RETURNING id`,
+      `INSERT INTO shop_items (name, item_type, item_category, price_emotion, image_url, description, purchasable, shop_tab)
+       VALUES ($1, 'virtual', 'dish', 0, $2, $3, false, 'hidden') RETURNING id`,
       [name, image_url || '', description || '']
     );
     const dishShopItemId = shopInserted[0].id;
