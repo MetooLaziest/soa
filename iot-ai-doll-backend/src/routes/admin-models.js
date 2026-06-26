@@ -140,6 +140,16 @@ router.put('/:id', async (req, res) => {
     if (sets.length === 0) {
       return res.status(400).json({ success: false, error: 'No fields to update' });
     }
+
+    // 如果改了 name，先查旧名
+    let oldName = null;
+    if (body.name !== undefined) {
+      try {
+        const oldRes = await poolEpet1.query('SELECT name FROM pet_models WHERE id = $1', [id]);
+        oldName = oldRes.rows[0]?.name || null;
+      } catch (_) {}
+    }
+
     sets.push(`prompt_version = COALESCE(prompt_version, 0) + 1`);
     vals.push(id);
     const r = await poolEpet1.query(
@@ -149,6 +159,20 @@ router.put('/:id', async (req, res) => {
     if (r.rowCount === 0) {
       return res.status(404).json({ success: false, error: 'Model not found' });
     }
+
+    // 同步: 该 model 下 nickname 仍为旧名的 pet_instances 自动更新为新名
+    if (oldName && body.name && oldName !== body.name) {
+      try {
+        const syncRes = await poolEpet1.query(
+          `UPDATE pet_instances SET nickname = $1 WHERE pet_model_id = $2 AND nickname = $3`,
+          [body.name, id, oldName]
+        );
+        console.log(`[admin-models] Synced ${syncRes.rowCount} instance nicknames: "${oldName}" → "${body.name}"`);
+      } catch (syncErr) {
+        console.warn('[admin-models] Failed to sync instance nicknames:', syncErr.message);
+      }
+    }
+
     res.json({ success: true, data: r.rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

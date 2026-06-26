@@ -170,7 +170,7 @@ function CollectionModal({ onClose }: { onClose: () => void }) {
                     {isTraveling && <div className="collection-travel-badge">✈️</div>}
                     {!isTraveling && isInYard && <div className="collection-check">✓</div>}
                   </div>
-                  <div className="collection-card-name">{pet.nickname}</div>
+                  <div className="collection-card-name">{pet.model_name || pet.nickname}</div>
                   <div className="collection-card-level">
                     {isTraveling ? '🛫 旅行中' : `Lv.${pet.growth_level}`}
                   </div>

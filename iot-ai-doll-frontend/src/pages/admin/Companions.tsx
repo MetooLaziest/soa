@@ -287,11 +287,16 @@ export default function Companions() {
     loadPets();
   }, []);
 
-  // ===== 加载机伴列表 =====
+  // ===== 加载机伴列表（从 epet1.pet_models）=====
   const loadModels = async () => {
     try {
-      const res = await client.get('/db/companion-models');
-      setModels(res.data.models || []);
+      const res = await client.get('/admin/models');
+      const modelsData = (res.data.models || []).map((m: any) => ({
+        ...m,
+        id: String(m.id), // 统一为 string 兼容旧代码
+        epet_model_id: m.id, // 关联 pet_models.id
+      }));
+      setModels(modelsData);
     } catch (err) {
       console.error('加载机伴列表失败:', err);
     } finally {
@@ -323,10 +328,9 @@ export default function Companions() {
 
   const handleSave = async (data: Record<string, any>) => {
     if (editingId) {
-      await client.put(`/db/companion-models/${editingId}`, data);
+      await client.put(`/admin/models/${editingId}`, data);
     } else {
-      try { await client.post('/admin/insert', { table: 'companion_models', rows: [{ ...data, id: crypto.randomUUID() }] }); }
-      catch {}
+      await client.post('/admin/models', data);
     }
     await loadModels();
     setShowModal(false);
@@ -336,7 +340,7 @@ export default function Companions() {
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除此机伴吗？')) return;
     try {
-      await client.post('/admin/delete', { table: 'companion_models', filters: { id } });
+      await client.delete(`/admin/models/${id}`);
       await loadModels();
     } catch { alert('删除失败'); }
   };
