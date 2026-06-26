@@ -137,6 +137,24 @@ export default function PetEntities() {
     }
   };
 
+  const handleForceReturn = async (instance: PetInstance) => {
+    if (!instance.travel_id) return alert('无旅行记录');
+    if (!confirm(`确认让 ${instance.nickname || instance.nfc_id} 提前归来？`)) return;
+    try {
+      const res = await client.post('/epet1/travel/admin/force-return', {
+        travel_record_id: parseInt(instance.travel_id),
+      });
+      if (res.data.success || res.data.ok) {
+        alert(`✅ ${instance.nickname || instance.nfc_id} 已归来！`);
+        await loadData();
+      } else {
+        alert('归来失败: ' + (res.data.error || '未知错误'));
+      }
+    } catch (err: any) {
+      alert('归来失败: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   const filteredModels = models
     .map((g) => ({
       ...g,
@@ -205,6 +223,7 @@ export default function PetEntities() {
             onDelete={handleDelete}
             onEditModel={(id) => navigate(`/admin/companions/${id}/edit`)}
             onDispatchTravel={handleDispatchTravel}
+            onForceReturn={handleForceReturn}
           />
         ))}
         {filteredModels.length === 0 && (
@@ -232,12 +251,14 @@ function ModelCard({
   onDelete,
   onEditModel,
   onDispatchTravel,
+  onForceReturn,
 }: {
   group: ModelGroup;
   onEdit: (i: PetInstance) => void;
   onDelete: (i: PetInstance) => void;
   onEditModel: (modelId: number) => void;
   onDispatchTravel: (i: PetInstance) => void;
+  onForceReturn: (i: PetInstance) => void;
 }) {
   const m = group.model;
   const rarityColor = {
@@ -358,13 +379,23 @@ function ModelCard({
                   >
                     编辑
                   </button>
-                  <button
-                    onClick={() => onDispatchTravel(inst)}
-                    className="text-amber-500 hover:text-amber-700 text-sm mr-3"
-                    title="强制派遣旅行 (测试用, 不消耗料理)"
-                  >
-                    ✈️ 派遣
-                  </button>
+                  {inst.travel_status === 'traveling' ? (
+                    <button
+                      onClick={() => onForceReturn(inst)}
+                      className="text-green-600 hover:text-green-700 text-sm mr-3 font-medium"
+                      title="强制提前归来 (测试用)"
+                    >
+                      🏠 归来
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onDispatchTravel(inst)}
+                      className="text-amber-500 hover:text-amber-700 text-sm mr-3"
+                      title="强制派遣旅行 (测试用, 不消耗料理)"
+                    >
+                      ✈️ 派遣
+                    </button>
+                  )}
                   <button
                     onClick={() => onDelete(inst)}
                     className="text-red-500 hover:text-red-700 text-sm"
