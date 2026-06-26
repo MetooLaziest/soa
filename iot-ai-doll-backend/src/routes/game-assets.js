@@ -40,16 +40,17 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 200 * 1024 * 1024 },  // 200MB for video support
   fileFilter: (_req, file, cb) => {
     // 优先用扩展名判断（更可靠，不依赖客户端 mimetype）
     const ext = (file.originalname.split('.').pop() || '').toLowerCase();
-    const allowedExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
+    const allowedExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'mp4', 'webm', 'mov', 'avi', 'mkv'];
     if (allowedExts.includes(ext)) return cb(null, true);
     // 退化：用 mimetype 判断
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml',
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
     if (allowedTypes.includes(file.mimetype)) return cb(null, true);
-    cb(new Error('仅支持 PNG/JPG/GIF/WebP/SVG 格式'));
+    cb(new Error('仅支持 PNG/JPG/GIF/WebP/SVG/MP4/WebM/MOV 格式'));
   },
 });
 
