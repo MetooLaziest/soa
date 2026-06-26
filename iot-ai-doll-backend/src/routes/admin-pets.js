@@ -40,7 +40,7 @@ router.get('/', async (_req, res) => {
               pm.name as model_name, pm.image_url as model_image,
               yp.position as yard_position, yp.is_active as in_yard,
               tr.id as travel_id, tr.status as travel_status,
-              tr.return_at as travel_return_at, tr.dish_rating as travel_dish_rating
+              tr.expected_end_at as travel_return_at, tr.dish_rating as travel_dish_rating
        FROM pet_instances pi
        JOIN pet_models pm ON pm.id = pi.pet_model_id
        LEFT JOIN users u ON u.id = pi.user_id
