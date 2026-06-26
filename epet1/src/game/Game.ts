@@ -678,11 +678,21 @@ export class Game {
           }
 
           if (solidCount > 0) {
+            // Flip pixel data vertically (PixiJS renders textures with Y-flip,
+            // so image row 0 = visual bottom, not visual top)
+            const flippedData = new Uint8ClampedArray(imgData.data.length);
+            const rowBytes = img.naturalWidth * 4;
+            for (let y = 0; y < img.naturalHeight; y++) {
+              const srcOffset = y * rowBytes;
+              const dstOffset = (img.naturalHeight - 1 - y) * rowBytes;
+              flippedData.set(imgData.data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+            }
+
             collisionMap.addSpriteCollision({
               label: `furniture-${f.id}`,
               xMin: bounds.xMin, yMin: bounds.yMin,
               xMax: bounds.xMax, yMax: bounds.yMax,
-              pixels: imgData.data,
+              pixels: flippedData,
               pixelW: img.naturalWidth,
               pixelH: img.naturalHeight,
             });
