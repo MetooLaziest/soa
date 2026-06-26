@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-
-const client = axios.create({ withCredentials: true });
+import client from '../../api/client';
 
 const RARITY_OPTIONS = ['N', 'R', 'SR', 'SSR', 'UR'] as const;
 const RARITY_COLORS: Record<string, string> = { N: '#aaa', R: '#4CAF50', SR: '#2196F3', SSR: '#FF9800', UR: '#E91E63' };
