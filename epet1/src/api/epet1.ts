@@ -46,10 +46,13 @@ export interface Postcard {
   id: number;
   name: string;
   image_url: string;
+  video_url?: string;
   rarity: 'N' | 'R' | 'SR' | 'SSR' | 'UR';
   scene_desc: string;
+  description?: string;
   obtained: boolean;
   count: number;
+  is_new?: boolean;
 }
 
 export interface DriftBottle {
@@ -77,13 +80,17 @@ export interface TravelRecord {
   pet_nickname: string;
   pet_model_id: number;
   started_at: string;
+  expected_end_at?: string;
   duration_hours: number;
+  dish_rating?: number;
+  dish_name?: string;
   status: 'traveling' | 'returned';
   postcard?: {
     id: number;
     name: string;
     rarity: string;
     image_url: string;
+    video_url?: string;
   };
 }
 
@@ -172,10 +179,10 @@ export async function interactPet(
 
 // ─── 出游 ────────────────────────────────────────────────────
 
-/** 开始出游 */
-export async function startTravel(userId: number, petId: number): Promise<TravelRecord> {
-  const res = await post<any>('/travel/start', { user_id: userId, pet_instance_id: petId });
-  return res.record;
+/** 开始出游 (需要料理) */
+export async function startTravel(userId: number, petId: number, dishInventoryId: number): Promise<any> {
+  const res = await post<any>('/travel/start', { user_id: userId, pet_instance_id: petId, dish_inventory_id: dishInventoryId });
+  return res.travel;
 }
 
 /** 获取出游状态 */

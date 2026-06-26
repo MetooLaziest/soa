@@ -91,6 +91,7 @@ app.use('/api/epet1/pet',        requireCjs('./routes-epet1/pets.cjs')(poolEpet1
 app.use('/api/epet1/postcard',   requireCjs('./routes-epet1/postcards.cjs')(poolEpet1));
 app.use('/api/epet1/shop',       requireCjs('./routes-epet1/shop.cjs')(poolEpet1));
 app.use('/api/epet1/travel',     requireCjs('./routes-epet1/travel.cjs')(poolEpet1));
+app.use('/api/epet1/travel/admin', requireCjs('./routes-epet1/travel-admin.cjs')(poolEpet1));
 app.use('/api/epet1/drift',      requireCjs('./routes-epet1/drift.cjs')(poolEpet1));
 app.use('/api/epet1/game',       requireCjs('./routes-epet1/games.cjs')(poolEpet1));
 app.use('/api/epet1/chat',       requireCjs('./routes-epet1/chat.cjs')(poolEpet1));

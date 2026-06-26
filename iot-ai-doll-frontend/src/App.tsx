@@ -30,6 +30,7 @@ import ShopAdmin from './pages/admin/ShopAdmin';
 import SpotDiffAdmin from './pages/admin/SpotDiffAdmin';
 import Match3Admin from './pages/admin/Match3Admin';
 import CookingAdmin from './pages/admin/CookingAdmin';
+import TravelAdmin from './pages/admin/TravelAdmin';
 import CompanionRAG from './pages/admin/CompanionRAG';
 import RAGList from './pages/admin/RAGKnowledgeBases';
 import RAGEdit from './pages/admin/RAGEdit';
@@ -101,6 +102,7 @@ export default function App() {
           <Route path="spotdiff" element={<SpotDiffAdmin />} />
           <Route path="match3" element={<Match3Admin />} />
           <Route path="cooking" element={<CookingAdmin />} />
+          <Route path="travel" element={<TravelAdmin />} />
         </Route>
 
         {/* 兜底 */}

@@ -185,11 +185,37 @@ function CollectionModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── 旅行横幅（带倒计时） ──────────────────────────────────────
+function TravelBanner({ travel, onClick }: { travel: any; onClick: () => void }) {
+  const [countdown, setCountdown] = useState('');
+  useEffect(() => {
+    if (!travel.expected_end_at) return;
+    const tick = () => {
+      const diff = new Date(travel.expected_end_at).getTime() - Date.now();
+      if (diff <= 0) { setCountdown('即将归来'); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setCountdown(`${h}时${m}分`);
+    };
+    tick();
+    const iv = setInterval(tick, 30000);
+    return () => clearInterval(iv);
+  }, [travel.expected_end_at]);
+
+  return (
+    <div className="travel-banner" onClick={onClick}>
+      ✈️ {travel.pet_nickname} 旅行中 · {countdown || '...'}
+      {travel.dish_rating && <span style={{ marginLeft: 6 }}>{'⭐'.repeat(travel.dish_rating)}</span>}
+    </div>
+  );
+}
+
 // ─── 明信片 Modal ───────────────────────────────────────────
 function PostcardModal({ onClose }: { onClose: () => void }) {
   const { userId } = useGameStore();
   const [postcards, setPostcards] = useState<Postcard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPc, setSelectedPc] = useState<Postcard | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -197,6 +223,40 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
   }, [userId]);
 
   const rarityColor: Record<string, string> = { N: '#aaa', R: '#4CAF50', SR: '#2196F3', SSR: '#FF9800', UR: '#E91E63' };
+
+  // 查看明信片详情 (图片+视频)
+  if (selectedPc) {
+    return (
+      <ModalOverlay onClose={() => setSelectedPc(null)}>
+        <div className="modal-header">
+          <h3>💌 {selectedPc.name}</h3>
+          <button className="modal-close" onClick={() => setSelectedPc(null)}>×</button>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 240, height: 160, margin: '12px auto', borderRadius: 12,
+            background: 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundImage: selectedPc.image_url ? `url(${selectedPc.image_url})` : undefined,
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            border: `2px solid ${rarityColor[selectedPc.rarity]}`,
+          }}>
+            {!selectedPc.image_url && '💌'}
+          </div>
+          <div style={{ color: rarityColor[selectedPc.rarity], fontWeight: 700, marginBottom: 4 }}>{selectedPc.rarity}</div>
+          {selectedPc.description && <div style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>{selectedPc.description}</div>}
+          {/* 旅游视频 */}
+          {selectedPc.video_url && (
+            <video
+              src={selectedPc.video_url}
+              controls
+              autoPlay
+              style={{ width: '100%', maxHeight: 200, borderRadius: 8, marginBottom: 8 }}
+            />
+          )}
+        </div>
+      </ModalOverlay>
+    );
+  }
 
   return (
     <ModalOverlay onClose={onClose}>
@@ -209,12 +269,17 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
           <div className="modal-tip">共 {postcards.filter(p => p.obtained).length} / {postcards.length} 张</div>
           <div className="postcard-grid">
             {postcards.map((pc) => (
-              <div key={pc.id} className="postcard-item" style={{ opacity: pc.obtained ? 1 : 0.35 }}>
+              <div key={pc.id} className="postcard-item" style={{ opacity: pc.obtained ? 1 : 0.35, cursor: pc.obtained ? 'pointer' : 'default', position: 'relative' }}
+                onClick={() => pc.obtained && setSelectedPc(pc)}
+              >
+                {pc.is_new && pc.obtained && (
+                  <div style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#f44', border: '2px solid #fff', zIndex: 1 }} />
+                )}
                 <div className="postcard-img" style={{ borderColor: rarityColor[pc.rarity] }}>
                   {pc.obtained ? RARITY_EMOJI[pc.rarity] : '❓'}
                 </div>
                 <div className="postcard-name">{pc.obtained ? pc.name : '???'}</div>
-                <div className="postcard-rarity" style={{ color: rarityColor[pc.rarity] }}>{pc.rarity} · ×{pc.count}</div>
+                <div className="postcard-rarity" style={{ color: rarityColor[pc.rarity] }}>{pc.rarity}</div>
               </div>
             ))}
           </div>
@@ -224,18 +289,54 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── 旅行 Modal ─────────────────────────────────────────────
-function TravelModal({ onClose }: { onClose: () => void }) {
+// ─── 旅行 Modal (v3: 需要料理) ────────────────────────────────
+function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; preselectedPetId?: number }) {
   const { userId, yardPets, activeTravel, setActiveTravel, setYardPets } = useGameStore();
   const [starting, setStarting] = useState<number | null>(null);
+  const [dishes, setDishes] = useState<any[]>([]);
+  const [selectedDish, setSelectedDish] = useState<any | null>(null);
+  const [selectedPet, setSelectedPet] = useState<number | null>(preselectedPetId || null);
+  const [step, setStep] = useState<'selectPet' | 'selectDish' | 'confirm'>(preselectedPetId ? 'selectDish' : 'selectPet');
 
-  const handleStart = async (petId: number) => {
+  // 加载背包中的料理
+  useEffect(() => {
     if (!userId) return;
-    setStarting(petId);
+    fetch(`/api/epet1/inventory/${userId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          const dishList = (data.categories?.dish || []).filter((d: any) => d.dish_rating >= 1);
+          setDishes(dishList);
+        }
+      })
+      .catch(e => console.error('load dishes error:', e));
+  }, [userId]);
+
+  // 倒计时
+  const [countdown, setCountdown] = useState('');
+  useEffect(() => {
+    if (!activeTravel?.expected_end_at) return;
+    const tick = () => {
+      const diff = new Date(activeTravel.expected_end_at!).getTime() - Date.now();
+      if (diff <= 0) { setCountdown('即将归来'); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(`${h}时${m}分${s}秒`);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [activeTravel?.expected_end_at]);
+
+  const handleStart = async () => {
+    if (!userId || !selectedPet || !selectedDish) return;
+    setStarting(selectedPet);
     try {
-      const record = await startTravel(userId, petId);
+      const record = await startTravel(userId, selectedPet, selectedDish.inventory_id);
       setActiveTravel(record);
-      setYardPets(yardPets.filter((p) => p.id !== petId));
+      setYardPets(yardPets.filter((p) => p.id !== selectedPet));
+      onClose();
     } catch (e: any) {
       alert(e.message || '出游失败');
     } finally {
@@ -243,43 +344,135 @@ function TravelModal({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const ratingLabel: Record<number, string> = { 1: '还行(12h)', 2: '不错(10h)', 3: '完美(8h)' };
+
   return (
     <ModalOverlay onClose={onClose}>
       <div className="modal-header">
-        <h3>✈️ 旅行青蛙</h3>
+        <h3>✈️ 派遣旅行</h3>
         <button className="modal-close" onClick={onClose}>×</button>
       </div>
 
       {activeTravel ? (
         <div className="travel-active">
           <div className="travel-status">🛫 {activeTravel.pet_nickname} 正在旅行中...</div>
-          <div className="travel-timer">12 小时后归来</div>
+          <div className="travel-timer">{countdown || '计算中...'}</div>
+          {activeTravel.dish_rating && (
+            <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>
+              料理评级: {'⭐'.repeat(activeTravel.dish_rating)}
+            </div>
+          )}
           <button className="btn-primary" disabled>归来时通知你</button>
         </div>
       ) : (
         <>
-          <div className="modal-tip">选择一只宠物送它去旅行，回来会带明信片</div>
-          {yardPets.length === 0 ? (
-            <div className="modal-empty">庭院没有宠物，先去藏品库添加宠物吧</div>
-          ) : (
-            <div className="travel-pet-list">
-              {yardPets.map((pet) => (
-                <div key={pet.id} className="travel-pet-item">
-                  <img src={getPetPortrait(pet)} alt={pet.nickname} />
-                  <div className="travel-pet-info">
-                    <div className="travel-pet-name">{pet.nickname}</div>
-                    <div className="travel-pet-level">Lv.{pet.growth_level}</div>
-                  </div>
-                  <button
-                    className="btn-travel-start"
-                    onClick={() => handleStart(pet.id)}
-                    disabled={starting === pet.id}
-                  >
-                    {starting === pet.id ? '出发中...' : '✈️ 出发'}
-                  </button>
+          {/* 步骤1: 选宠物 */}
+          {step === 'selectPet' && (
+            <>
+              <div className="modal-tip">选择一只宠物送它去旅行</div>
+              {yardPets.length === 0 ? (
+                <div className="modal-empty">庭院没有宠物，先去藏品库添加宠物吧</div>
+              ) : (
+                <div className="travel-pet-list">
+                  {yardPets.map((pet) => (
+                    <div key={pet.id} className="travel-pet-item"
+                      style={selectedPet === pet.id ? { background: 'rgba(255,152,0,0.15)', border: '1px solid #FF9800' } : {}}
+                      onClick={() => { setSelectedPet(pet.id); setStep('selectDish'); }}
+                    >
+                      <img src={getPetPortrait(pet)} alt={pet.nickname} />
+                      <div className="travel-pet-info">
+                        <div className="travel-pet-name">{pet.nickname}</div>
+                        <div className="travel-pet-level">Lv.{pet.growth_level}</div>
+                      </div>
+                      <span style={{ fontSize: 18 }}>→</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
+          )}
+
+          {/* 步骤2: 选料理 */}
+          {step === 'selectDish' && (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <button style={{ background: 'none', border: 'none', color: '#FF9800', cursor: 'pointer', fontSize: 13 }}
+                  onClick={() => setStep('selectPet')}>← 返回选宠物</button>
+              </div>
+              <div className="modal-tip">提供一份料理给宠物当旅行口粮</div>
+              {dishes.length === 0 ? (
+                <div className="modal-empty">
+                  背包里没有可用的料理<br />
+                  <span style={{ fontSize: 12, color: '#999' }}>需要至少1星料理，去做菜吧！</span>
+                </div>
+              ) : (
+                <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                  {dishes.map((dish: any) => (
+                    <div key={dish.inventory_id} onClick={() => { setSelectedDish(dish); setStep('confirm'); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 12px', marginBottom: 6,
+                        background: selectedDish?.inventory_id === dish.inventory_id ? 'rgba(255,152,0,0.15)' : 'rgba(0,0,0,0.03)',
+                        border: selectedDish?.inventory_id === dish.inventory_id ? '1px solid #FF9800' : '1px solid transparent',
+                        borderRadius: 10, cursor: 'pointer',
+                      }}
+                    >
+                      {dish.image_url ? (
+                        <img src={dish.image_url} style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                      ) : (
+                        <span style={{ fontSize: 24 }}>🍳</span>
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600 }}>{dish.name}</div>
+                        <div style={{ fontSize: 12, color: '#666' }}>
+                          {'⭐'.repeat(dish.dish_rating)} {ratingLabel[dish.dish_rating] || ''}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 12, color: '#999' }}>×{dish.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 步骤3: 确认 */}
+          {step === 'confirm' && selectedDish && (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <button style={{ background: 'none', border: 'none', color: '#FF9800', cursor: 'pointer', fontSize: 13 }}
+                  onClick={() => setStep('selectDish')}>← 重选料理</button>
+              </div>
+              <div style={{
+                textAlign: 'center', padding: 16,
+                background: 'rgba(255,152,0,0.08)', borderRadius: 12, marginBottom: 16,
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
+                  🧳 旅行确认
+                </div>
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
+                  宠物: {yardPets.find(p => p.id === selectedPet)?.nickname}
+                </div>
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
+                  料理: {selectedDish.name} {'⭐'.repeat(selectedDish.dish_rating)}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#FF9800' }}>
+                  旅行时间: {ratingLabel[selectedDish.dish_rating]}
+                </div>
+              </div>
+              <button
+                className="btn-travel-start"
+                onClick={handleStart}
+                disabled={starting !== null}
+                style={{
+                  width: '100%', padding: '14px 0', border: 'none', borderRadius: 12,
+                  background: 'linear-gradient(135deg, #FF6B35, #FF9800)',
+                  color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                {starting !== null ? '出发中...' : '✈️ 出发旅行！'}
+              </button>
+            </>
           )}
         </>
       )}
@@ -357,9 +550,13 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
               fontSize: 13, fontWeight: activeTab === tab.id ? 700 : 400,
               color: activeTab === tab.id ? '#8B6914' : 'rgba(0,0,0,0.4)',
               background: activeTab === tab.id ? 'rgba(139,105,20,0.12)' : 'rgba(0,0,0,0.04)',
+              position: 'relative',
             }}
           >
             {tab.name}
+            {tab.id === 'postcard' && inventory.postcard?.some((pc: any) => pc.is_new) && (
+              <span style={{ position: 'absolute', top: 2, right: 8, width: 8, height: 8, borderRadius: '50%', background: '#f44' }} />
+            )}
           </button>
         ))}
       </div>
@@ -987,9 +1184,7 @@ function HomePanel() {
 
       {/* 旅行横幅 */}
       {activeTravel && (
-        <div className="travel-banner" onClick={() => setActiveModal('travel')}>
-          ✈️ {activeTravel.pet_nickname} 正在旅行中... 点击查看
-        </div>
+        <TravelBanner travel={activeTravel} onClick={() => setActiveModal('travel')} />
       )}
 
       {/* 左上角情绪值 */}
@@ -1209,20 +1404,11 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   const handleTravel = async () => {
     if (!userId || !pet || traveling) return;
     if (!yardPets.some((p) => p.id === pet.id)) {
-      alert('该宠物不在庭院中，无法出游');
+      alert('宠物正在旅行中，无法再次派遣');
       return;
     }
-    setTraveling(true);
-    try {
-      const record = await startTravel(userId, pet.id);
-      setYardPets(yardPets.filter((p) => p.id !== pet.id));
-      setActiveTravel(record);
-      onClose();
-    } catch (e: any) {
-      alert(e.message || '出游失败');
-    } finally {
-      setTraveling(false);
-    }
+    // 跳转到旅行 Modal（带预选宠物）
+    useGameStore.getState().setActiveModal('travel');
   };
 
 
@@ -1254,7 +1440,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
           onClick={handleTravel}
           disabled={traveling}
         >
-          ✈️ 派去旅游
+          ✈️ 派遣旅行
         </button>
       </div>
 
@@ -1310,7 +1496,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 // ─── App 根组件 ──────────────────────────────────────────────
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, activeModal, setActiveModal,
-          setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId } = useGameStore();
+          setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId } = useGameStore();
 
   useEffect(() => {
     const init = async () => {
@@ -1350,7 +1536,7 @@ export default function App() {
       {/* Modals */}
       {activeModal === 'collection' && <CollectionModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'postcard' && <PostcardModal onClose={() => setActiveModal(null)} />}
-      {activeModal === 'travel' && <TravelModal onClose={() => setActiveModal(null)} />}
+      {activeModal === 'travel' && <TravelModal onClose={() => setActiveModal(null)} preselectedPetId={chatPetId ?? undefined} />}
       {activeModal === 'drift' && <DriftModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'shop' && <ShopModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'inventory' && <InventoryModal onClose={() => setActiveModal(null)} />}

@@ -110,6 +110,29 @@ export default function PetEntities() {
     }
   };
 
+  const handleDispatchTravel = async (instance: PetInstance) => {
+    const duration = prompt('旅行时长 (分钟，默认1分钟测试):', '1');
+    if (!duration) return;
+    const rating = prompt('料理评级 (1-3，默认3):', '3');
+    if (!rating) return;
+    try {
+      const res = await client.post('/epet1/travel/admin/force-start', {
+        pet_instance_id: parseInt(instance.id),
+        user_id: parseInt(instance.user_id),
+        dish_rating: parseInt(rating) || 3,
+        duration_minutes: parseInt(duration) || 1,
+      });
+      if (res.data.success) {
+        alert(`✅ 已派遣 ${instance.nickname || instance.nfc_id} 旅行 ${duration} 分钟`);
+        await loadData();
+      } else {
+        alert('派遣失败: ' + (res.data.error || '未知错误'));
+      }
+    } catch (err: any) {
+      alert('派遣失败: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   const filteredModels = models
     .map((g) => ({
       ...g,
@@ -177,6 +200,7 @@ export default function PetEntities() {
             onEdit={setEditingInstance}
             onDelete={handleDelete}
             onEditModel={(id) => navigate(`/admin/companions/${id}/edit`)}
+            onDispatchTravel={handleDispatchTravel}
           />
         ))}
         {filteredModels.length === 0 && (
@@ -203,11 +227,13 @@ function ModelCard({
   onEdit,
   onDelete,
   onEditModel,
+  onDispatchTravel,
 }: {
   group: ModelGroup;
   onEdit: (i: PetInstance) => void;
   onDelete: (i: PetInstance) => void;
   onEditModel: (modelId: number) => void;
+  onDispatchTravel: (i: PetInstance) => void;
 }) {
   const m = group.model;
   const rarityColor = {
@@ -320,6 +346,13 @@ function ModelCard({
                     className="text-blue-500 hover:text-blue-700 text-sm mr-3"
                   >
                     编辑
+                  </button>
+                  <button
+                    onClick={() => onDispatchTravel(inst)}
+                    className="text-amber-500 hover:text-amber-700 text-sm mr-3"
+                    title="强制派遣旅行 (测试用, 不消耗料理)"
+                  >
+                    ✈️ 派遣
                   </button>
                   <button
                     onClick={() => onDelete(inst)}

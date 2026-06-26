@@ -10,16 +10,23 @@ module.exports = (pool) => {
   router.get('/collection/:userId', async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT up.*, p.name, p.image_url, p.animation_url, p.rarity,
+        `SELECT up.*, p.name, p.image_url, p.animation_url, p.video_url, p.rarity,
                 p.rarity_weight, p.description, p.display_scene,
-                CASE WHEN up.duplicate_count = 0 THEN true ELSE false END as is_new
+                up.is_new
          FROM user_postcards up
          JOIN postcards p ON p.id = up.postcard_id
          WHERE up.user_id = $1
          ORDER BY up.obtained_at DESC`,
         [req.params.userId]
       );
-      res.json({ success: true, postcards: result.rows });
+      // Also include uncollected postcards for the full collection view
+      const allPostcards = await pool.query('SELECT id, name, image_url, video_url, rarity, rarity_weight, description, display_scene FROM postcards WHERE is_active = true ORDER BY rarity, id');
+      const collected = new Set(result.rows.map(r => r.postcard_id));
+      const fullCollection = allPostcards.rows.map(pc => {
+        const userPc = result.rows.find(r => r.postcard_id === pc.id);
+        return userPc ? { ...userPc, obtained: true, count: userPc.duplicate_count + 1 } : { ...pc, obtained: false, count: 0, is_new: false };
+      });
+      res.json({ success: true, postcards: fullCollection });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
