@@ -114,6 +114,11 @@ export default function CompanionEdit() {
   // sprite 配置 (animations jsonb)
   const [animations, setAnimations] = useState<Record<string, string[]>>({});
 
+  // RAG 关联
+  const [ragList, setRagList] = useState<any[]>([]);         // 所有可用 RAG
+  const [selectedRags, setSelectedRags] = useState<number[]>([]); // 已关联的 RAG IDs
+  const [showRagPicker, setShowRagPicker] = useState(false);
+
   // 编辑中的元数据
   const [meta, setMeta] = useState({
     name: '',
@@ -179,6 +184,8 @@ export default function CompanionEdit() {
       await loadIntroVideos();
       // 加载定时行为配置
       await loadBehaviors();
+      // 加载 RAG 关联
+      await loadRags();
     } catch (err) {
       console.error('加载失败', err);
       setError('加载失败: ' + (err as any).message);
@@ -235,6 +242,20 @@ export default function CompanionEdit() {
     }
   };
 
+  const loadRags = async () => {
+    try {
+      // 获取所有可用 RAG 知识库
+      const ragRes = await client.get('/admin/rag-kbs');
+      setRagList(ragRes.data?.data || []);
+      // 获取当前 model 已关联的 RAG
+      const linkRes = await client.get(`/admin/rag-kbs/companion/${id}`);
+      const linkedRags = linkRes.data?.data || [];
+      setSelectedRags(linkedRags.map((r: any) => r.id));
+    } catch (err) {
+      console.error('加载 RAG 失败:', err);
+    }
+  };
+
   const handleSave = async () => {
     if (!layers.identity_anchor.trim()) {
       alert('L1 身份锚点不能为空');
@@ -243,11 +264,32 @@ export default function CompanionEdit() {
     setSaving(true);
     setError('');
     try {
+      // 1. 保存基础 + 5层
       await client.put(`/admin/models/${id}`, {
         ...meta,
         ...layers,
         animations,
+        // L5 不再手动编辑，但保留字段以避免清空旧值
+        context_memory_template: layers.context_memory_template || '',
       });
+
+      // 2. 同步 RAG 关联
+      // 先获取当前关联
+      const currentRagRes = await client.get(`/admin/rag-kbs/companion/${id}`);
+      const currentRagIds: number[] = (currentRagRes.data?.data || []).map((r: any) => r.id);
+      // 新增的
+      for (const ragId of selectedRags) {
+        if (!currentRagIds.includes(ragId)) {
+          await client.post(`/admin/rag-kbs/companion/${id}`, { ragKbId: ragId });
+        }
+      }
+      // 移除的
+      for (const ragId of currentRagIds) {
+        if (!selectedRags.includes(ragId)) {
+          await client.delete(`/admin/rag-kbs/companion/${id}/${ragId}`);
+        }
+      }
+
       alert('保存成功');
       navigate('/admin/companions');
     } catch (err: any) {
@@ -441,24 +483,69 @@ export default function CompanionEdit() {
           5 层提示词配置（独立字段存储, 运行时按 L1→L5 顺序注入对话）
         </h3>
 
-        {LAYERS.map((l) => (
+        {LAYERS.filter(l => l.key !== 'context_memory_template').map((l) => (
           <div key={l.key}>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="rounded bg-purple-500/20 px-2 py-0.5 text-xs font-mono text-purple-300">
                 {l.code}
               </span>
               <span className="text-sm font-medium text-white">{l.name}</span>
+              {l.key === 'skill_layer' && (
+                <button
+                  onClick={() => setShowRagPicker(true)}
+                  className="rounded bg-blue-500/20 border border-blue-500/40 px-2 py-0.5 text-xs text-blue-300 hover:bg-blue-500/30"
+                >
+                  📚 添加RAG
+                </button>
+              )}
             </div>
             <p className="text-xs text-gray-500 mb-2">{l.hint}</p>
+
+            {/* L4: 已关联的 RAG 标签 */}
+            {l.key === 'skill_layer' && selectedRags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedRags.map(ragId => {
+                  const rag = ragList.find((r: any) => r.id === ragId);
+                  if (!rag) return null;
+                  return (
+                    <span key={ragId} className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 border border-blue-500/30 px-2.5 py-1 text-xs text-blue-300">
+                      📚 {rag.name}
+                      <button
+                        onClick={() => setSelectedRags(prev => prev.filter(x => x !== ragId))}
+                        className="text-blue-400 hover:text-red-400 ml-0.5"
+                      >×</button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
             <textarea
               value={layers[l.key] || ''}
               onChange={(e) => setLayers({ ...layers, [l.key]: e.target.value })}
-              rows={l.key === 'context_memory_template' ? 6 : 5}
+              rows={5}
               className="w-full rounded bg-white/5 border border-white/10 px-3 py-2 text-white text-xs font-mono resize-y"
               placeholder={l.placeholder}
             />
           </div>
         ))}
+
+        {/* L5: 上下文记忆层 - 只读自动生成 */}
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="rounded bg-purple-500/20 px-2 py-0.5 text-xs font-mono text-purple-300">
+              L5
+            </span>
+            <span className="text-sm font-medium text-white">上下文记忆层</span>
+            <span className="rounded bg-green-500/20 px-2 py-0.5 text-xs text-green-300">自动生成</span>
+          </div>
+          <p className="text-xs text-gray-500 mb-2">
+            此层由系统根据宠物实例运行时数据自动生成（昵称、成长等级、互动次数等），无需手动编辑
+          </p>
+          <div className="w-full rounded bg-white/[0.03] border border-white/10 px-3 py-2 text-gray-400 text-xs font-mono whitespace-pre-wrap select-all">
+            {'- 昵称：' + (meta.name || '未命名') + '\n- 成长等级：{growth_level}\n- 累计互动：{total_interactions} 次\n- 累计出游：{total_travels} 次\n- 累计明信片：{total_postcards} 张'}
+          </div>
+        </div>
       </div>
 
       {/* 庭院 sprite 多状态 */}
@@ -913,6 +1000,63 @@ export default function CompanionEdit() {
           </div>
         )}
       </div>
+
+      {/* RAG 选择弹窗 */}
+      {showRagPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowRagPicker(false)}>
+          <div className="w-full max-w-lg max-h-[70vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-white">📚 选择 RAG 知识库</h3>
+              <button onClick={() => setShowRagPicker(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            {ragList.length === 0 ? (
+              <div className="text-center text-gray-500 text-sm py-8">
+                暂无知识库，请先去「RAG 知识库管理」创建
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {ragList.map((rag: any) => {
+                  const isSelected = selectedRags.includes(rag.id);
+                  return (
+                    <label
+                      key={rag.id}
+                      className={['flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-all', isSelected ? 'border-purple-500/50 bg-purple-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'].join(' ')}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          setSelectedRags(prev =>
+                            isSelected ? prev.filter(x => x !== rag.id) : [...prev, rag.id]
+                          );
+                        }}
+                        className="mt-0.5 accent-purple-500"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-white">{rag.name}</div>
+                        {rag.description && (
+                          <div className="text-xs text-gray-500 mt-0.5">{rag.description}</div>
+                        )}
+                        {rag.content && (
+                          <div className="text-xs text-gray-600 mt-1 line-clamp-2">{rag.content.slice(0, 100)}...</div>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setShowRagPicker(false)}
+                className="rounded-lg bg-purple-500 px-4 py-1.5 text-sm text-white hover:bg-purple-600"
+              >
+                确认选择（{selectedRags.length} 个）
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg bg-red-500/20 border border-red-500/40 p-3 text-sm text-red-400">
