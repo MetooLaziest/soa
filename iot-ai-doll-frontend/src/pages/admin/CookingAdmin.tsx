@@ -123,11 +123,13 @@ export default function CookingAdmin() {
 
   const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
-    formData.append('image', file);
-    const res = await client.post('/epet1/shop2/admin/upload', formData, {
+    formData.append('file', file);
+    formData.append('type', 'cooking');
+    const res = await client.post('/game-assets/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 300000,
     });
-    return res.data?.url || res.data?.image_url || '';
+    return res.data?.asset?.url || '';
   };
 
   // ─── 烹饪方式 CRUD ───────────────────────────────
