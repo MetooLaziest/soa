@@ -11,7 +11,7 @@ const router = express.Router();
 
 // 素材根目录（隔离目录，部署不受影响）
 const EPET_ASSETS_BASE = '/var/www/iot-ai-doll/epet-assets';
-const ASSET_TYPES = ['bg', 'cg', 'pets', 'ui', 'fx', 'game-assets', 'chat-bgs', 'art-assets', 'fishing'];
+const ASSET_TYPES = ['bg', 'cg', 'pets', 'ui', 'fx', 'game-assets', 'chat-bgs', 'art-assets', 'fishing', 'cooking', 'postcards'];
 
 // 确保目录存在
 async function ensureDir(dir) {
