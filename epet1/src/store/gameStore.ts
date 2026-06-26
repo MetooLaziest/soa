@@ -27,6 +27,8 @@ interface GameStore {
   // Match3 消消乐
   match3LevelId: number | null;
   match3ShopItemId: number | null;
+  // 全屏视频播放
+  fullscreenVideoUrl: string | null;
 
   setUser: (userId: number, emotionPoints: number) => void;
   setYardPets: (pets: PetInstance[]) => void;
@@ -45,6 +47,7 @@ interface GameStore {
   setPlacingFurniture: (f: { shopItemId: number; name: string; imageUrl: string; width: number; height: number } | null) => void;
   setRemovingFurnitureMode: (v: boolean) => void;
   setMatch3LevelId: (levelId: number | null, shopItemId?: number | null) => void;
+  setFullscreenVideoUrl: (url: string | null) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -62,6 +65,7 @@ export const useGameStore = create<GameStore>((set) => ({
   removingFurnitureMode: false,
   match3LevelId: null,
   match3ShopItemId: null,
+  fullscreenVideoUrl: null,
 
   setUser: (userId, emotionPoints) => set({ userId, emotionPoints }),
   setYardPets: (yardPets) => set({ yardPets }),
@@ -86,4 +90,5 @@ export const useGameStore = create<GameStore>((set) => ({
   setPlacingFurniture: (placingFurniture) => set({ placingFurniture }),
   setRemovingFurnitureMode: (removingFurnitureMode) => set({ removingFurnitureMode }),
   setMatch3LevelId: (levelId, shopItemId) => set({ match3LevelId: levelId, match3ShopItemId: shopItemId ?? null }),
+  setFullscreenVideoUrl: (fullscreenVideoUrl) => set({ fullscreenVideoUrl }),
 }));

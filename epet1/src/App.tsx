@@ -212,12 +212,10 @@ function TravelBanner({ travel, onClick }: { travel: any; onClick: () => void })
 
 // ─── 明信片 Modal ───────────────────────────────────────────
 function PostcardModal({ onClose }: { onClose: () => void }) {
-  const { userId } = useGameStore();
+  const { userId, setFullscreenVideoUrl } = useGameStore();
   const [postcards, setPostcards] = useState<Postcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPc, setSelectedPc] = useState<Postcard | null>(null);
-  const [playingVideo, setPlayingVideo] = useState<string | null>(null); // video_url for fullscreen
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -226,43 +224,11 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
 
   const rarityColor: Record<string, string> = { N: '#aaa', R: '#4CAF50', SR: '#2196F3', SSR: '#FF9800', UR: '#E91E63' };
 
-  // 全屏播放视频
-  if (playingVideo) {
-    return (
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        background: '#000', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        <video
-          ref={videoRef}
-          src={playingVideo}
-          controls
-          autoPlay
-          playsInline
-          onEnded={() => setPlayingVideo(null)}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-        />
-        <button
-          onClick={() => setPlayingVideo(null)}
-          style={{
-            position: 'absolute', top: 16, right: 16, zIndex: 10,
-            width: 40, height: 40, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.2)', border: 'none',
-            color: '#fff', fontSize: 20, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >✕</button>
-      </div>
-    );
-  }
-
   // 查看明信片详情
   if (selectedPc) {
-    // 有视频 → 直接全屏播放
-    const handleClick = () => {
+    const handleClickImage = () => {
       if (selectedPc.video_url) {
-        setPlayingVideo(selectedPc.video_url);
+        setFullscreenVideoUrl(selectedPc.video_url);
       }
     };
     return (
@@ -273,7 +239,7 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
         </div>
         <div style={{ textAlign: 'center', padding: '0 16px 16px' }}>
           <div
-            onClick={handleClick}
+            onClick={handleClickImage}
             style={{
               width: 240, height: 160, margin: '12px auto', borderRadius: 12,
               background: 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -638,7 +604,15 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
               textAlign: 'center', border: '1px solid rgba(0,0,0,0.06)',
               cursor: activeTab === 'postcard' ? 'pointer' : 'default',
             }}
-              onClick={() => activeTab === 'postcard' && setActiveModal('postcard')}
+              onClick={() => {
+                if (activeTab === 'postcard') {
+                  if (item.video_url) {
+                    useGameStore.getState().setFullscreenVideoUrl(item.video_url);
+                  } else {
+                    setActiveModal('postcard');
+                  }
+                }
+              }}
             >
               <div style={{
                 width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
@@ -1551,7 +1525,8 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 // ─── App 根组件 ──────────────────────────────────────────────
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, activeModal, setActiveModal,
-          setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId } = useGameStore();
+          setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId,
+          fullscreenVideoUrl, setFullscreenVideoUrl } = useGameStore();
 
   useEffect(() => {
     const init = async () => {
@@ -1635,6 +1610,34 @@ export default function App() {
         document.body
       )}
       {activeModal === 'chat' && <ChatPage onClose={() => { setActiveModal(null); }} />}
+      {/* 全屏明信片视频播放器 */}
+      {fullscreenVideoUrl && createPortal(
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: '#000', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <video
+            src={fullscreenVideoUrl}
+            controls
+            autoPlay
+            playsInline
+            onEnded={() => setFullscreenVideoUrl(null)}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+          <button
+            onClick={() => setFullscreenVideoUrl(null)}
+            style={{
+              position: 'absolute', top: 16, right: 16, zIndex: 10,
+              width: 40, height: 40, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.2)', border: 'none',
+              color: '#fff', fontSize: 20, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >✕</button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

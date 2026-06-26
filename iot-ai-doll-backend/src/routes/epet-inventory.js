@@ -40,7 +40,7 @@ router.get('/:userId', async (req, res) => {
 
     // 明信片单独查
     const { rows: postcards } = await poolEpet1.query(
-      `SELECT up.id, p.id as postcard_id, p.name, p.image_url, p.description, up.obtained_at, up.duplicate_count, up.is_new
+      `SELECT up.id, p.id as postcard_id, p.name, p.image_url, p.video_url, p.description, up.obtained_at, up.duplicate_count, up.is_new
        FROM user_postcards up
        JOIN postcards p ON p.id = up.postcard_id
        WHERE up.user_id = $1
@@ -51,6 +51,7 @@ router.get('/:userId', async (req, res) => {
       id: p.id,
       name: p.name,
       image_url: p.image_url,
+      video_url: p.video_url || '',
       description: p.description,
       obtained_at: p.obtained_at,
       duplicate_count: p.duplicate_count,
