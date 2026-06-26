@@ -28,6 +28,7 @@ import adminIntroVideosRoutes from './routes/admin-intro-videos.js';
 import adminPetBehaviorsRoutes from './routes/admin-pet-behaviors.js';
 import adminExecRoutes from './routes/admin-exec.js';
 import match3AdminRoutes from './routes/admin-match3.js';
+import epetCookingRoutes from './routes/epet-cooking.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -100,6 +101,7 @@ app.use('/api/epet1/inventory',  epetInventoryRoutes);
 app.use('/api/epet1/shop2',     epetShop2Routes);
 app.use('/api/epet1/spotdiff',  epetSpotdiffRoutes);
 app.use('/api/epet1/match3',    requireCjs('./routes-epet1/match3.cjs')(poolEpet1));
+app.use('/api/epet1/cooking',   epetCookingRoutes);
 // 静态文件服务（前端构建产物）
 app.use(express.static(join(__dirname, '../frontend')));
 app.get('*', (req, res) => {

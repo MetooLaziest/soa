@@ -395,6 +395,68 @@ export async function checkMatch3Passed(userId: number, shopItemId: number): Pro
   }
 }
 
+// ─── 料理 (Cooking) ────────────────────────────────────────────
+
+export interface CookingMethod {
+  id: number;
+  name: string;
+  description: string;
+  kitchen_bg_url: string;
+  img_empty: string;
+  img_loaded: string;
+  img_0: string;
+  img_1: string;
+  img_2: string;
+  img_3: string;
+  img_4: string;
+  img_5: string;
+  sort_order: number;
+}
+
+export interface CookingDish {
+  name: string;
+  image_url: string;
+  description: string;
+  rating: number;       // 0=失败, 1=还行, 2=不错, 3=完美
+  rating_name: string;
+  matched_recipe?: boolean;
+}
+
+export interface CookingIngredient {
+  id: number;
+  name: string;
+  image_url: string;
+  description: string;
+}
+
+/** 获取所有烹饪方式 */
+export async function fetchCookingMethods(): Promise<CookingMethod[]> {
+  const res = await get<any>('/cooking/methods');
+  return res.methods || [];
+}
+
+/** 获取可作为食材的 shop_items */
+export async function fetchCookingIngredients(): Promise<CookingIngredient[]> {
+  const res = await get<any>('/cooking/ingredients');
+  return res.ingredients || [];
+}
+
+/** 提交料理 */
+export async function cookDish(
+  userId: number,
+  methodId: number,
+  ingredients: { shop_item_id: number; quantity: number }[],
+  rating: number
+): Promise<{ ok: boolean; dish?: CookingDish; error?: string }> {
+  const res = await post<any>('/cooking/cook', {
+    user_id: userId,
+    method_id: methodId,
+    ingredients,
+    rating,
+  });
+  return res;
+}
+
 // ─── 小游戏 ─────────────────────────────────────────────────
 
 /** 可玩游戏列表 */

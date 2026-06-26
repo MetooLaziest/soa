@@ -8,7 +8,7 @@ router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { rows: rows } = await poolEpet1.query(
-      `SELECT ui.id, ui.quantity, ui.item_category, ui.source,
+      `SELECT ui.id, ui.quantity, ui.item_category, ui.source, ui.dish_rating,
               si.id as shop_item_id, si.name, si.item_type, si.image_url, si.description,
               si.price_emotion, si.yard_width, si.yard_height
        FROM user_inventory ui
@@ -19,7 +19,7 @@ router.get('/:userId', async (req, res) => {
     );
 
     // 按分类分组
-    const categories = { food: [], furniture: [], postcard: [] };
+    const categories = { food: [], furniture: [], dish: [], postcard: [] };
     for (const row of rows) {
       const cat = row.item_category || 'food';
       if (!categories[cat]) categories[cat] = [];
@@ -34,6 +34,7 @@ router.get('/:userId', async (req, res) => {
         price_emotion: row.price_emotion,
         yard_width: row.yard_width,
         yard_height: row.yard_height,
+        dish_rating: row.dish_rating || null,
       });
     }
 

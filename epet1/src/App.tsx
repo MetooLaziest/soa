@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useGameStore } from './store/gameStore';
 import SpotDifference from './games/SpotDifference';
 import Fishing from './games/Fishing';
-import CookFish from './games/CookFish';
+import Cooking from './games/Cooking';
 import Match3Game from './games/Match3Game';
 import {
   getOrCreateUser,
@@ -290,6 +290,7 @@ function TravelModal({ onClose }: { onClose: () => void }) {
 // ─── 背包 Modal ────────────────────────────────────────────
 const INV_TABS = [
   { id: 'food', name: '🥘 食材', empty: '还没有食材，去钓鱼或商店看看吧' },
+  { id: 'dish', name: '🍳 料理', empty: '还没有料理，去做菜吧' },
   { id: 'furniture', name: '🪑 家具', empty: '还没有家具，去商店看看吧' },
   { id: 'postcard', name: '💌 明信片', empty: '还没有明信片，送宠物去旅行吧' },
 ];
@@ -306,8 +307,8 @@ const FURNITURE_DEFAULT_SIZE: Record<string, { width: number; height: number }> 
 
 function InventoryModal({ onClose }: { onClose: () => void }) {
   const { userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture, addYardFurniture, removeYardFurniture, setRemovingFurnitureMode } = useGameStore();
-  const [activeTab, setActiveTab] = useState<'food' | 'furniture' | 'postcard'>('food');
-  const [inventory, setInventory] = useState<{ food: any[]; furniture: any[]; postcard: any[] }>({ food: [], furniture: [], postcard: [] });
+  const [activeTab, setActiveTab] = useState<'food' | 'dish' | 'furniture' | 'postcard'>('food');
+  const [inventory, setInventory] = useState<{ food: any[]; dish: any[]; furniture: any[]; postcard: any[] }>({ food: [], dish: [], furniture: [], postcard: [] });
 
   useEffect(() => {
     if (!userId) return;
@@ -394,12 +395,18 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
                 backgroundImage: item.image_url ? `url(${item.image_url})` : undefined,
                 backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
               }}>
-                {!item.image_url && (activeTab === 'postcard' ? '💌' : activeTab === 'food' ? '🐟' : '🪑')}
+                {!item.image_url && (activeTab === 'postcard' ? '💌' : activeTab === 'food' ? '🐟' : activeTab === 'dish' ? '🍳' : '🪑')}
               </div>
               <div style={{ color: '#333', fontSize: 12, fontWeight: 600, marginBottom: 2,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {item.name}
               </div>
+              {/* 料理评级星级 */}
+              {activeTab === 'dish' && item.dish_rating != null && (
+                <div style={{ fontSize: 10, marginBottom: 2 }}>
+                  {item.dish_rating >= 1 ? '⭐'.repeat(item.dish_rating) : '❌'}
+                </div>
+              )}
               {item.quantity !== undefined && (
                 <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 10 }}>×{item.quantity}</div>
               )}
@@ -733,7 +740,7 @@ function GameModal({ onClose }: { onClose: () => void }) {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [games] = useState([
     { id: 'fishing', name: '钓鱼', icon: '🎣', desc: '静待鱼儿上钩', status: 'ready' },
-    { id: 'cook', name: '煎鱼小游戏', icon: '🐟', desc: '控制火候，煎出完美鱼', status: 'ready' },
+    { id: 'cooking', name: '料理', icon: '🍳', desc: '把食材变成料理', status: 'ready' },
     { id: 'spot', name: '找不同', icon: '🔍', desc: '找出两图的不同之处', status: 'ready' },
   ]);
 
@@ -776,8 +783,8 @@ function GameModal({ onClose }: { onClose: () => void }) {
       {selectedGame === 'spot' && (
         <SpotDifference onScore={(s) => { handleGameScore('spot', s); setSelectedGame(null); }} />
       )}
-      {selectedGame === 'cook' && (
-        <CookFish onScore={(s) => { handleGameScore('cook', s); setSelectedGame(null); }} />
+      {selectedGame === 'cooking' && (
+        <Cooking onClose={() => setSelectedGame(null)} />
       )}
       {!selectedGame && (
         <div className="game-list">
