@@ -126,7 +126,6 @@ export default function CookingAdmin() {
     formData.append('file', file);
     formData.append('type', 'cooking');
     const res = await client.post('/api/game-assets/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 300000,
     });
     return res.data?.asset?.url || '';
