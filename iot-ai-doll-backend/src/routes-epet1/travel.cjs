@@ -68,12 +68,12 @@ module.exports = (pool) => {
         `SELECT ui.id, ui.shop_item_id, ui.dish_rating, si.name
          FROM user_inventory ui
          JOIN shop_items si ON si.id = ui.shop_item_id
-         WHERE ui.id = $1 AND ui.user_id = $2 AND si.item_category = 'dish'`,
+         WHERE ui.id = $1 AND ui.user_id = $2 AND si.item_category = 'dish' AND ui.dish_rating >= 1`,
         [dish_inventory_id, user_id]
       );
       if (!dish.rows[0]) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ success: false, error: '料理不存在或不属于你' });
+        return res.status(400).json({ success: false, error: '料理不存在、不属于你或不可用于旅行（不可名状之物不行！）' });
       }
       const dishRating = dish.rows[0].dish_rating;
       if (!dishRating || dishRating < 1) {
