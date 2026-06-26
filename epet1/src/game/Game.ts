@@ -1,6 +1,6 @@
 import { Application, Container, Sprite, Assets, Text, Graphics, Texture } from 'pixi.js';
 import { PetEntity, type ScheduledBehavior } from '../entities/Pet';
-import { collisionMap, type SceneObjectData } from './CollisionMap';
+import { collisionMap, type SceneObjectData, computeCollisionBounds } from './CollisionMap';
 
 // Default walk bounds for PORTRAIT mode (overridden by API scene config)
 // Large range — let scene objects (colliders) limit walking, not hard bounds
@@ -497,13 +497,10 @@ export class Game {
       // Render scene objects (trees, fences, etc.)
       await this._renderSceneObjects(objects);
 
-      // Render user furniture
+      // Render user furniture (collision registered in _addFurnitureSprite)
       const furniture: SceneObjectData[] = data.furniture || [];
       if (furniture.length > 0) {
         await this._renderFurniture(furniture);
-        // Re-load collision map with scene objects + furniture (use _furnitureData which has img_pixel_w/h from loaded images)
-        const allFurniture = Array.from(this._furnitureData.values());
-        await collisionMap.loadFromSceneObjects([...objects, ...allFurniture]);
         console.log(`✅ ${furniture.length} user furniture rendered & collision added`);
       }
     } catch (e) {
@@ -651,6 +648,49 @@ export class Game {
     this._furnitureSprites.set(f.id, container);
     // Store full data including image_url for pixel-accurate collision
     this._furnitureData.set(f.id, f);
+
+    // Register sprite collision using the already-loaded texture
+    try {
+      const source = (sprite as any)?.texture?.source || (sprite instanceof Sprite ? sprite.texture?.source : null);
+      if (source && source.width > 0 && source.height > 0) {
+        const canvas = document.createElement('canvas');
+        canvas.width = source.width;
+        canvas.height = source.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Draw the texture source to canvas
+          ctx.drawImage(source as any, 0, 0);
+          const imgData = ctx.getImageData(0, 0, source.width, source.height);
+
+          // Compute bounds (same as computeCollisionBounds)
+          const bounds = computeCollisionBounds(f, source.width, source.height);
+
+          // Count solid pixels
+          let solidCount = 0;
+          for (let i = 3; i < imgData.data.length; i += 4) {
+            if (imgData.data[i] > 30) solidCount++;
+          }
+
+          if (solidCount > 0) {
+            collisionMap.addSpriteCollision({
+              label: `furniture-${f.id}`,
+              xMin: bounds.xMin, yMin: bounds.yMin,
+              xMax: bounds.xMax, yMax: bounds.yMax,
+              pixels: imgData.data,
+              pixelW: source.width,
+              pixelH: source.height,
+            });
+            console.log(`✅ Furniture sprite collision registered: ${f.label} (${source.width}x${source.height}), solid=${solidCount}, bounds=`, bounds);
+          } else {
+            console.warn(`⚠️ Furniture all transparent, no collision: ${f.label}`);
+          }
+        }
+      } else {
+        console.warn(`⚠️ Furniture texture source unavailable for collision: ${f.label}`);
+      }
+    } catch (e) {
+      console.warn(`⚠️ Furniture collision registration failed: ${f.label}`, e);
+    }
     console.log(`  🪑 Furniture: ${f.label} at (${f.pos_x.toFixed(2)}, ${f.pos_y.toFixed(2)})`);
   }
 
@@ -850,13 +890,8 @@ export class Game {
       this.app.stage.off('pointermove', this._onPlacingMove, this);
     }
 
-    // Render the placed furniture
+    // Render the placed furniture (includes sprite collision registration)
     await this._addFurnitureSprite(furnitureData);
-
-    // Rebuild collision map: scene objects + all furniture
-    const allFurniture = Array.from(this._furnitureData.values());
-    console.log('[Game] confirmPlacement collision rebuild:', allFurniture.map(f => ({ id: f.id, label: f.label, w: f.width, h: f.height, collidable: f.collidable, px: f.pos_x, py: f.pos_y })));
-    await collisionMap.loadFromSceneObjects([...this._sceneObjects, ...allFurniture]);
 
     console.log(`[Game] Furniture placed: ${furnitureData.label}`);
   }
@@ -870,9 +905,8 @@ export class Game {
       this._furnitureSprites.delete(furnitureId);
     }
     this._furnitureData.delete(furnitureId);
-    // Rebuild collision map: scene objects + remaining furniture
-    const allFurniture = Array.from(this._furnitureData.values());
-    collisionMap.loadFromSceneObjects([...this._sceneObjects, ...allFurniture]);
+    // Remove the furniture's sprite collision
+    collisionMap.removeSpriteCollision(`furniture-${furnitureId}`);
     console.log(`[Game] Furniture sprite removed: ${furnitureId}`);
   }
 

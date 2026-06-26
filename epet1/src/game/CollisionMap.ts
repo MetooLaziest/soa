@@ -28,7 +28,7 @@ export interface RectObstacle {
 }
 
 /** Per-sprite pixel collision data */
-interface SpriteCollision {
+export interface SpriteCollision {
   label: string;
   /** Viewport-fraction bounds matching render (anchor 0.5, 0.85, aspect-fit) */
   xMin: number;
@@ -60,7 +60,7 @@ interface SpriteCollision {
  *       yMin = pos_y - (actualH/H) * 0.85
  *       yMax = pos_y + (actualH/H) * 0.15
  */
-function computeCollisionBounds(
+export function computeCollisionBounds(
   o: { pos_x: number; pos_y: number; width: number; height: number },
   imgW: number, imgH: number,
 ): { xMin: number; yMin: number; xMax: number; yMax: number } {
@@ -100,6 +100,18 @@ export class CollisionMap {
   private _spriteCollisions: SpriteCollision[] = [];
   private _loaded = false;
 
+  /** Add a sprite collision entry directly (used by Game for furniture with pre-loaded textures) */
+  addSpriteCollision(sc: SpriteCollision): void {
+    // Remove any existing entry with the same label
+    this._spriteCollisions = this._spriteCollisions.filter(s => s.label !== sc.label);
+    this._spriteCollisions.push(sc);
+  }
+
+  /** Remove a sprite collision entry by label */
+  removeSpriteCollision(label: string): void {
+    this._spriteCollisions = this._spriteCollisions.filter(s => s.label !== label);
+  }
+
   /** Set fallback rect obstacles (used when no sprite data available) */
   setObstacles(obs: RectObstacle[]) {
     this._obstacles = obs;
@@ -113,29 +125,8 @@ export class CollisionMap {
     for (const o of objects) {
       if (!o.collidable) continue;
 
-      // 家具碰撞：基于 aspect-fit 碰撞框，向内缩小以排除边缘视觉空白区域
+      // 家具碰撞由 Game._addFurnitureSprite 直接注册 sprite collision，这里跳过
       if (o.is_user_furniture) {
-        if (o.img_pixel_w && o.img_pixel_h) {
-          const baseBounds = computeCollisionBounds(o, o.img_pixel_w, o.img_pixel_h);
-          // Shrink collision rect by 15% on each side to exclude edge transparency/visual whitespace
-          const shrinkX = (baseBounds.xMax - baseBounds.xMin) * 0.15;
-          const shrinkY = (baseBounds.yMax - baseBounds.yMin) * 0.15;
-          obs.push({
-            xMin: baseBounds.xMin + shrinkX,
-            yMin: baseBounds.yMin + shrinkY,
-            xMax: baseBounds.xMax - shrinkX,
-            yMax: baseBounds.yMax - shrinkY,
-            label: o.label,
-          });
-          console.log(`✅ Furniture collision (shrunk): ${o.label}`, {
-            xMin: (baseBounds.xMin + shrinkX).toFixed(3),
-            yMin: (baseBounds.yMin + shrinkY).toFixed(3),
-            xMax: (baseBounds.xMax - shrinkX).toFixed(3),
-            yMax: (baseBounds.yMax - shrinkY).toFixed(3),
-          });
-        } else {
-          obs.push({ ...computeRectCollisionBounds(o), label: o.label });
-        }
         continue;
       }
 
