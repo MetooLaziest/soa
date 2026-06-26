@@ -31,18 +31,21 @@ router.get('/', async (_req, res) => {
        ORDER BY display_order`
     );
 
-    // 2) 全部 instances JOIN user
+    // 2) 全部 instances JOIN user + travel status
     const instRes = await poolEpet1.query(
       `SELECT pi.id, pi.user_id, pi.pet_model_id, pi.nfc_id, pi.nickname,
               pi.growth_level, pi.growth_exp, pi.total_interactions,
               pi.total_travels, pi.total_postcards, pi.created_at, pi.updated_at,
               u.nickname as user_nickname,
               pm.name as model_name, pm.image_url as model_image,
-              yp.position as yard_position, yp.is_active as in_yard
+              yp.position as yard_position, yp.is_active as in_yard,
+              tr.id as travel_id, tr.status as travel_status,
+              tr.return_at as travel_return_at, tr.dish_rating as travel_dish_rating
        FROM pet_instances pi
        JOIN pet_models pm ON pm.id = pi.pet_model_id
        LEFT JOIN users u ON u.id = pi.user_id
        LEFT JOIN yard_pets yp ON yp.pet_instance_id = pi.id AND yp.is_active = true
+       LEFT JOIN travel_records tr ON tr.pet_instance_id = pi.id AND tr.status = 'traveling'
        ORDER BY pi.user_id, pm.display_order, pi.id`
     );
 

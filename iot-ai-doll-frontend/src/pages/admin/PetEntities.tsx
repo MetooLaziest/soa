@@ -33,6 +33,10 @@ interface PetInstance {
   model_image: string;
   yard_position: number | null;
   in_yard: boolean | null;
+  travel_id: string | null;
+  travel_status: 'traveling' | 'returned' | null;
+  travel_return_at: string | null;
+  travel_dish_rating: number | null;
 }
 
 interface PetModel {
@@ -294,8 +298,8 @@ function ModelCard({
               <th className="text-left px-4 py-2 font-medium">等级</th>
               <th className="text-left px-4 py-2 font-medium">互动</th>
               <th className="text-left px-4 py-2 font-medium">庭院</th>
+              <th className="text-left px-4 py-2 font-medium">状态</th>
               <th className="text-left px-4 py-2 font-medium">创建</th>
-              <th className="text-right px-4 py-2 font-medium">机伴</th>
               <th className="text-right px-4 py-2 font-medium">操作</th>
             </tr>
           </thead>
@@ -328,17 +332,24 @@ function ModelCard({
                     <span className="text-gray-400">—</span>
                   )}
                 </td>
+                <td className="px-4 py-3 text-sm">
+                  {inst.travel_status === 'traveling' ? (
+                    <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
+                      ✈️ 旅行中
+                      {inst.travel_return_at && (
+                        <span className="text-xs text-amber-500">
+                          ({new Date(inst.travel_return_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}归)
+                        </span>
+                      )}
+                    </span>
+                  ) : inst.in_yard ? (
+                    <span className="text-green-600 font-medium">🏡 庭院</span>
+                  ) : (
+                    <span className="text-gray-400">待命</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   {new Date(inst.created_at).toLocaleDateString('zh-CN')}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => onEditModel(inst.pet_model_id)}
-                    className="text-purple-500 hover:text-purple-700 text-sm mr-3"
-                    title="编辑此机伴的 5 层提示词 / 图片 / sprite"
-                  >
-                    🎨 机伴
-                  </button>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button
