@@ -502,6 +502,7 @@ function RecipeForm({
   onUpload: (file: File) => Promise<string>;
 }) {
   const [form, setForm] = useState({
+    id: recipe?.id ?? undefined,
     cooking_method_id: recipe?.cooking_method_id || (methods[0]?.id || 0),
     name: recipe?.name || '',
     description: recipe?.description || '',
