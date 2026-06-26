@@ -232,7 +232,7 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
           <h3>💌 {selectedPc.name}</h3>
           <button className="modal-close" onClick={() => setSelectedPc(null)}>×</button>
         </div>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', overflowY: 'auto', flex: 1, padding: '0 16px 16px' }}>
           <div style={{
             width: 240, height: 160, margin: '12px auto', borderRadius: 12,
             background: 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
