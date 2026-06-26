@@ -587,6 +587,9 @@ export class Game {
       const scaleY = targetH / tex.height;
       s.scale.set(Math.min(scaleX, scaleY));
       sprite = s;
+      // Store pixel dimensions for aspect-fit collision
+      (f as any).img_pixel_w = tex.width;
+      (f as any).img_pixel_h = tex.height;
     } catch (e) {
       // Image not found — use colored placeholder
       console.warn(`[Game] Furniture image missing: ${f.label}, using placeholder`);
@@ -607,9 +610,10 @@ export class Game {
     container.addChild(sprite);
 
     // Remove button (×) — hidden by default, shown in removing mode
-    const btnSize = Math.max(20, Math.min(28, targetW * 0.35));
-    const btnX = sprite.x + targetW * 0.4;
-    const btnY = sprite.y - targetH * 0.85 + btnSize * 0.3;
+    const spriteBounds = sprite.getBounds();
+    const btnSize = Math.max(20, Math.min(28, spriteBounds.width * 0.35));
+    const btnX = spriteBounds.x + spriteBounds.width - btnSize * 0.3;
+    const btnY = spriteBounds.y + btnSize * 0.3;
 
     const btnBg = new Graphics();
     btnBg.circle(0, 0, btnSize / 2);
@@ -730,11 +734,13 @@ export class Game {
     const targetW = info.width * W;
     const targetH = info.height * H;
 
-    // Create confirm/cancel button container
+    // Create confirm/cancel button container — position based on actual sprite bounds
+    const spriteBounds = this._placingSprite?.getBounds();
+    const btnY = spriteBounds ? spriteBounds.y - 36 : cy - targetH * 0.85 - 36;
     const btnContainer = new Container();
     btnContainer.label = 'placing-preview-buttons';
     btnContainer.x = cx;
-    btnContainer.y = cy - targetH * 0.85 - 36; // above the furniture
+    btnContainer.y = btnY;
 
     // Cancel button (❌)
     const cancelBtn = new Graphics();

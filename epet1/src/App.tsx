@@ -215,7 +215,7 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
   const { userId, setFullscreenVideoUrl } = useGameStore();
   const [postcards, setPostcards] = useState<Postcard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPc, setSelectedPc] = useState<Postcard | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
@@ -224,86 +224,154 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
 
   const rarityColor: Record<string, string> = { N: '#aaa', R: '#4CAF50', SR: '#2196F3', SSR: '#FF9800', UR: '#E91E63' };
 
-  // 查看明信片详情
-  if (selectedPc) {
-    const handleClickImage = () => {
-      if (selectedPc.video_url) {
-        setFullscreenVideoUrl(selectedPc.video_url);
-      }
-    };
-    return (
-      <ModalOverlay onClose={() => setSelectedPc(null)}>
-        <div className="modal-header">
-          <h3>💌 {selectedPc.name}</h3>
-          <button className="modal-close" onClick={() => setSelectedPc(null)}>×</button>
-        </div>
-        <div style={{ textAlign: 'center', padding: '0 16px 16px' }}>
-          <div
-            onClick={handleClickImage}
-            style={{
-              width: 240, height: 160, margin: '12px auto', borderRadius: 12,
-              background: 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              backgroundImage: selectedPc.image_url ? `url(${selectedPc.image_url})` : undefined,
-              backgroundSize: 'cover', backgroundPosition: 'center',
-              border: `2px solid ${rarityColor[selectedPc.rarity]}`,
-              cursor: selectedPc.video_url ? 'pointer' : 'default',
-              position: 'relative',
-            }}
-          >
-            {!selectedPc.image_url && '💌'}
-            {selectedPc.video_url && (
-              <div style={{
-                position: 'absolute', inset: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(0,0,0,0.25)', borderRadius: 12,
-              }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.9)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22, color: '#333',
-                }}>▶</div>
-              </div>
-            )}
-          </div>
-          <div style={{ color: rarityColor[selectedPc.rarity], fontWeight: 700, marginBottom: 4 }}>{selectedPc.rarity}</div>
-          {selectedPc.description && <div style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>{selectedPc.description}</div>}
-          {selectedPc.video_url && (
-            <div style={{ color: '#FF9800', fontSize: 12, marginTop: 4 }}>🎬 点击图片播放旅行视频</div>
-          )}
-        </div>
-      </ModalOverlay>
-    );
-  }
+  const obtainedCards = postcards.filter(p => p.obtained);
+  const currentPc = obtainedCards[currentIndex];
+
+  const goPrev = () => setCurrentIndex(Math.max(0, currentIndex - 1));
+  const goNext = () => setCurrentIndex(Math.min(obtainedCards.length - 1, currentIndex + 1));
+
+  // Touch swipe support
+  const touchStartX = useRef(0);
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (dx > 50) goPrev();
+    else if (dx < -50) goNext();
+  };
 
   return (
-    <ModalOverlay onClose={onClose}>
-      <div className="modal-header">
-        <h3>💌 明信片收藏</h3>
-        <button className="modal-close" onClick={onClose}>×</button>
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 300,
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        display: 'flex', flexDirection: 'column',
+        touchAction: 'pan-y',
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* 顶栏 */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 16px', color: '#fff',
+      }}>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>💌 明信片</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, opacity: 0.7 }}>
+            {obtainedCards.length > 0 ? `${currentIndex + 1} / ${obtainedCards.length}` : '0 张'}
+          </span>
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
+            width: 32, height: 32, color: '#fff', fontSize: 18, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>✕</button>
+        </div>
       </div>
-      {loading ? <div className="modal-loading">加载中...</div> : (
-        <>
-          <div className="modal-tip">共 {postcards.filter(p => p.obtained).length} / {postcards.length} 张</div>
-          <div className="postcard-grid">
-            {postcards.map((pc) => (
-              <div key={pc.id} className="postcard-item" style={{ opacity: pc.obtained ? 1 : 0.35, cursor: pc.obtained ? 'pointer' : 'default', position: 'relative' }}
-                onClick={() => pc.obtained && setSelectedPc(pc)}
-              >
-                {pc.is_new && pc.obtained && (
-                  <div style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#f44', border: '2px solid #fff', zIndex: 1 }} />
-                )}
-                <div className="postcard-img" style={{ borderColor: rarityColor[pc.rarity] }}>
-                  {pc.obtained ? RARITY_EMOJI[pc.rarity] : '❓'}
-                </div>
-                <div className="postcard-name">{pc.obtained ? pc.name : '???'}</div>
-                <div className="postcard-rarity" style={{ color: rarityColor[pc.rarity] }}>{pc.rarity}</div>
-              </div>
-            ))}
+
+      {/* 明信片展示区 */}
+      <div style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '0 16px', position: 'relative', overflow: 'hidden',
+      }}>
+        {loading ? (
+          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>加载中...</div>
+        ) : obtainedCards.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>💌</div>
+            <div style={{ fontSize: 14 }}>还没有明信片</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>送宠物去旅行吧</div>
           </div>
-        </>
+        ) : currentPc ? (
+          <>
+            {/* 左箭头 */}
+            {currentIndex > 0 && (
+              <button onClick={goPrev} style={{
+                position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+                background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
+                width: 36, height: 36, color: '#fff', fontSize: 20, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>‹</button>
+            )}
+
+            {/* 明信片卡片 */}
+            <div
+              onClick={() => currentPc.video_url && setFullscreenVideoUrl(currentPc.video_url)}
+              style={{
+                width: '100%', maxWidth: 320, textAlign: 'center',
+                cursor: currentPc.video_url ? 'pointer' : 'default',
+              }}
+            >
+              <div style={{
+                width: '100%', aspectRatio: '4/3', borderRadius: 16,
+                background: 'rgba(255,255,255,0.08)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backgroundImage: currentPc.image_url ? `url(${currentPc.image_url})` : undefined,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                border: `2px solid ${rarityColor[currentPc.rarity]}`,
+                position: 'relative', overflow: 'hidden',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              }}>
+                {!currentPc.image_url && <span style={{ fontSize: 48, opacity: 0.5 }}>💌</span>}
+                {/* 视频播放提示 */}
+                {currentPc.video_url && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.2)',
+                  }}>
+                    <div style={{
+                      width: 56, height: 56, borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.9)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 24, color: '#333',
+                      boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
+                    }}>▶</div>
+                  </div>
+                )}
+              </div>
+              {/* 信息 */}
+              <div style={{ marginTop: 12, color: '#fff' }}>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{currentPc.name}</div>
+                <div style={{
+                  display: 'inline-block', padding: '2px 10px', borderRadius: 10,
+                  background: rarityColor[currentPc.rarity], color: '#fff',
+                  fontSize: 11, fontWeight: 700,
+                }}>{currentPc.rarity}</div>
+                {currentPc.description && (
+                  <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>{currentPc.description}</div>
+                )}
+                {currentPc.video_url && (
+                  <div style={{ color: '#FF9800', fontSize: 12, marginTop: 6 }}>🎬 点击明信片播放旅行视频</div>
+                )}
+              </div>
+            </div>
+
+            {/* 右箭头 */}
+            {currentIndex < obtainedCards.length - 1 && (
+              <button onClick={goNext} style={{
+                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
+                width: 36, height: 36, color: '#fff', fontSize: 20, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>›</button>
+            )}
+          </>
+        ) : null}
+      </div>
+
+      {/* 底部进度点 */}
+      {obtainedCards.length > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '16px 0 24px' }}>
+          {obtainedCards.map((_, i) => (
+            <div key={i} style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: i === currentIndex ? '#fff' : 'rgba(255,255,255,0.3)',
+              transition: 'all 0.2s',
+            }} />
+          ))}
+        </div>
       )}
-    </ModalOverlay>
+    </div>
   );
 }
 
@@ -503,7 +571,6 @@ const INV_TABS = [
   { id: 'food', name: '🥘 食材', empty: '还没有食材，去钓鱼或商店看看吧' },
   { id: 'dish', name: '🍳 料理', empty: '还没有料理，去做菜吧' },
   { id: 'furniture', name: '🪑 家具', empty: '还没有家具，去商店看看吧' },
-  { id: 'postcard', name: '💌 明信片', empty: '还没有明信片，送宠物去旅行吧' },
 ];
 
 // 默认家具尺寸（视口比例）
@@ -518,7 +585,7 @@ const FURNITURE_DEFAULT_SIZE: Record<string, { width: number; height: number }> 
 
 function InventoryModal({ onClose }: { onClose: () => void }) {
   const { userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture, addYardFurniture, removeYardFurniture, setRemovingFurnitureMode } = useGameStore();
-  const [activeTab, setActiveTab] = useState<'food' | 'dish' | 'furniture' | 'postcard'>('food');
+  const [activeTab, setActiveTab] = useState<'food' | 'dish' | 'furniture'>('food');
   const [inventory, setInventory] = useState<{ food: any[]; dish: any[]; furniture: any[]; postcard: any[] }>({ food: [], dish: [], furniture: [], postcard: [] });
 
   useEffect(() => {
@@ -572,9 +639,6 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
             }}
           >
             {tab.name}
-            {tab.id === 'postcard' && inventory.postcard?.some((pc: any) => pc.is_new) && (
-              <span style={{ position: 'absolute', top: 2, right: 8, width: 8, height: 8, borderRadius: '50%', background: '#f44' }} />
-            )}
           </button>
         ))}
       </div>
@@ -602,17 +666,7 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
             <div key={i} style={{
               background: 'rgba(0,0,0,0.04)', borderRadius: 10, padding: 10,
               textAlign: 'center', border: '1px solid rgba(0,0,0,0.06)',
-              cursor: activeTab === 'postcard' ? 'pointer' : 'default',
             }}
-              onClick={() => {
-                if (activeTab === 'postcard') {
-                  if (item.video_url) {
-                    useGameStore.getState().setFullscreenVideoUrl(item.video_url);
-                  } else {
-                    setActiveModal('postcard');
-                  }
-                }
-              }}
             >
               <div style={{
                 width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
@@ -621,7 +675,7 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
                 backgroundImage: item.image_url ? `url(${item.image_url})` : undefined,
                 backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
               }}>
-                {!item.image_url && (activeTab === 'postcard' ? '💌' : activeTab === 'food' ? '🐟' : activeTab === 'dish' ? '🍳' : '🪑')}
+                {!item.image_url && (activeTab === 'food' ? '🐟' : activeTab === 'dish' ? '🍳' : '🪑')}
               </div>
               <div style={{ color: '#333', fontSize: 12, fontWeight: 600, marginBottom: 2,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1283,9 +1337,9 @@ function HomePanel() {
 
       {/* 底部菜单栏：漂流瓶、藏品库、背包、小游戏 */}
       <div className="bottom-bar">
-        <button className="bottom-bar-btn" onClick={() => setActiveModal('drift')}>
-          <span className="bottom-bar-icon">🌊</span>
-          <span className="bottom-bar-label">漂流瓶</span>
+        <button className="bottom-bar-btn" onClick={() => setActiveModal('postcard')}>
+          <span className="bottom-bar-icon">💌</span>
+          <span className="bottom-bar-label">明信片</span>
         </button>
         <button className="bottom-bar-btn" onClick={() => setActiveModal('collection')}>
           <span className="bottom-bar-icon">🏠</span>
