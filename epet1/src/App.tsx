@@ -216,6 +216,8 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
   const [postcards, setPostcards] = useState<Postcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPc, setSelectedPc] = useState<Postcard | null>(null);
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null); // video_url for fullscreen
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -224,34 +226,84 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
 
   const rarityColor: Record<string, string> = { N: '#aaa', R: '#4CAF50', SR: '#2196F3', SSR: '#FF9800', UR: '#E91E63' };
 
-  // 查看明信片详情 (图片+视频)
+  // 全屏播放视频
+  if (playingVideo) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: '#000', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <video
+          ref={videoRef}
+          src={playingVideo}
+          controls
+          autoPlay
+          playsInline
+          onEnded={() => setPlayingVideo(null)}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        />
+        <button
+          onClick={() => setPlayingVideo(null)}
+          style={{
+            position: 'absolute', top: 16, right: 16, zIndex: 10,
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.2)', border: 'none',
+            color: '#fff', fontSize: 20, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
+      </div>
+    );
+  }
+
+  // 查看明信片详情
   if (selectedPc) {
+    // 有视频 → 直接全屏播放
+    const handleClick = () => {
+      if (selectedPc.video_url) {
+        setPlayingVideo(selectedPc.video_url);
+      }
+    };
     return (
       <ModalOverlay onClose={() => setSelectedPc(null)}>
         <div className="modal-header">
           <h3>💌 {selectedPc.name}</h3>
           <button className="modal-close" onClick={() => setSelectedPc(null)}>×</button>
         </div>
-        <div style={{ textAlign: 'center', overflowY: 'auto', flex: 1, padding: '0 16px 16px' }}>
-          <div style={{
-            width: 240, height: 160, margin: '12px auto', borderRadius: 12,
-            background: 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundImage: selectedPc.image_url ? `url(${selectedPc.image_url})` : undefined,
-            backgroundSize: 'cover', backgroundPosition: 'center',
-            border: `2px solid ${rarityColor[selectedPc.rarity]}`,
-          }}>
+        <div style={{ textAlign: 'center', padding: '0 16px 16px' }}>
+          <div
+            onClick={handleClick}
+            style={{
+              width: 240, height: 160, margin: '12px auto', borderRadius: 12,
+              background: 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backgroundImage: selectedPc.image_url ? `url(${selectedPc.image_url})` : undefined,
+              backgroundSize: 'cover', backgroundPosition: 'center',
+              border: `2px solid ${rarityColor[selectedPc.rarity]}`,
+              cursor: selectedPc.video_url ? 'pointer' : 'default',
+              position: 'relative',
+            }}
+          >
             {!selectedPc.image_url && '💌'}
+            {selectedPc.video_url && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0.25)', borderRadius: 12,
+              }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.9)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22, color: '#333',
+                }}>▶</div>
+              </div>
+            )}
           </div>
           <div style={{ color: rarityColor[selectedPc.rarity], fontWeight: 700, marginBottom: 4 }}>{selectedPc.rarity}</div>
           {selectedPc.description && <div style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>{selectedPc.description}</div>}
-          {/* 旅游视频 */}
           {selectedPc.video_url && (
-            <video
-              src={selectedPc.video_url}
-              controls
-              autoPlay
-              style={{ width: '100%', maxHeight: 200, borderRadius: 8, marginBottom: 8 }}
-            />
+            <div style={{ color: '#FF9800', fontSize: 12, marginTop: 4 }}>🎬 点击图片播放旅行视频</div>
           )}
         </div>
       </ModalOverlay>
