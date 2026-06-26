@@ -501,8 +501,9 @@ export class Game {
       const furniture: SceneObjectData[] = data.furniture || [];
       if (furniture.length > 0) {
         await this._renderFurniture(furniture);
-        // Re-load collision map with scene objects + furniture (pixel collision for both)
-        await collisionMap.loadFromSceneObjects([...objects, ...furniture]);
+        // Re-load collision map with scene objects + furniture (use _furnitureData which has img_pixel_w/h from loaded images)
+        const allFurniture = Array.from(this._furnitureData.values());
+        await collisionMap.loadFromSceneObjects([...objects, ...allFurniture]);
         console.log(`✅ ${furniture.length} user furniture rendered & collision added`);
       }
     } catch (e) {
