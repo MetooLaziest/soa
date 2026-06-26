@@ -333,7 +333,7 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
     if (!userId || !selectedPet || !selectedDish) return;
     setStarting(selectedPet);
     try {
-      const record = await startTravel(userId, selectedPet, selectedDish.inventory_id);
+      const record = await startTravel(userId, selectedPet, selectedDish.id);
       setActiveTravel(record);
       setYardPets(yardPets.filter((p) => p.id !== selectedPet));
       onClose();
@@ -408,12 +408,12 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
               ) : (
                 <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                   {dishes.map((dish: any) => (
-                    <div key={dish.inventory_id} onClick={() => { setSelectedDish(dish); setStep('confirm'); }}
+                    <div key={dish.id} onClick={() => { setSelectedDish(dish); setStep('confirm'); }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 10,
                         padding: '10px 12px', marginBottom: 6,
-                        background: selectedDish?.inventory_id === dish.inventory_id ? 'rgba(255,152,0,0.15)' : 'rgba(0,0,0,0.03)',
-                        border: selectedDish?.inventory_id === dish.inventory_id ? '1px solid #FF9800' : '1px solid transparent',
+                        background: selectedDish?.id === dish.id ? 'rgba(255,152,0,0.15)' : 'rgba(0,0,0,0.03)',
+                        border: selectedDish?.id === dish.id ? '1px solid #FF9800' : '1px solid transparent',
                         borderRadius: 10, cursor: 'pointer',
                       }}
                     >
