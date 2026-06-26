@@ -765,6 +765,18 @@ function GameModal({ onClose }: { onClose: () => void }) {
     );
   }
 
+  // 料理游戏全屏独立渲染
+  if (selectedGame === 'cooking') {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'linear-gradient(180deg, #1a1a2e 0%, #2a1a0e 100%)',
+      }}>
+        <Cooking onClose={() => setSelectedGame(null)} />
+      </div>
+    );
+  }
+
   return (
     <ModalOverlay onClose={onClose}>
       <div className="modal-header">
@@ -782,9 +794,6 @@ function GameModal({ onClose }: { onClose: () => void }) {
       </div>
       {selectedGame === 'spot' && (
         <SpotDifference onScore={(s) => { handleGameScore('spot', s); setSelectedGame(null); }} />
-      )}
-      {selectedGame === 'cooking' && (
-        <Cooking onClose={() => setSelectedGame(null)} />
       )}
       {!selectedGame && (
         <div className="game-list">
