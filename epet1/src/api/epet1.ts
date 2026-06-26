@@ -209,7 +209,7 @@ export async function claimTravelReward(userId: number, recordId: number): Promi
 
 /** 用户明信片收藏 */
 export async function fetchPostcards(userId: number): Promise<Postcard[]> {
-  const res = await get<any>(`/postcard/${userId}`);
+  const res = await get<any>(`/postcard/collection/${userId}`);
   return res.postcards || [];
 }
 

@@ -245,6 +245,7 @@ export default function TravelAdmin() {
                               }}
                             />
                           </label>
+                          {mp.image_url ? <span className="text-xs text-green-400">✅</span> : <span className="text-xs text-gray-500">❌</span>}
 
                           <label className="text-xs text-gray-400 ml-2">旅游视频:</label>
                           <label className={`cursor-pointer px-2 py-0.5 rounded text-xs ${uploading === `vid-${mp.postcard_id}` ? 'bg-gray-600 text-gray-400' : 'bg-purple-700 text-white hover:bg-purple-600'}`}>
@@ -263,6 +264,7 @@ export default function TravelAdmin() {
                               }}
                             />
                           </label>
+                          {mp.video_url ? <span className="text-xs text-green-400">✅已上传</span> : <span className="text-xs text-gray-500">未上传</span>}
                         </div>
                       </div>
 
