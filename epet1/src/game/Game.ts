@@ -649,23 +649,29 @@ export class Game {
     // Store full data including image_url for pixel-accurate collision
     this._furnitureData.set(f.id, f);
 
-    // Register sprite collision using the already-loaded texture
+    // Register sprite collision by loading the image separately
     try {
-      const source = (sprite as any)?.texture?.source || (sprite instanceof Sprite ? sprite.texture?.source : null);
-      if (source && source.width > 0 && source.height > 0) {
+      const base = `${window.location.protocol}//${window.location.host}`;
+      const url = f.image_url.startsWith('/') ? `${base}${f.image_url}` : f.image_url;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Image load failed'));
+      });
+
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
         const canvas = document.createElement('canvas');
-        canvas.width = source.width;
-        canvas.height = source.height;
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          // Draw the texture source to canvas
-          ctx.drawImage(source as any, 0, 0);
-          const imgData = ctx.getImageData(0, 0, source.width, source.height);
+          ctx.drawImage(img, 0, 0);
+          const imgData = ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
 
-          // Compute bounds (same as computeCollisionBounds)
-          const bounds = computeCollisionBounds(f, source.width, source.height);
+          const bounds = computeCollisionBounds(f, img.naturalWidth, img.naturalHeight);
 
-          // Count solid pixels
           let solidCount = 0;
           for (let i = 3; i < imgData.data.length; i += 4) {
             if (imgData.data[i] > 30) solidCount++;
@@ -677,16 +683,14 @@ export class Game {
               xMin: bounds.xMin, yMin: bounds.yMin,
               xMax: bounds.xMax, yMax: bounds.yMax,
               pixels: imgData.data,
-              pixelW: source.width,
-              pixelH: source.height,
+              pixelW: img.naturalWidth,
+              pixelH: img.naturalHeight,
             });
-            console.log(`✅ Furniture sprite collision registered: ${f.label} (${source.width}x${source.height}), solid=${solidCount}, bounds=`, bounds);
+            console.log(`✅ Furniture sprite collision registered: ${f.label} (${img.naturalWidth}x${img.naturalHeight}), solid=${solidCount}, bounds=`, bounds);
           } else {
             console.warn(`⚠️ Furniture all transparent, no collision: ${f.label}`);
           }
         }
-      } else {
-        console.warn(`⚠️ Furniture texture source unavailable for collision: ${f.label}`);
       }
     } catch (e) {
       console.warn(`⚠️ Furniture collision registration failed: ${f.label}`, e);
