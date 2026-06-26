@@ -16,10 +16,6 @@ export interface SceneObjectData {
   is_user_furniture?: boolean;
   img_pixel_w?: number;
   img_pixel_h?: number;
-  alpha_top?: number;
-  alpha_bottom?: number;
-  alpha_left?: number;
-  alpha_right?: number;
 }
 
 /** A rectangle obstacle in viewport-fraction coords (0-1) */
@@ -117,33 +113,26 @@ export class CollisionMap {
     for (const o of objects) {
       if (!o.collidable) continue;
 
-      // 家具碰撞：基于 aspect-fit + alpha bbox 缩小（排除透明区域空白）
+      // 家具碰撞：基于 aspect-fit 碰撞框，向内缩小以排除边缘视觉空白区域
       if (o.is_user_furniture) {
         if (o.img_pixel_w && o.img_pixel_h) {
           const baseBounds = computeCollisionBounds(o, o.img_pixel_w, o.img_pixel_h);
-          // If alpha bbox is available, shrink the collision rect to opaque content
-          if (o.alpha_top !== undefined && o.alpha_bottom !== undefined &&
-              o.alpha_left !== undefined && o.alpha_right !== undefined) {
-            const contentH = o.alpha_bottom - o.alpha_top;
-            const contentW = o.alpha_right - o.alpha_left;
-            if (contentH > 0 && contentW > 0) {
-              // The visible content occupies alpha_top..alpha_bottom of the image height
-              // and alpha_left..alpha_right of the image width
-              // With anchor (0.5, 0.85), image top is at pos_y - actualH*0.85
-              const actualH = baseBounds.yMax - baseBounds.yMin;
-              const actualW = baseBounds.xMax - baseBounds.xMin;
-              const yTop = baseBounds.yMin + actualH * o.alpha_top;
-              const yBottom = baseBounds.yMin + actualH * o.alpha_bottom;
-              const xLeft = baseBounds.xMin + actualW * o.alpha_left;
-              const xRight = baseBounds.xMin + actualW * o.alpha_right;
-              obs.push({ xMin: xLeft, yMin: yTop, xMax: xRight, yMax: yBottom, label: o.label });
-              console.log(`✅ Furniture alpha-bbox collision: ${o.label}`, { xMin: xLeft.toFixed(3), yMin: yTop.toFixed(3), xMax: xRight.toFixed(3), yMax: yBottom.toFixed(3) });
-            } else {
-              obs.push({ ...baseBounds, label: o.label });
-            }
-          } else {
-            obs.push({ ...baseBounds, label: o.label });
-          }
+          // Shrink collision rect by 15% on each side to exclude edge transparency/visual whitespace
+          const shrinkX = (baseBounds.xMax - baseBounds.xMin) * 0.15;
+          const shrinkY = (baseBounds.yMax - baseBounds.yMin) * 0.15;
+          obs.push({
+            xMin: baseBounds.xMin + shrinkX,
+            yMin: baseBounds.yMin + shrinkY,
+            xMax: baseBounds.xMax - shrinkX,
+            yMax: baseBounds.yMax - shrinkY,
+            label: o.label,
+          });
+          console.log(`✅ Furniture collision (shrunk): ${o.label}`, {
+            xMin: (baseBounds.xMin + shrinkX).toFixed(3),
+            yMin: (baseBounds.yMin + shrinkY).toFixed(3),
+            xMax: (baseBounds.xMax - shrinkX).toFixed(3),
+            yMax: (baseBounds.yMax - shrinkY).toFixed(3),
+          });
         } else {
           obs.push({ ...computeRectCollisionBounds(o), label: o.label });
         }
