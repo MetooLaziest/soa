@@ -129,8 +129,8 @@ module.exports = (pool) => {
       const pet = petRes.rows[0];
       const key = getHistoryKey(user_id, pet_instance_id);
 
-      // 选择 v2 或 v1 构建器
-      const useV2 = (pet.prompt_version >= 2) && pet.identity_anchor;
+      // 选择 v2 或 v1 构建器（prompt_version >= 2 即走 v2，空层用默认兜底）
+      const useV2 = (pet.prompt_version >= 2);
       let systemPrompt = useV2
         ? buildSystemPromptV2(pet, pet)
         : buildSystemPromptV1(pet, pet);
