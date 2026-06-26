@@ -591,6 +591,46 @@ export class Game {
       // Store pixel dimensions for aspect-fit collision
       (f as any).img_pixel_w = tex.width;
       (f as any).img_pixel_h = tex.height;
+
+      // Compute alpha bounding box for tighter collision (exclude transparent margins)
+      try {
+        const source = tex.source;
+        const w = source.width;
+        const h = source.height;
+        if (w && h) {
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Use PixiJS texture to draw to canvas
+            const baseTex = tex;
+            ctx.drawImage(baseTex.source as any, 0, 0);
+            const imgData = ctx.getImageData(0, 0, w, h);
+            let top = h, bottom = 0, left = w, right = 0;
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                if (imgData.data[(y * w + x) * 4 + 3] > 30) {
+                  if (y < top) top = y;
+                  if (y > bottom) bottom = y;
+                  if (x < left) left = x;
+                  if (x > right) right = x;
+                }
+              }
+            }
+            // Store alpha bbox as fractions of image size
+            if (top <= bottom && left <= right) {
+              (f as any).alpha_top = top / h;
+              (f as any).alpha_bottom = bottom / h;
+              (f as any).alpha_left = left / w;
+              (f as any).alpha_right = right / w;
+            }
+          }
+        }
+      } catch (alphaErr) {
+        // Alpha bbox computation failed, use full rect
+        console.warn('[Game] Alpha bbox failed for', f.label, alphaErr);
+      }
     } catch (e) {
       // Image not found — use colored placeholder
       console.warn(`[Game] Furniture image missing: ${f.label}, using placeholder`);

@@ -16,6 +16,10 @@ export interface SceneObjectData {
   is_user_furniture?: boolean;
   img_pixel_w?: number;
   img_pixel_h?: number;
+  alpha_top?: number;
+  alpha_bottom?: number;
+  alpha_left?: number;
+  alpha_right?: number;
 }
 
 /** A rectangle obstacle in viewport-fraction coords (0-1) */
@@ -113,43 +117,32 @@ export class CollisionMap {
     for (const o of objects) {
       if (!o.collidable) continue;
 
-      // 家具用像素级 sprite 碰撞（与场景对象一致，排除透明区域空白）
+      // 家具碰撞：基于 aspect-fit + alpha bbox 缩小（排除透明区域空白）
       if (o.is_user_furniture) {
-        if (o.image_url) {
-          try {
-            const base = `${window.location.protocol}//${window.location.host}`;
-            const url = o.image_url.startsWith('/') ? `${base}${o.image_url}` : o.image_url;
-            const resp = await fetch(url);
-            const blob = await resp.blob();
-            const bmp = await createImageBitmap(blob);
-
-            if (bmp.width === 0 || bmp.height === 0) {
-              bmp.close();
-              console.warn(`⚠️ Furniture sprite collision 0x0, fallback to rect: ${o.label}`);
-              obs.push({ ...computeCollisionBounds(o, o.img_pixel_w || 1, o.img_pixel_h || 1), label: o.label });
-              continue;
+        if (o.img_pixel_w && o.img_pixel_h) {
+          const baseBounds = computeCollisionBounds(o, o.img_pixel_w, o.img_pixel_h);
+          // If alpha bbox is available, shrink the collision rect to opaque content
+          if (o.alpha_top !== undefined && o.alpha_bottom !== undefined &&
+              o.alpha_left !== undefined && o.alpha_right !== undefined) {
+            const contentH = o.alpha_bottom - o.alpha_top;
+            const contentW = o.alpha_right - o.alpha_left;
+            if (contentH > 0 && contentW > 0) {
+              // The visible content occupies alpha_top..alpha_bottom of the image height
+              // and alpha_left..alpha_right of the image width
+              // With anchor (0.5, 0.85), image top is at pos_y - actualH*0.85
+              const actualH = baseBounds.yMax - baseBounds.yMin;
+              const actualW = baseBounds.xMax - baseBounds.xMin;
+              const yTop = baseBounds.yMin + actualH * o.alpha_top;
+              const yBottom = baseBounds.yMin + actualH * o.alpha_bottom;
+              const xLeft = baseBounds.xMin + actualW * o.alpha_left;
+              const xRight = baseBounds.xMin + actualW * o.alpha_right;
+              obs.push({ xMin: xLeft, yMin: yTop, xMax: xRight, yMax: yBottom, label: o.label });
+              console.log(`✅ Furniture alpha-bbox collision: ${o.label}`, { xMin: xLeft.toFixed(3), yMin: yTop.toFixed(3), xMax: xRight.toFixed(3), yMax: yBottom.toFixed(3) });
+            } else {
+              obs.push({ ...baseBounds, label: o.label });
             }
-
-            const bounds = computeCollisionBounds(o, bmp.width, bmp.height);
-            const canvas = document.createElement('canvas');
-            canvas.width = bmp.width;
-            canvas.height = bmp.height;
-            const ctx = canvas.getContext('2d')!;
-            ctx.drawImage(bmp, 0, 0);
-            const imgData = ctx.getImageData(0, 0, bmp.width, bmp.height);
-            bmp.close();
-
-            spriteCols.push({
-              label: o.label,
-              xMin: bounds.xMin, yMin: bounds.yMin,
-              xMax: bounds.xMax, yMax: bounds.yMax,
-              pixels: imgData.data,
-              pixelW: bmp.width, pixelH: bmp.height,
-            });
-            console.log(`✅ Furniture sprite collision: ${o.label} (${bmp.width}x${bmp.height}), bounds=`, bounds);
-          } catch (e) {
-            console.warn(`Failed to load furniture sprite for collision: ${o.label}`, e);
-            obs.push({ ...computeCollisionBounds(o, o.img_pixel_w || 1, o.img_pixel_h || 1), label: o.label });
+          } else {
+            obs.push({ ...baseBounds, label: o.label });
           }
         } else {
           obs.push({ ...computeRectCollisionBounds(o), label: o.label });
