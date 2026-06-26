@@ -16,17 +16,17 @@ export default function TravelAdmin() {
 
   // 加载 models
   useEffect(() => {
-    client.get('/api/epet1/travel/admin/models').then(res => {
+    client.get('/epet1/travel/admin/models').then(res => {
       setModels(res.data.models || []);
     }).catch(e => console.error(e));
   }, []);
 
   // 加载所有明信片 + 商品（用于添加/编辑）
   useEffect(() => {
-    client.get('/api/epet1/travel/admin/all-postcards').then(res => {
+    client.get('/epet1/travel/admin/all-postcards').then(res => {
       setAllPostcards(res.data.postcards || []);
     }).catch(e => console.error(e));
-    client.get('/api/epet1/shop2/admin/items').then(res => {
+    client.get('/epet1/shop2/admin/items').then(res => {
       setShopItems(res.data.items || []);
     }).catch(e => console.error(e));
   }, []);
@@ -34,7 +34,7 @@ export default function TravelAdmin() {
   // 选中 model 时加载其明信片
   useEffect(() => {
     if (!selectedModel) return;
-    client.get(`/api/epet1/travel/admin/models/${selectedModel}/postcards`).then(res => {
+    client.get(`/epet1/travel/admin/models/${selectedModel}/postcards`).then(res => {
       setModelPostcards(res.data.postcards || []);
     }).catch(e => console.error(e));
   }, [selectedModel]);
@@ -53,7 +53,7 @@ export default function TravelAdmin() {
   // 添加明信片关联
   const handleAddPostcard = async () => {
     if (!selectedModel || !addForm.postcard_id) return;
-    await client.post(`/api/epet1/travel/admin/models/${selectedModel}/postcards`, {
+    await client.post(`/epet1/travel/admin/models/${selectedModel}/postcards`, {
       postcard_id: addForm.postcard_id,
       probability: addForm.probability,
       unlock_shop_item_id: addForm.unlock_shop_item_id || null,
@@ -61,15 +61,15 @@ export default function TravelAdmin() {
     setShowAddPostcard(false);
     setAddForm({ postcard_id: 0, probability: 10, unlock_shop_item_id: 0 });
     // 刷新
-    const res = await client.get(`/api/epet1/travel/admin/models/${selectedModel}/postcards`);
+    const res = await client.get(`/epet1/travel/admin/models/${selectedModel}/postcards`);
     setModelPostcards(res.data.postcards || []);
   };
 
   // 更新概率/解锁商品
   const handleUpdateAssoc = async (assocId: number, data: { probability?: number; unlock_shop_item_id?: number | null }) => {
-    await client.put(`/api/epet1/travel/admin/postcards/${assocId}`, data);
+    await client.put(`/epet1/travel/admin/postcards/${assocId}`, data);
     if (selectedModel) {
-      const res = await client.get(`/api/epet1/travel/admin/models/${selectedModel}/postcards`);
+      const res = await client.get(`/epet1/travel/admin/models/${selectedModel}/postcards`);
       setModelPostcards(res.data.postcards || []);
     }
   };
@@ -77,22 +77,22 @@ export default function TravelAdmin() {
   // 删除关联
   const handleDeleteAssoc = async (assocId: number) => {
     if (!confirm('确定删除此明信片关联？')) return;
-    await client.delete(`/api/epet1/travel/admin/postcards/${assocId}`);
+    await client.delete(`/epet1/travel/admin/postcards/${assocId}`);
     if (selectedModel) {
-      const res = await client.get(`/api/epet1/travel/admin/models/${selectedModel}/postcards`);
+      const res = await client.get(`/epet1/travel/admin/models/${selectedModel}/postcards`);
       setModelPostcards(res.data.postcards || []);
     }
   };
 
   // 更新明信片本身 (图片/视频/名称等)
   const handleUpdatePostcard = async (postcardId: number, data: any) => {
-    await client.put(`/api/epet1/travel/admin/postcards-detail/${postcardId}`, data);
+    await client.put(`/epet1/travel/admin/postcards-detail/${postcardId}`, data);
     if (selectedModel) {
-      const res = await client.get(`/api/epet1/travel/admin/models/${selectedModel}/postcards`);
+      const res = await client.get(`/epet1/travel/admin/models/${selectedModel}/postcards`);
       setModelPostcards(res.data.postcards || []);
     }
     // Also refresh all postcards
-    const pcRes = await client.get('/api/epet1/travel/admin/all-postcards');
+    const pcRes = await client.get('/epet1/travel/admin/all-postcards');
     setAllPostcards(pcRes.data.postcards || []);
   };
 
@@ -102,10 +102,10 @@ export default function TravelAdmin() {
 
   const handleCreatePostcard = async () => {
     if (!newPostcard.name) return;
-    await client.post('/api/epet1/travel/admin/all-postcards', newPostcard);
+    await client.post('/epet1/travel/admin/all-postcards', newPostcard);
     setShowNewPostcard(false);
     setNewPostcard({ name: '', rarity: 'N', rarity_weight: 10, description: '', display_scene: '' });
-    const pcRes = await client.get('/api/epet1/travel/admin/all-postcards');
+    const pcRes = await client.get('/epet1/travel/admin/all-postcards');
     setAllPostcards(pcRes.data.postcards || []);
   };
 
