@@ -1514,7 +1514,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
       className="chat-page"
       style={chatBgUrl ? { backgroundImage: `url(${chatBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
     >
-      {/* 顶部栏 */}
+      {/* 顶部栏 — 始终可见，flex-shrink:0 */}
       <div className="chat-topbar">
         <button className="chat-topbar-btn" onClick={onClose}>← 返回</button>
         <span className="chat-topbar-title">{pet.nickname}</span>
@@ -1527,22 +1527,19 @@ function ChatPage({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      {/* 宠物大图 */}
-      <div
-        className={`chat-pet-area${petPulse ? ' pet-pulse' : ''}`}
-        onClick={handlePetTouch}
-      >
+      {/* 宠物展示区 — flex:1，自动占据剩余空间 */}
+      <div className={`chat-pet-area${petPulse ? ' pet-pulse' : ''}`}>
+        <div className="chat-pet-hint">👆 点击宠物不同部位互动</div>
         <img
           className="chat-pet-img"
           src={getPetPortrait(pet)}
           alt={pet.nickname}
           draggable={false}
+          onClick={handlePetTouch}
         />
       </div>
 
-      <div className="chat-pet-hint">👆 点击宠物不同部位互动</div>
-
-      {/* 宠物回复文本框（最新一条） */}
+      {/* 宠物回复文本框 — flex-shrink:0，始终可见 */}
       <div className="chat-response-box">
         {lastAssistantMessage ? (
           <p className="chat-response-text">{lastAssistantMessage}</p>
@@ -1553,8 +1550,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-
-      {/* 底部输入栏 */}
+      {/* 底部输入栏 — flex-shrink:0，始终可见 */}
       <div className="chat-input-bar">
         <input
           className="chat-input-field"
