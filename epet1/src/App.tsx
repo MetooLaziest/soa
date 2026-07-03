@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef, type ReactNode, type MouseEvent, type KeyboardEvent, type ChangeEvent, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useGameStore } from './store/gameStore';
+import { useGameStore as usePixiGameStore } from './game/GameState';
 import SpotDifference from './games/SpotDifference';
 import Fishing from './games/Fishing';
 import Cooking from './games/Cooking';
@@ -42,6 +43,18 @@ const PET_IMAGES: Record<number, string> = {
   5: '/assets/pets/meimei.png',
   6: '/assets/pets/moomo.png',
 };
+
+/** Render icon from uploaded assets or fallback emoji */
+function IconImg({ iconKey, fallback }: { iconKey: string; fallback: string }) {
+  const icons = usePixiGameStore(s => s.icons);
+  const icon = icons[iconKey];
+  if (icon?.image_url) {
+    const base = `${window.location.protocol}//${window.location.host}`;
+    const url = icon.image_url.startsWith('/') ? `${base}${icon.image_url}` : icon.image_url;
+    return <img src={url} alt={icon.label || iconKey} className="bottom-bar-icon-img" />;
+  }
+  return <span className="bottom-bar-icon">{fallback}</span>;
+}
 
 // model_id → PixiJS monsterType (PetEntity.getImageName 映射)
 function getMonsterType(modelId: number): string {
@@ -1338,19 +1351,19 @@ function HomePanel() {
       {/* 底部菜单栏：漂流瓶、藏品库、背包、小游戏 */}
       <div className="bottom-bar">
         <button className="bottom-bar-btn" onClick={() => setActiveModal('postcard')}>
-          <span className="bottom-bar-icon">💌</span>
+          <IconImg iconKey="icon-postcard" fallback="💌" />
           <span className="bottom-bar-label">明信片</span>
         </button>
         <button className="bottom-bar-btn" onClick={() => setActiveModal('collection')}>
-          <span className="bottom-bar-icon">🏠</span>
+          <IconImg iconKey="icon-collection" fallback="🏠" />
           <span className="bottom-bar-label">藏品库</span>
         </button>
         <button className="bottom-bar-btn" onClick={() => setActiveModal('inventory')}>
-          <span className="bottom-bar-icon">🎒</span>
+          <IconImg iconKey="icon-backpack" fallback="🎒" />
           <span className="bottom-bar-label">背包</span>
         </button>
         <button className="bottom-bar-btn" onClick={() => setActiveModal('game')}>
-          <span className="bottom-bar-icon">🎮</span>
+          <IconImg iconKey="icon-minigame" fallback="🎮" />
           <span className="bottom-bar-label">小游戏</span>
         </button>
       </div>
