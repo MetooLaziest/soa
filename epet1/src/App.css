@@ -300,6 +300,7 @@ body {
 .bottom-bar-btn:active { transform: scale(0.9); }
 .bottom-bar-icon { font-size: 22px; line-height: 1; }
 .bottom-bar-icon-img { width: 22px; height: 22px; object-fit: contain; }
+.bottom-bar-icon-img.uploaded { width: 44px; height: 44px; }
 .bottom-bar-label { font-size: 10px; font-weight: 700; text-align: center; }
 
 /* ─── Buttons ─────────────────────────────── */

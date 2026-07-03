@@ -51,7 +51,7 @@ function IconImg({ iconKey, fallback }: { iconKey: string; fallback: string }) {
   if (icon?.image_url) {
     const base = `${window.location.protocol}//${window.location.host}`;
     const url = icon.image_url.startsWith('/') ? `${base}${icon.image_url}` : icon.image_url;
-    return <img src={url} alt={icon.label || iconKey} className="bottom-bar-icon-img" />;
+    return <img src={url} alt={icon.label || iconKey} className="bottom-bar-icon-img uploaded" />;
   }
   return <span className="bottom-bar-icon">{fallback}</span>;
 }
@@ -1302,20 +1302,18 @@ function HomePanel() {
         {otherExpanded && (
           <div className="other-menu">
             <button className="other-menu-item" onClick={() => { alert('功能开发中'); setOtherExpanded(false); }}>
-              📱 打开小程序
+              <IconImg iconKey="icon-miniprogram" fallback="📱" /> 打开小程序
             </button>
             <button className="other-menu-item" onClick={() => { alert('功能开发中'); setOtherExpanded(false); }}>
-              🔗 绑定智能设备
+              <IconImg iconKey="icon-smarthome" fallback="🔗" /> 绑定智能设备
             </button>
           </div>
         )}
         <button className="top-right-btn" onClick={() => setOtherExpanded(v => !v)}>
-          <span className="top-right-btn-icon">☰</span>
-          <span className="top-right-btn-label">其他</span>
+          <IconImg iconKey="icon-map" fallback="☰" />
         </button>
         <button className="top-right-btn" onClick={() => setActiveModal('shop')}>
-          <span className="top-right-btn-icon">🛍️</span>
-          <span className="top-right-btn-label">商店</span>
+          <IconImg iconKey="icon-shop" fallback="🛍️" />
         </button>
       </div>
 
@@ -1348,23 +1346,19 @@ function HomePanel() {
         </div>
       )}
 
-      {/* 底部菜单栏：漂流瓶、藏品库、背包、小游戏 */}
+      {/* 底部菜单栏：明信片、藏品库、背包、小游戏 */}
       <div className="bottom-bar">
         <button className="bottom-bar-btn" onClick={() => setActiveModal('postcard')}>
           <IconImg iconKey="icon-postcard" fallback="💌" />
-          <span className="bottom-bar-label">明信片</span>
         </button>
         <button className="bottom-bar-btn" onClick={() => setActiveModal('collection')}>
           <IconImg iconKey="icon-collection" fallback="🏠" />
-          <span className="bottom-bar-label">藏品库</span>
         </button>
         <button className="bottom-bar-btn" onClick={() => setActiveModal('inventory')}>
           <IconImg iconKey="icon-backpack" fallback="🎒" />
-          <span className="bottom-bar-label">背包</span>
         </button>
         <button className="bottom-bar-btn" onClick={() => setActiveModal('game')}>
           <IconImg iconKey="icon-minigame" fallback="🎮" />
-          <span className="bottom-bar-label">小游戏</span>
         </button>
       </div>
 
