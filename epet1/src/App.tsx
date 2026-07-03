@@ -1299,19 +1299,6 @@ function HomePanel() {
 
       {/* 右上角：其他 + 商店 */}
       <div className="top-right-area">
-        {otherExpanded && (
-          <div className="other-menu">
-            <button className="other-menu-item" onClick={() => { alert('功能开发中'); setOtherExpanded(false); }}>
-              <IconImg iconKey="icon-miniprogram" fallback="📱" /> 打开小程序
-            </button>
-            <button className="other-menu-item" onClick={() => { alert('功能开发中'); setOtherExpanded(false); }}>
-              <IconImg iconKey="icon-smarthome" fallback="🔗" /> 绑定智能设备
-            </button>
-          </div>
-        )}
-        <button className="top-right-btn" onClick={() => setOtherExpanded(v => !v)}>
-          <IconImg iconKey="icon-map" fallback="☰" />
-        </button>
         <button className="top-right-btn" onClick={() => setActiveModal('shop')}>
           <IconImg iconKey="icon-shop" fallback="🛍️" />
         </button>

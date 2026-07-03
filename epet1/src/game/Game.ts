@@ -200,7 +200,7 @@ export class Game {
       const { W, H } = getViewport();
       const scaleX = W / tex.width;
       const scaleY = H / tex.height;
-      const scale = Math.min(scaleX, scaleY);  // contain mode
+      const scale = Math.max(scaleX, scaleY);  // cover mode — fill entire screen
       bg.scale.set(scale);
       bg.anchor.set(0.5, 0.5);
       bg.x = W / 2;
