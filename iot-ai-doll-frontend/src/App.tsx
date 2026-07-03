@@ -25,6 +25,8 @@ import MiniGameAssets from './pages/admin/MiniGameAssets';
 import PetEntities from './pages/admin/PetEntities';
 import CompanionEdit from './pages/admin/CompanionEdit';
 import YardSceneEditor from './pages/admin/YardSceneEditor';
+import ZoneManager from './pages/admin/ZoneManager';
+import IconAssets from './pages/admin/IconAssets';
 import FishingAdmin from './pages/admin/FishingAdmin';
 import ShopAdmin from './pages/admin/ShopAdmin';
 import SpotDiffAdmin from './pages/admin/SpotDiffAdmin';
@@ -97,6 +99,8 @@ export default function App() {
           <Route path="rag/new" element={<RAGEdit />} />
           <Route path="rag/:id/edit" element={<RAGEdit />} />
           <Route path="yard-editor" element={<YardSceneEditor />} />
+          <Route path="zones" element={<ZoneManager />} />
+          <Route path="icons" element={<IconAssets />} />
           <Route path="fishing" element={<FishingAdmin />} />
           <Route path="shop" element={<ShopAdmin />} />
           <Route path="spotdiff" element={<SpotDiffAdmin />} />

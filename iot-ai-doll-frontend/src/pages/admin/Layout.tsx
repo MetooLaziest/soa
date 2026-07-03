@@ -25,6 +25,8 @@ const navItems = [
   { key: 'cooking', label: '料理管理', icon: '🍳', path: '/admin/cooking' },
   { key: 'travel', label: '旅游管理', icon: '🧳', path: '/admin/travel' },
   { key: 'yard-editor', label: '庭院地图编辑', icon: '🗺️', path: '/admin/yard-editor' },
+  { key: 'zones', label: '区域管理', icon: '🌏', path: '/admin/zones' },
+  { key: 'icons', label: '图标素材', icon: '🎨', path: '/admin/icons' },
 ];
 
 export default function AdminLayout() {

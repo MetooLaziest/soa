@@ -29,6 +29,7 @@ interface ShopItem {
   yard_height: number;
   match3_level_id: number | null;
   purchasable: boolean;
+  unlock_zone_id: string | null;
 }
 
 export default function ShopAdmin() {
@@ -54,19 +55,23 @@ export default function ShopAdmin() {
   const [formImageRatio, setFormImageRatio] = useState<number | null>(null); // imgH / imgW
   const [formMatch3LevelId, setFormMatch3LevelId] = useState<number | null>(null);
   const [formPurchasable, setFormPurchasable] = useState(true);
+  const [formUnlockZoneId, setFormUnlockZoneId] = useState<string | null>(null);
   const [match3Levels, setMatch3Levels] = useState<{id: number; name: string; difficulty: number}[]>([]);
+  const [zones, setZones] = useState<{zone_key: string; zone_name: string}[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [itemsRes, configRes, match3Res] = await Promise.all([
+      const [itemsRes, configRes, match3Res, zonesRes] = await Promise.all([
         client.get('/epet1/shop2/admin/items'),
         client.get('/epet1/shop2/config'),
         client.get('/admin/match3/levels'),
+        client.get('/admin/zones'),
       ]);
       setItems(itemsRes.data.items || []);
       setBgImage(configRes.data.config?.background_image || '');
       setMatch3Levels((match3Res.data.levels || []).map((l: any) => ({ id: l.id, name: l.name, difficulty: l.difficulty })));
+      setZones((zonesRes.data.zones || []).map((z: any) => ({ zone_key: z.zone_key, zone_name: z.zone_name })));
     } catch (err) {
       console.error('加载失败:', err);
     } finally {
@@ -81,6 +86,7 @@ export default function ShopAdmin() {
     setFormPrice(0); setFormDesc(''); setFormImageUrl(''); setFormStock(-1);
     setFormYardWidth(0.08); setFormYardHeight(0.12); setFormMatch3LevelId(null);
     setFormPurchasable(true);
+    setFormUnlockZoneId(null);
     setFormImageRatio(null);
     setEditing(null); setShowForm(false);
   };
@@ -112,6 +118,7 @@ export default function ShopAdmin() {
     }
     setFormMatch3LevelId(item.match3_level_id || null);
     setFormPurchasable(item.purchasable !== false);
+    setFormUnlockZoneId(item.unlock_zone_id || null);
     setShowForm(true);
   };
 
@@ -176,6 +183,7 @@ export default function ShopAdmin() {
           yard_width: formYardWidth, yard_height: formYardHeight,
           match3_level_id: formMatch3LevelId,
           purchasable: formPurchasable,
+          unlock_zone_id: formUnlockZoneId,
         });
       } else {
         await client.post('/epet1/shop2/admin/items', {
@@ -185,6 +193,7 @@ export default function ShopAdmin() {
           yard_width: formYardWidth, yard_height: formYardHeight,
           match3_level_id: formMatch3LevelId,
           purchasable: formPurchasable,
+          unlock_zone_id: formUnlockZoneId,
         });
       }
       resetForm(); load();
@@ -268,6 +277,7 @@ export default function ShopAdmin() {
                     {item.purchasable === false && ' · 🔒不可购买'}
                     {item.item_category === 'furniture' && ` · 📐${item.yard_width}×${item.yard_height}`}
                     {item.match3_level_id && ' · 💎需通关'}
+                    {item.unlock_zone_id && ` · 🗺️解锁${item.unlock_zone_id}`}
                   </div>
                 </div>
               </div>
@@ -408,6 +418,20 @@ export default function ShopAdmin() {
                     </label>
                   </div>
                 </div>
+              </div>
+              {/* 区域解锁 */}
+              <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 space-y-2">
+                <div className="text-xs font-semibold text-green-300">🗺️ 购买解锁区域</div>
+                <select value={formUnlockZoneId ?? ''} onChange={e => setFormUnlockZoneId(e.target.value || null)}
+                  className="w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                  <option value="" className="bg-slate-800">无（不解锁任何区域）</option>
+                  {zones.map(z => (
+                    <option key={z.zone_key} value={z.zone_key} className="bg-slate-800">
+                      {z.zone_name} ({z.zone_key})
+                    </option>
+                  ))}
+                </select>
+                <div className="text-xs text-gray-500">购买此商品后自动解锁对应庭院区域</div>
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">

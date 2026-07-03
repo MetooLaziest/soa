@@ -4,6 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   base: '/admin/',
+  build: {
+    outDir: 'dist/admin',
+  },
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,

@@ -1,14 +1,14 @@
 /**
  * YardSceneEditor — Admin page for editing yard scene layout
  *
- * Features:
- * - Canvas with background image
- * - Drag & resize scene objects
- * - Add/remove objects
- * - Toggle collidable
- * - Save all to API
+ * V2: Multi-zone + time-slot support
+ * - URL param: ?zone=0,0 to select zone
+ * - Time-slot tabs: dawn / day / night for background preview
+ * - Object properties: image_url_dawn / image_url_night variants
+ * - Back link to Zone Manager
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 
 interface SceneObject {
@@ -21,55 +21,30 @@ interface SceneObject {
   width: number;
   height: number;
   image_url: string;
+  image_url_dawn?: string;
+  image_url_night?: string;
   collidable: boolean;
   sort_priority: number;
 }
 
-interface Scene {
+interface Zone {
   id: number;
-  name: string;
-  bg_image_url: string;
+  zone_key: string;
+  zone_name: string;
+  grid_x: number;
+  grid_y: number;
+  bg_image_dawn: string;
+  bg_image_day: string;
+  bg_image_night: string;
   walk_bounds: { xMin: number; xMax: number; yMin: number; yMax: number };
+  is_default: boolean;
 }
 
-/**
- * Compute the actual viewport-fraction display bounds for an object,
- * accounting for aspect-fit (Math.min(scaleX, scaleY)) scaling
- * and the anchor (0.5, 0.85) used in PixiJS rendering.
- *
- * Returns CSS left/top/width/height in percentage values
- * that match what PixiJS renders in epet.
- */
-function computeAspectFitStyle(
-  obj: { pos_x: number; pos_y: number; width: number; height: number },
-  imgNaturalW: number | undefined,
-  imgNaturalH: number | undefined,
-): { left: string; top: string; width: string; height: string } {
-  // If no image natural size, fall back to full rect (no aspect-fit)
-  if (!imgNaturalW || !imgNaturalH || imgNaturalW === 0 || imgNaturalH === 0) {
-    return {
-      left: `${(obj.pos_x - obj.width / 2) * 100}%`,
-      top: `${(obj.pos_y - obj.height * 0.85) * 100}%`,
-      width: `${obj.width * 100}%`,
-      height: `${obj.height * 100}%`,
-    };
-  }
-
-  // Mirror PixiJS: Math.min(scaleX, scaleY)
-  const scaleX = obj.width / imgNaturalW;
-  const scaleY = obj.height / imgNaturalH;
-  const actualScale = Math.min(scaleX, scaleY);
-  const actualW = imgNaturalW * actualScale; // in viewport-fraction units
-  const actualH = imgNaturalH * actualScale;
-
-  // anchor(0.5, 0.85): left = pos_x - actualW/2, top = pos_y - actualH*0.85
-  return {
-    left: `${(obj.pos_x - actualW / 2) * 100}%`,
-    top: `${(obj.pos_y - actualH * 0.85) * 100}%`,
-    width: `${actualW * 100}%`,
-    height: `${actualH * 100}%`,
-  };
-}
+const TIME_SLOTS = [
+  { key: 'dawn', label: '🌅 清晨/傍晚', bgField: 'bg_image_dawn' as const },
+  { key: 'day', label: '☀️ 白天', bgField: 'bg_image_day' as const },
+  { key: 'night', label: '🌙 夜晚', bgField: 'bg_image_night' as const },
+];
 
 const OBJ_TYPES = [
   { value: 'tree', label: '🌳 树木', icon: '🌳' },
@@ -77,6 +52,7 @@ const OBJ_TYPES = [
   { value: 'rock', label: '🪨 石头', icon: '🪨' },
   { value: 'flower', label: '🌸 花坛', icon: '🌸' },
   { value: 'decoration', label: '✨ 装饰', icon: '✨' },
+  { value: 'lamp', label: '🏮 灯具', icon: '🏮' },
   { value: 'collider', label: '🔲 碰撞区(隐形)', icon: '🔲' },
 ];
 
@@ -90,13 +66,45 @@ const COLLIDER_COLOR = 'rgba(255, 50, 50, 0.3)';
 const COLLIDER_BORDER = 'rgba(255, 50, 50, 0.7)';
 const SELECTED_BORDER = '2px solid #3b82f6';
 
+function computeAspectFitStyle(
+  obj: { pos_x: number; pos_y: number; width: number; height: number },
+  imgNaturalW: number | undefined,
+  imgNaturalH: number | undefined,
+): { left: string; top: string; width: string; height: string } {
+  if (!imgNaturalW || !imgNaturalH || imgNaturalW === 0 || imgNaturalH === 0) {
+    return {
+      left: `${(obj.pos_x - obj.width / 2) * 100}%`,
+      top: `${(obj.pos_y - obj.height * 0.85) * 100}%`,
+      width: `${obj.width * 100}%`,
+      height: `${obj.height * 100}%`,
+    };
+  }
+  const scaleX = obj.width / imgNaturalW;
+  const scaleY = obj.height / imgNaturalH;
+  const actualScale = Math.min(scaleX, scaleY);
+  const actualW = imgNaturalW * actualScale;
+  const actualH = imgNaturalH * actualScale;
+
+  return {
+    left: `${(obj.pos_x - actualW / 2) * 100}%`,
+    top: `${(obj.pos_y - actualH * 0.85) * 100}%`,
+    width: `${actualW * 100}%`,
+    height: `${actualH * 100}%`,
+  };
+}
+
 export default function YardSceneEditor() {
-  const [scene, setScene] = useState<Scene | null>(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const currentZoneKey = searchParams.get('zone') || '0,0';
+
+  const [zone, setZone] = useState<Zone | null>(null);
   const [objects, setObjects] = useState<SceneObject[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTimeSlot, setActiveTimeSlot] = useState<'dawn' | 'day' | 'night'>('day');
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragState, setDragState] = useState<{
     objId: number;
@@ -106,30 +114,39 @@ export default function YardSceneEditor() {
     origY: number;
     mode: 'move' | 'resize';
   } | null>(null);
-
-  // Track natural dimensions of loaded images for aspect-fit rendering
   const imgSizes = useRef<Map<number, { w: number; h: number }>>(new Map());
 
   const selectedObj = objects.find(o => o.id === selectedId);
 
-  // Load scene data
+  // Load zone + objects
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
-        const res = await client.get('/admin/yard-scenes');
-        const scenes = res.data?.scenes || [];
-        if (scenes.length === 0) return;
-        const activeScene = scenes.find((s: Scene) => s.id) || scenes[0];
-        setScene(activeScene);
-        const detail = await client.get(`/admin/yard-scenes/${activeScene.id}`);
-        setObjects(detail.data?.objects || []);
+        // Load zones list to find current zone
+        const zonesRes = await client.get('/admin/zones');
+        const zones: Zone[] = zonesRes.data.zones || [];
+        const currentZone = zones.find(z => z.zone_key === currentZoneKey);
+        if (!currentZone) {
+          setError(`未找到区域 ${currentZoneKey}`);
+          setLoading(false);
+          return;
+        }
+        setZone(currentZone);
+
+        // Load objects for this zone
+        const detailRes = await client.get(`/admin/zones/${currentZone.id}`);
+        setObjects(detailRes.data.objects || []);
       } catch (e: any) {
         setError(e.message);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [currentZoneKey]);
+
+  // Get current background URL based on time slot
+  const currentBgUrl = zone ? (zone as any)[TIME_SLOTS.find(t => t.key === activeTimeSlot)?.bgField || 'bg_image_day'] : '';
 
   // Drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent, obj: SceneObject, mode: 'move' | 'resize') => {
@@ -168,11 +185,11 @@ export default function YardSceneEditor() {
 
   // Save
   const handleSave = async () => {
-    if (!scene) return;
+    if (!zone) return;
     setSaving(true);
     setError('');
     try {
-      await client.put(`/admin/yard-scenes/${scene.id}/objects`, { objects });
+      await client.put(`/admin/zones/${zone.id}/objects`, { objects });
       alert('保存成功！庭院配置已更新。');
     } catch (e: any) {
       setError(e.response?.data?.error || e.message);
@@ -183,10 +200,10 @@ export default function YardSceneEditor() {
 
   // Add object
   const handleAdd = async (type: string) => {
-    if (!scene) return;
+    if (!zone) return;
     const ot = OBJ_TYPES.find(t => t.value === type)!;
     try {
-      const res = await client.post(`/admin/yard-scenes/${scene.id}/objects`, {
+      const res = await client.post(`/admin/zones/${zone.id}/objects`, {
         label: ot.label,
         object_type: type,
         layer: type === 'tree' ? 1 : 1,
@@ -194,7 +211,7 @@ export default function YardSceneEditor() {
         pos_y: 0.6,
         width: 0.08,
         height: 0.1,
-        collidable: type !== 'decoration',
+        collidable: type !== 'decoration' && type !== 'lamp',
       });
       if (res.data?.object) {
         setObjects(prev => [...prev, res.data.object]);
@@ -207,10 +224,10 @@ export default function YardSceneEditor() {
 
   // Delete object
   const handleDelete = async () => {
-    if (!selectedId || !scene) return;
+    if (!selectedId || !zone) return;
     if (!confirm('确定删除此物体？')) return;
     try {
-      await client.delete(`/admin/yard-scenes/${scene.id}/objects/${selectedId}`);
+      await client.delete(`/admin/zones/${zone.id}/objects/${selectedId}`);
       setObjects(prev => prev.filter(o => o.id !== selectedId));
       setSelectedId(null);
     } catch (e: any) {
@@ -218,7 +235,33 @@ export default function YardSceneEditor() {
     }
   };
 
-  // Update object field
+  // Upload object image (with time-slot variant support)
+  const uploadObjImage = async (objectId: number, timeSlot: string | null, file: File) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const image_data = ev.target?.result as string;
+        const res = await client.post('/admin/zones/upload-obj-image', {
+          object_id: objectId,
+          time_slot: timeSlot,
+          image_data,
+        });
+        if (res.data?.url) {
+          if (timeSlot === 'dawn') {
+            updateField('image_url_dawn', res.data.url);
+          } else if (timeSlot === 'night') {
+            updateField('image_url_night', res.data.url);
+          } else {
+            updateField('image_url', res.data.url);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError('上传失败');
+    }
+  };
+
   const updateField = (field: string, value: any) => {
     setObjects(prev => prev.map(o => o.id === selectedId ? { ...o, [field]: value } : o));
   };
@@ -229,10 +272,29 @@ export default function YardSceneEditor() {
     <div className="flex h-full gap-4">
       {/* Left: Canvas Editor */}
       <div className="flex-1 flex flex-col">
-        <div className="flex items-center gap-3 mb-3">
-          <h2 className="text-lg font-semibold text-white">🗺️ 庭院地图编辑器</h2>
-          <span className="text-xs text-gray-500">{scene?.name}</span>
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <button onClick={() => navigate('/admin/zones')}
+            className="px-2 py-1 text-xs rounded bg-white/5 hover:bg-white/10 text-gray-400">
+            ← 返回区域管理
+          </button>
+          <h2 className="text-lg font-semibold text-white">🗺️ 庭院编辑器</h2>
+          <span className="text-xs text-gray-500">{zone?.zone_name} ({currentZoneKey})</span>
+
           <div className="flex-1" />
+
+          {/* Time-slot tabs */}
+          <div className="flex gap-1 bg-white/5 rounded-lg p-0.5">
+            {TIME_SLOTS.map(slot => (
+              <button key={slot.key} onClick={() => setActiveTimeSlot(slot.key as any)}
+                className={`px-2.5 py-1 text-xs rounded transition ${
+                  activeTimeSlot === slot.key ? 'bg-purple-500/30 text-purple-200' : 'text-gray-400 hover:text-white'}`}>
+                {slot.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex-1" />
+
           {OBJ_TYPES.map(t => (
             <button key={t.value} onClick={() => handleAdd(t.value)}
               className="px-2 py-1 text-xs rounded bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10">
@@ -256,25 +318,25 @@ export default function YardSceneEditor() {
           onMouseLeave={handleMouseUp}
           onClick={() => !dragState && setSelectedId(null)}
         >
-          {/* Background image */}
-          {scene?.bg_image_url && (
+          {/* Background image (time-slot aware) */}
+          {currentBgUrl && (
             <img
-              src={scene.bg_image_url}
-              alt="yard-bg"
+              src={currentBgUrl}
+              alt={`yard-bg-${activeTimeSlot}`}
               className="absolute inset-0 w-full h-full object-contain pointer-events-none"
               draggable={false}
             />
           )}
 
           {/* Walk bounds indicator */}
-          {scene?.walk_bounds && (
+          {zone?.walk_bounds && (
             <div
               className="absolute border-2 border-dashed border-blue-400/30 pointer-events-none"
               style={{
-                left: `${scene.walk_bounds.xMin * 100}%`,
-                top: `${scene.walk_bounds.yMin * 100}%`,
-                width: `${(scene.walk_bounds.xMax - scene.walk_bounds.xMin) * 100}%`,
-                height: `${(scene.walk_bounds.yMax - scene.walk_bounds.yMin) * 100}%`,
+                left: `${zone.walk_bounds.xMin * 100}%`,
+                top: `${zone.walk_bounds.yMin * 100}%`,
+                width: `${(zone.walk_bounds.xMax - zone.walk_bounds.xMin) * 100}%`,
+                height: `${(zone.walk_bounds.yMax - zone.walk_bounds.yMin) * 100}%`,
               }}
             />
           )}
@@ -286,6 +348,11 @@ export default function YardSceneEditor() {
             const ot = OBJ_TYPES.find(t => t.value === obj.object_type);
             const imgSize = imgSizes.current.get(obj.id);
             const style = computeAspectFitStyle(obj, imgSize?.w, imgSize?.h);
+
+            // Choose image based on time slot
+            let displayImage = obj.image_url;
+            if (activeTimeSlot === 'dawn' && obj.image_url_dawn) displayImage = obj.image_url_dawn;
+            if (activeTimeSlot === 'night' && obj.image_url_night) displayImage = obj.image_url_night;
 
             return (
               <div
@@ -305,10 +372,10 @@ export default function YardSceneEditor() {
                 onMouseDown={e => handleMouseDown(e, obj, 'move')}
                 onClick={e => { e.stopPropagation(); setSelectedId(obj.id); }}
               >
-                {/* Actual image with aspect-fit */}
-                {obj.image_url && (
+                {/* Actual image */}
+                {displayImage && (
                   <img
-                    src={obj.image_url}
+                    src={displayImage}
                     alt={obj.label}
                     className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                     draggable={false}
@@ -316,7 +383,6 @@ export default function YardSceneEditor() {
                       const img = e.currentTarget;
                       if (img.naturalWidth && img.naturalHeight) {
                         imgSizes.current.set(obj.id, { w: img.naturalWidth, h: img.naturalHeight });
-                        // Force re-render after natural dimensions are known
                         setObjects(prev => [...prev]);
                       }
                     }}
@@ -329,7 +395,7 @@ export default function YardSceneEditor() {
                 </div>
 
                 {/* Type icon (only if no image) */}
-                {!obj.image_url && (
+                {!displayImage && (
                   <div className="absolute inset-0 flex items-center justify-center text-lg opacity-50 pointer-events-none">
                     {ot?.icon || '?'}
                   </div>
@@ -338,80 +404,81 @@ export default function YardSceneEditor() {
                 {/* Resize handle */}
                 {isSelected && (
                   <div
-                    className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 cursor-se-resize"
+                    className="absolute -right-1 -bottom-1 w-4 h-4 bg-blue-500 rounded-sm cursor-se-resize z-10"
                     onMouseDown={e => handleMouseDown(e, obj, 'resize')}
                   />
+                )}
+
+                {/* Time-slot variant indicator */}
+                {(obj.image_url_dawn || obj.image_url_night) && (
+                  <div className="absolute -top-1 -right-1 flex gap-0.5 pointer-events-none">
+                    {obj.image_url_dawn && <span className="text-[8px] leading-none">🌅</span>}
+                    {obj.image_url_night && <span className="text-[8px] leading-none">🌙</span>}
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
-
-        <div className="mt-2 text-xs text-gray-500">
-          💡 拖拽移动物体 · 右下角蓝色方块调整大小 · 虚线蓝框=可走区域 · 红色区域=碰撞区域
-        </div>
       </div>
 
       {/* Right: Property Panel */}
-      <div className="w-72 flex flex-col bg-white/5 rounded-lg border border-white/10 overflow-y-auto">
-        <div className="p-3 border-b border-white/10">
-          <h3 className="text-sm font-medium text-white">属性面板</h3>
-        </div>
-
+      <div className="w-72 flex flex-col border-l border-white/10 bg-slate-900/50">
         {selectedObj ? (
-          <div className="p-3 space-y-3 text-sm">
+          <div className="p-3 space-y-3 overflow-y-auto flex-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">属性</h3>
+              <span className="text-[10px] text-gray-600">ID: {selectedObj.id}</span>
+            </div>
+
             <div>
-              <label className="block text-xs text-gray-400 mb-1">名称</label>
+              <label className="text-xs text-gray-400">标签</label>
               <input type="text" value={selectedObj.label}
                 onChange={e => updateField('label', e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm" />
             </div>
 
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">类型</label>
-              <select value={selectedObj.object_type}
-                onChange={e => updateField('object_type', e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm">
-                {OBJ_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">图层</label>
-              <select value={selectedObj.layer}
-                onChange={e => updateField('layer', Number(e.target.value))}
-                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm">
-                <option value={0}>{LAYER_LABELS[0]}</option>
-                <option value={1}>{LAYER_LABELS[1]}</option>
-                <option value={2}>{LAYER_LABELS[2]}</option>
-              </select>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-gray-400">类型</label>
+                <select value={selectedObj.object_type}
+                  onChange={e => updateField('object_type', e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm">
+                  {OBJ_TYPES.map(t => <option key={t.value} value={t.value} className="bg-slate-800">{t.label}</option>)}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-gray-400">图层</label>
+                <select value={selectedObj.layer}
+                  onChange={e => updateField('layer', Number(e.target.value))}
+                  className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm">
+                  {Object.entries(LAYER_LABELS).map(([k, v]) => <option key={k} value={k} className="bg-slate-800">{v}</option>)}
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">X位置</label>
-                <input type="number" step="0.01" value={selectedObj.pos_x.toFixed(2)}
+                <label className="text-xs text-gray-400">X位置</label>
+                <input type="number" step="0.01" value={selectedObj.pos_x}
                   onChange={e => updateField('pos_x', Number(e.target.value))}
                   className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Y位置</label>
-                <input type="number" step="0.01" value={selectedObj.pos_y.toFixed(2)}
+                <label className="text-xs text-gray-400">Y位置</label>
+                <input type="number" step="0.01" value={selectedObj.pos_y}
                   onChange={e => updateField('pos_y', Number(e.target.value))}
                   className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm" />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">宽度</label>
-                <input type="number" step="0.01" value={selectedObj.width.toFixed(2)}
+                <label className="text-xs text-gray-400">宽度</label>
+                <input type="number" step="0.01" value={selectedObj.width}
                   onChange={e => updateField('width', Number(e.target.value))}
                   className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">高度</label>
-                <input type="number" step="0.01" value={selectedObj.height.toFixed(2)}
+                <label className="text-xs text-gray-400">高度</label>
+                <input type="number" step="0.01" value={selectedObj.height}
                   onChange={e => updateField('height', Number(e.target.value))}
                   className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm" />
               </div>
@@ -421,54 +488,83 @@ export default function YardSceneEditor() {
               <input type="checkbox" checked={selectedObj.collidable}
                 onChange={e => updateField('collidable', e.target.checked)}
                 className="rounded" />
-              <label className="text-xs text-gray-300">🔒 碰撞区域（宠物不可穿过）</label>
+              <label className="text-xs text-gray-300">🔒 碰撞区域</label>
+            </div>
+
+            {/* ── Time-slot variant images ── */}
+            <div className="border-t border-white/10 pt-3 space-y-3">
+              <div className="text-xs font-semibold text-amber-300">🌅 时段变体图</div>
+              <p className="text-[10px] text-gray-500">可选：为灯具等发光物体上传不同时段的图片变体</p>
+
+              {/* Day (default) image */}
+              <div>
+                <label className="text-xs text-gray-400">☀️ 白天图片 (默认)</label>
+                <div className="flex items-center gap-2 mt-1">
+                  {selectedObj.image_url && <img src={selectedObj.image_url} alt="" className="h-8 w-8 rounded object-contain bg-black/30" />}
+                  <div className="flex-1">
+                    <input type="text" value={selectedObj.image_url}
+                      onChange={e => updateField('image_url', e.target.value)}
+                      placeholder="/epet/tree.png"
+                      className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs" />
+                  </div>
+                </div>
+                <input type="file" accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadObjImage(selectedObj.id, null, file);
+                    e.target.value = '';
+                  }}
+                  className="w-full mt-1 text-xs text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-600/30 file:text-blue-300" />
+              </div>
+
+              {/* Dawn variant */}
+              <div>
+                <label className="text-xs text-gray-400">🌅 清晨变体</label>
+                <div className="flex items-center gap-2 mt-1">
+                  {selectedObj.image_url_dawn && <img src={selectedObj.image_url_dawn} alt="" className="h-8 w-8 rounded object-contain bg-black/30" />}
+                  <div className="flex-1">
+                    <input type="text" value={selectedObj.image_url_dawn || ''}
+                      onChange={e => updateField('image_url_dawn', e.target.value)}
+                      placeholder="留空=使用默认图"
+                      className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs" />
+                  </div>
+                </div>
+                <input type="file" accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadObjImage(selectedObj.id, 'dawn', file);
+                    e.target.value = '';
+                  }}
+                  className="w-full mt-1 text-xs text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-amber-600/30 file:text-amber-300" />
+              </div>
+
+              {/* Night variant */}
+              <div>
+                <label className="text-xs text-gray-400">🌙 夜晚变体</label>
+                <div className="flex items-center gap-2 mt-1">
+                  {selectedObj.image_url_night && <img src={selectedObj.image_url_night} alt="" className="h-8 w-8 rounded object-contain bg-black/30" />}
+                  <div className="flex-1">
+                    <input type="text" value={selectedObj.image_url_night || ''}
+                      onChange={e => updateField('image_url_night', e.target.value)}
+                      placeholder="留空=使用默认图"
+                      className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs" />
+                  </div>
+                </div>
+                <input type="file" accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadObjImage(selectedObj.id, 'night', file);
+                    e.target.value = '';
+                  }}
+                  className="w-full mt-1 text-xs text-gray-400 file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-indigo-600/30 file:text-indigo-300" />
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs text-gray-400 mb-1">图片URL</label>
-              <input type="text" value={selectedObj.image_url}
-                onChange={e => updateField('image_url', e.target.value)}
-                placeholder="/epet/tree.png"
-                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm" />
-              <p className="text-[10px] text-gray-500 mt-1">留空=纯碰撞区/占位</p>
-            </div>
-
-            {/* Upload image */}
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">上传素材图片</label>
-              <input type="file" accept="image/*"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file || !scene) return;
-                  e.target.value = '';
-                  try {
-                    const reader = new FileReader();
-                    reader.onload = async (ev) => {
-                      const image_data = ev.target?.result as string;
-                      const res = await client.post('/admin/yard-scenes/upload-image', {
-                        scene_id: scene.id,
-                        object_id: selectedObj.id,
-                        image_data,
-                      });
-                      if (res.data?.url) {
-                        updateField('image_url', res.data.url);
-                      }
-                    };
-                    reader.readAsDataURL(file);
-                  } catch (err) {
-                    setError('上传失败');
-                  }
-                }}
-                className="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-blue-600/30 file:text-blue-300 hover:file:bg-blue-600/50" />
-              <p className="text-[10px] text-gray-500 mt-1">支持 PNG/JPG/WebP，自动保存到服务器</p>
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">排序优先级</label>
+              <label className="text-xs text-gray-400">排序优先级</label>
               <input type="number" value={selectedObj.sort_priority}
                 onChange={e => updateField('sort_priority', Number(e.target.value))}
                 className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-sm" />
-              <p className="text-[10px] text-gray-500 mt-1">同图层内，数值大的绘制在上层</p>
             </div>
 
             <button onClick={handleDelete}
@@ -483,9 +579,9 @@ export default function YardSceneEditor() {
         )}
 
         {/* Object list */}
-        <div className="border-t border-white/10 p-3 flex-1">
+        <div className="border-t border-white/10 p-3 flex-1 max-h-64 overflow-y-auto">
           <h4 className="text-xs text-gray-400 mb-2">物体列表 ({objects.length})</h4>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
+          <div className="space-y-1">
             {objects.map(obj => {
               const ot = OBJ_TYPES.find(t => t.value === obj.object_type);
               return (
@@ -497,6 +593,7 @@ export default function YardSceneEditor() {
                   <span>{ot?.icon}</span>
                   <span className="flex-1 truncate">{obj.label}</span>
                   {obj.collidable && <span className="text-red-400">🔒</span>}
+                  {(obj.image_url_dawn || obj.image_url_night) && <span className="text-amber-400">⏰</span>}
                   <span className="text-gray-600">L{obj.layer}</span>
                 </div>
               );

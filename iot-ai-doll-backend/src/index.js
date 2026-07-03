@@ -29,6 +29,8 @@ import adminPetBehaviorsRoutes from './routes/admin-pet-behaviors.js';
 import adminExecRoutes from './routes/admin-exec.js';
 import match3AdminRoutes from './routes/admin-match3.js';
 import epetCookingRoutes from './routes/epet-cooking.js';
+import adminZonesRoutes from './routes/admin-zones.js';
+import adminIconsRoutes from './routes/admin-icons.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -73,6 +75,8 @@ app.use('/api/admin/pets', adminPetsRoutes);
 app.use('/api/admin/rag-kbs', adminRagRoutes);
 app.use('/api/admin/models', adminModelsRoutes);
 app.use('/api/admin/yard-scenes', adminYardScenesRoutes);
+app.use('/api/admin/zones', adminZonesRoutes);
+app.use('/api/admin/icons', adminIconsRoutes);
 app.use('/api/admin/intro-videos', adminIntroVideosRoutes);
 app.use('/api/admin/pet-behaviors', adminPetBehaviorsRoutes);
 app.use('/api/epet1/intro-video', adminIntroVideosRoutes);
