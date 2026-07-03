@@ -1,6 +1,7 @@
 import { Application, Container, Sprite, Assets, Text, Graphics, Texture } from 'pixi.js';
 import { PetEntity, type ScheduledBehavior } from '../entities/Pet';
 import { collisionMap, type SceneObjectData, computeCollisionBounds } from './CollisionMap';
+import { useGameStore } from './GameState';
 
 // Default walk bounds for PORTRAIT mode (overridden by API scene config)
 // Large range — let scene objects (colliders) limit walking, not hard bounds
@@ -502,6 +503,18 @@ export class Game {
       if (furniture.length > 0) {
         await this._renderFurniture(furniture);
         console.log(`✅ ${furniture.length} user furniture rendered & collision added`);
+      }
+
+      // Store icons in game state for HUD
+      if (data.icons && data.icons.length > 0) {
+        const iconMap: Record<string, any> = {};
+        for (const icon of data.icons) {
+          if (icon.image_url) {
+            iconMap[icon.icon_key] = icon;
+          }
+        }
+        useGameStore.getState().setIcons(iconMap);
+        console.log(`✅ ${Object.keys(iconMap).length} icons loaded`);
       }
     } catch (e) {
       console.warn('Scene config load failed, using defaults:', e);

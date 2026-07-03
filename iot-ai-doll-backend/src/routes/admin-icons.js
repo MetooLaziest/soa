@@ -146,6 +146,10 @@ router.post('/init-defaults', async (_req, res) => {
       { icon_key: 'icon-day', label: '白天', emoji: '☀️' },
       { icon_key: 'icon-night', label: '夜晚', emoji: '🌙' },
       { icon_key: 'icon-map', label: '区域导航', emoji: '🗺️' },
+      { icon_key: 'icon-postcard', label: '明信片', emoji: '✉️' },
+      { icon_key: 'icon-miniprogram', label: '小程序', emoji: '📱' },
+      { icon_key: 'icon-smarthome', label: '智能家居', emoji: '🏠' },
+      { icon_key: 'icon-buy', label: '购买新产品', emoji: '🛍️' },
     ];
 
     let created = 0;

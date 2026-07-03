@@ -159,7 +159,7 @@ router.post('/:zoneDbId/objects', async (req, res) => {
       `INSERT INTO yard_scene_objects (scene_id, zone_id, label, object_type, layer, pos_x, pos_y, width, height,
         image_url, image_url_dawn, image_url_night, collidable, sort_priority)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-      [0, zone.zone_key, label || '新物体', object_type || 'decoration', layer ?? 1,
+      [1, zone.zone_key, label || '新物体', object_type || 'decoration', layer ?? 1,
        pos_x ?? 0.5, pos_y ?? 0.5, width ?? 0.08, height ?? 0.1,
        image_url || '', image_url_dawn || '', image_url_night || '',
        collidable ?? false, sort_priority ?? 0]

@@ -102,11 +102,23 @@ module.exports = (pool) => {
 
       // For backward compatibility: if only one zone, also return top-level scene/objects
       const singleZone = zones.length === 1 ? zones[0] : null;
+
+      // Fetch icon assets for HUD
+      let iconsList = [];
+      try {
+        const iconRes = await pool.query(
+          'SELECT icon_key, image_url, label, width, height FROM epet_icons WHERE image_url IS NOT NULL AND image_url != \'\' ORDER BY icon_key'
+        );
+        iconsList = iconRes.rows;
+      } catch (_) { /* icons table may not exist yet */ }
+
       res.json({
         success: true,
         // New format
         zones,
         furniture,
+        // Icon assets for HUD
+        icons: iconsList,
         // Legacy format (backward compat for existing Game.ts)
         scene: singleZone ? {
           id: 0,

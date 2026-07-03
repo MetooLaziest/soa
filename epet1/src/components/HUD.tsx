@@ -3,6 +3,30 @@ import { useGameStore } from '../game/GameState';
 import { fetchVisiblePets, toggleVisibility, transformMonsterItem } from '../api/epet';
 import type { Pet } from '../api/epet';
 
+/** Get icon: uses uploaded image if available, otherwise falls back to emoji */
+function useIcon(iconKey: string, fallbackEmoji: string): string | React.ReactNode {
+  const icons = useGameStore(s => s.icons);
+  const icon = icons[iconKey];
+  if (icon?.image_url) {
+    const base = `${window.location.protocol}//${window.location.host}`;
+    const url = icon.image_url.startsWith('/') ? `${base}${icon.image_url}` : icon.image_url;
+    return url;
+  }
+  return fallbackEmoji;
+}
+
+/** Render an icon: image if available, otherwise emoji text */
+function IconOrEmoji({ iconKey, fallback }: { iconKey: string; fallback: string }) {
+  const icons = useGameStore(s => s.icons);
+  const icon = icons[iconKey];
+  if (icon?.image_url) {
+    const base = `${window.location.protocol}//${window.location.host}`;
+    const url = icon.image_url.startsWith('/') ? `${base}${icon.image_url}` : icon.image_url;
+    return <img src={url} alt={icon.label || iconKey} className="bottom-bar-icon-img" />;
+  }
+  return <span className="bottom-bar-icon">{fallback}</span>;
+}
+
 export function HUD() {
   const { setVisiblePets } = useGameStore();
   const [showCollection, setShowCollection] = useState(false);
@@ -105,21 +129,21 @@ export function HUD() {
 
       {/* 底部 4 按钮栏 */}
       <div className="bottom-bar">
-        <button className="bottom-btn" onClick={() => alert('功能开发中')}>
-          <span className="bottom-btn-icon">📱</span>
-          <span className="bottom-btn-label">打开小程序</span>
+        <button className="bottom-bar-btn" onClick={() => alert('功能开发中')}>
+          <IconOrEmoji iconKey="icon-miniprogram" fallback="📱" />
+          <span className="bottom-bar-label">打开小程序</span>
         </button>
-        <button className="bottom-btn" onClick={() => alert('功能开发中')}>
-          <span className="bottom-btn-icon">🏠</span>
-          <span className="bottom-btn-label">绑定智能家居</span>
+        <button className="bottom-bar-btn" onClick={() => alert('功能开发中')}>
+          <IconOrEmoji iconKey="icon-smarthome" fallback="🏠" />
+          <span className="bottom-bar-label">绑定智能家居</span>
         </button>
-        <button className="bottom-btn" onClick={() => alert('功能开发中')}>
-          <span className="bottom-btn-icon">✉️</span>
-          <span className="bottom-btn-label">旅行明信片</span>
+        <button className="bottom-bar-btn" onClick={() => alert('功能开发中')}>
+          <IconOrEmoji iconKey="icon-postcard" fallback="✉️" />
+          <span className="bottom-bar-label">旅行明信片</span>
         </button>
-        <button className="bottom-btn" onClick={() => alert('功能开发中')}>
-          <span className="bottom-btn-icon">🛍️</span>
-          <span className="bottom-btn-label">购买新产品</span>
+        <button className="bottom-bar-btn" onClick={() => alert('功能开发中')}>
+          <IconOrEmoji iconKey="icon-buy" fallback="🛍️" />
+          <span className="bottom-bar-label">购买新产品</span>
         </button>
       </div>
 

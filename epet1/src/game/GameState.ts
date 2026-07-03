@@ -11,6 +11,12 @@ export interface VisiblePet extends Pet {
   animClass: string;
 }
 
+export interface IconAsset {
+  icon_key: string;
+  label: string;
+  image_url: string;
+}
+
 interface GameStore {
   visiblePets: VisiblePet[];
   allPets: Pet[];
@@ -20,6 +26,7 @@ interface GameStore {
   lastPettedAt: Record<string, number>;
   travelingPetId: string | null;
   travelEndTime: number | null;
+  icons: Record<string, IconAsset>;
 
   setVisiblePets: (pets: VisiblePet[]) => void;
   setAllPets: (pets: Pet[]) => void;
@@ -30,6 +37,7 @@ interface GameStore {
   startTravel: (petId: string, durationMs: number) => void;
   endTravel: () => void;
   refreshPet: (updatedPet: Pet) => void;
+  setIcons: (icons: Record<string, IconAsset>) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -41,6 +49,7 @@ export const useGameStore = create<GameStore>((set) => ({
   lastPettedAt: {},
   travelingPetId: null,
   travelEndTime: null,
+  icons: {},
 
   setVisiblePets: (pets) => set({ visiblePets: pets }),
   setAllPets: (pets) => set({ allPets: pets }),
@@ -68,4 +77,5 @@ export const useGameStore = create<GameStore>((set) => ({
         p.petId === updatedPet.petId ? updatedPet : p
       ),
     })),
+  setIcons: (icons) => set({ icons }),
 }));

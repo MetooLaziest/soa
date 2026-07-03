@@ -20,6 +20,10 @@ const DEFAULT_ICONS = [
   { icon_key: 'icon-day', label: '白天' },
   { icon_key: 'icon-night', label: '夜晚' },
   { icon_key: 'icon-map', label: '区域导航' },
+  { icon_key: 'icon-postcard', label: '明信片' },
+  { icon_key: 'icon-miniprogram', label: '小程序' },
+  { icon_key: 'icon-smarthome', label: '智能家居' },
+  { icon_key: 'icon-buy', label: '购买新产品' },
 ];
 
 interface IconItem {
