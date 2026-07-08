@@ -18,6 +18,14 @@ const RARITY_BG: Record<string, string> = {
   legendary: 'bg-yellow-500/20 border-yellow-500/30',
 };
 
+const ITEM_CATEGORIES: Record<string, string> = {
+  food: '🥘 食材',
+  decoration: '✨ 装扮',
+  toy: '🎨 潮玩',
+  dish: '🍽️ 料理',
+  furniture: '🪑 家具',
+};
+
 interface FishItem {
   id: number;
   name: string;
@@ -29,6 +37,11 @@ interface FishItem {
   weight: number;
   sort_order: number;
   is_active: boolean;
+  item_category: string;
+  shop_item_id: number | null;
+  shop_item_name?: string;
+  shop_item_category?: string;
+  shop_item_active?: boolean;
 }
 
 interface FishingMap {
@@ -56,6 +69,7 @@ export default function FishingAdmin() {
   const [formWeight, setFormWeight] = useState(10);
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [formImageUrl, setFormImageUrl] = useState('');
+  const [formItemCategory, setFormItemCategory] = useState('food');
   const [uploadingImg, setUploadingImg] = useState(false);
 
   const uploadImage = async (file: File) => {
@@ -96,7 +110,7 @@ export default function FishingAdmin() {
   const resetForm = () => {
     setFormName(''); setFormRarity('common'); setFormDesc('');
     setFormMapId(maps[0]?.id || 0); setFormWeight(10); setFormSortOrder(0);
-    setFormImageUrl(''); setEditing(null); setShowForm(false);
+    setFormImageUrl(''); setFormItemCategory('food'); setEditing(null); setShowForm(false);
   };
 
   const openEdit = (item: FishItem | FishingMap) => {
@@ -109,6 +123,7 @@ export default function FishingAdmin() {
       setFormRarity(item.rarity);
       setFormMapId(item.fishing_map_id);
       setFormWeight(item.weight);
+      setFormItemCategory(item.item_category || item.shop_item_category || 'food');
     }
     setShowForm(true);
   };
@@ -121,12 +136,14 @@ export default function FishingAdmin() {
           name: formName, rarity: formRarity, description: formDesc,
           image_url: formImageUrl, fishing_map_id: formMapId,
           weight: formWeight, sort_order: formSortOrder,
+          item_category: formItemCategory,
         });
       } else {
         await client.post('/epet1/fishing/admin/fish', {
           name: formName, rarity: formRarity, description: formDesc,
           image_url: formImageUrl, fishing_map_id: formMapId || maps[0]?.id,
           weight: formWeight, sort_order: formSortOrder,
+          item_category: formItemCategory,
         });
       }
       resetForm();
@@ -220,6 +237,9 @@ export default function FishingAdmin() {
                   </div>
                   <div className="text-xs text-gray-500">
                     地图: {f.map_name || '无'} · 权重: {f.weight} · 排序: {f.sort_order}
+                    {' · '}
+                    <span className="text-cyan-400">{ITEM_CATEGORIES[f.item_category || f.shop_item_category || 'food'] || f.item_category}</span>
+                    {f.shop_item_id ? <span className="text-green-500"> ✓关联</span> : <span className="text-red-400"> ✗未关联</span>}
                     {!f.is_active && ' · ❌ 已停用'}
                   </div>
                   {f.description && <div className="text-xs text-gray-600 mt-1">{f.description}</div>}
@@ -288,6 +308,16 @@ export default function FishingAdmin() {
                       <option value="epic" className="bg-slate-800">史诗</option>
                       <option value="legendary" className="bg-slate-800">传说</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400">物品类别（钓鱼产出类型）</label>
+                    <select value={formItemCategory} onChange={e => setFormItemCategory(e.target.value)}
+                      className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none">
+                      {Object.entries(ITEM_CATEGORIES).map(([key, label]) => (
+                        <option key={key} value={key} className="bg-slate-800">{label}</option>
+                      ))}
+                    </select>
+                    <div className="mt-1 text-xs text-gray-600">决定钓到后放入背包的物品类别，影响烹饪等系统的识别</div>
                   </div>
                   <div>
                     <label className="text-xs text-gray-400">所属地图</label>
