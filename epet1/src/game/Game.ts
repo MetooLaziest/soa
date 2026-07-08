@@ -5,7 +5,7 @@ import { useGameStore } from './GameState';
 
 // Default walk bounds for PORTRAIT mode (overridden by API scene config)
 // Large range — let scene objects (colliders) limit walking, not hard bounds
-let walkBounds = { xMin: 0.05, xMax: 0.95, yMin: 0.15, yMax: 0.92 };
+let walkBounds = { xMin: 0.02, xMax: 0.98, yMin: 0.02, yMax: 0.98 };
 
 /** Pet size multiplier: 1.21 = 10% + 10% bigger than original */
 const PET_SIZE_MULT = 1.21;

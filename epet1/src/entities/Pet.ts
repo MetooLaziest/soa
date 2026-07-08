@@ -70,7 +70,7 @@ export class PetEntity {
     this.lastInteractAt = pet.lastInteractAt;
     this.totalFeeds = pet.totalFeeds;
     this.totalPets = pet.totalPets;
-    this._walkBounds = { xMin: 0.05, xMax: 0.95, yMin: 0.15, yMax: 0.92 };
+    this._walkBounds = { xMin: 0.02, xMax: 0.98, yMin: 0.02, yMax: 0.98 };
   }
 
   /** Set the walkable area as fractions of viewport (0-1) */
@@ -333,9 +333,8 @@ export class PetEntity {
       }
     }
 
-    // Scale based on y-position
-    const yNorm = (this.y - vpH * this._walkBounds.yMin) / (vpH * (this._walkBounds.yMax - this._walkBounds.yMin));
-    this.scale = 0.7 + Math.max(0, Math.min(1, yNorm)) * 0.5;
+    // 正交视角：无近大远小效果
+    this.scale = 1.0;
   }
 
   triggerShake(now: number): void {
