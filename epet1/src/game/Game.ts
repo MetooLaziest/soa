@@ -3,6 +3,12 @@ import { PetEntity, type ScheduledBehavior } from '../entities/Pet';
 import { collisionMap, type SceneObjectData, computeCollisionBounds } from './CollisionMap';
 import { useGameStore } from './GameState';
 
+/** Max texture dimension (px) — oversized textures are auto-downscaled to prevent GPU OOM crash */
+const MAX_TEX_DIM = 1024;
+
+/** Pre-loaded texture cache: url → Texture (avoids per-frame async loading during animation) */
+const _texCache = new Map<string, Texture>();
+
 // Default walk bounds for PORTRAIT mode (overridden by API scene config)
 // Large range — let scene objects (colliders) limit walking, not hard bounds
 let walkBounds = { xMin: 0.02, xMax: 0.98, yMin: 0.02, yMax: 0.98 };
@@ -286,12 +292,15 @@ export class Game {
 
     this.petEntities.set(petId, entity);
 
+    // Pre-load all animation frame textures upfront (avoid per-frame async load during walk)
+    await this._preloadAnimationTextures(entity.animations);
+
     const imgPath = entity.getImageName();
     const base = `${window.location.protocol}//${window.location.host}`;
     const url = imgPath.startsWith('/') ? `${base}${imgPath}` : imgPath;
 
     try {
-      const tex = await Assets.load(url);
+      const tex = await this._loadTextureSafe(url);
       if (!tex) return;
       const sprite = new Sprite(tex);
       sprite.anchor.set(0.5, 0.85); // anchor near feet
@@ -331,17 +340,86 @@ export class Game {
     this.petEntities.get(petId)?.triggerEating(Date.now());
   }
 
-  /** 更新宠物 sprite 的纹理（动画帧切换）*/
-  private async _updatePetTexture(petId: string, sprite: Sprite, imgPath: string): Promise<void> {
-    try {
-      const base = `${window.location.protocol}//${window.location.host}`;
-      const url = imgPath.startsWith('/') ? `${base}${imgPath}` : imgPath;
-      const tex = await Assets.load(url);
-      if (tex && sprite && !sprite.destroyed) {
-        sprite.texture = tex;
+  /** Pre-load all animation frame textures upfront to avoid per-frame async loading during walk/eat/etc */
+  private async _preloadAnimationTextures(animations: Record<string, string[]>): Promise<void> {
+    const base = `${window.location.protocol}//${window.location.host}`;
+    const allUrls: string[] = [];
+    for (const frames of Object.values(animations)) {
+      for (const path of frames) {
+        const url = path.startsWith('/') ? `${base}${path}` : path;
+        if (!_texCache.has(url)) allUrls.push(url);
       }
+    }
+    if (allUrls.length === 0) return;
+    console.log(`[Game] Pre-loading ${allUrls.length} animation textures...`);
+    const t0 = performance.now();
+    // Load sequentially to avoid GPU memory spike
+    for (const url of allUrls) {
+      try {
+        const tex = await this._loadTextureSafe(url);
+        if (tex) _texCache.set(url, tex);
+      } catch (_e) { /* skip failed */ }
+    }
+    console.log(`[Game] Animation textures pre-loaded in ${(performance.now() - t0).toFixed(0)}ms`);
+  }
+
+  /** Load a texture with auto-downscale for oversized images (prevents GPU OOM) */
+  private async _loadTextureSafe(url: string): Promise<Texture | null> {
+    // Check cache first
+    if (_texCache.has(url)) return _texCache.get(url)!;
+
+    try {
+      // Fetch image as blob to check dimensions before giving to PixiJS
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+
+      const bmp = await createImageBitmap(blob);
+      const origW = bmp.width;
+      const origH = bmp.height;
+
+      if (origW <= MAX_TEX_DIM && origH <= MAX_TEX_DIM) {
+        // Within limit — load normally via PixiJS Assets
+        bmp.close();
+        const tex = await Assets.load(url);
+        return tex;
+      }
+
+      // Oversized — downscale using canvas
+      const scale = MAX_TEX_DIM / Math.max(origW, origH);
+      const newW = Math.round(origW * scale);
+      const newH = Math.round(origH * scale);
+      console.warn(`⚠️ Oversized texture ${origW}x${origH} → downscale to ${newW}x${newH}: ${url.split('/').pop()}`);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = newW;
+      canvas.height = newH;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(bmp, 0, 0, newW, newH);
+      bmp.close();
+
+      const tex = Texture.from(canvas);
+      return tex;
     } catch (e) {
-      // texture load failed, keep old
+      console.warn('Texture load failed:', url, e);
+      return null;
+    }
+  }
+
+  /** 更新宠物 sprite 的纹理（动画帧切换 — uses pre-loaded cache）*/
+  private _updatePetTexture(petId: string, sprite: Sprite, imgPath: string): void {
+    const base = `${window.location.protocol}//${window.location.host}`;
+    const url = imgPath.startsWith('/') ? `${base}${imgPath}` : imgPath;
+    const tex = _texCache.get(url);
+    if (tex && sprite && !sprite.destroyed) {
+      sprite.texture = tex;
+    } else if (!tex) {
+      // Fallback: load async (shouldn't happen if pre-load worked, but safe)
+      this._loadTextureSafe(url).then(t => {
+        if (t && sprite && !sprite.destroyed) {
+          _texCache.set(url, t);
+          sprite.texture = t;
+        }
+      });
     }
   }
 
