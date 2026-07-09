@@ -65,9 +65,9 @@ export class Game {
   private _emotionDropSprites = new Map<number, Container>(); // drop id → sprite container
   private _emotionDropIconUrl: string | null = null; // icon from epet_icons
   private _petShadows = new Map<string, Graphics>(); // petId → shadow ellipse
-  // Simulated light: upper-left at 315° (northwest)
+  // Light config: will be set from API scene.current_light
   private _lightAngle = 315 * Math.PI / 180;
-  private _shadowOffset = 0.4; // shadow offset as fraction of pet height
+  private _shadowOffset = 0.4;
 
   /** Set tap handler for pets */
   setCallbacks(cb: PetEventCallbacks) {
@@ -610,6 +610,15 @@ export class Game {
           ? `${window.location.protocol}//${window.location.host}${data.scene.bg_image_url}`
           : data.scene.bg_image_url;
       }
+
+      // Apply light config from API
+      if (data.scene.current_light) {
+        const cl = data.scene.current_light;
+        this._lightAngle = (cl.light_angle ?? 315) * Math.PI / 180;
+        this._shadowOffset = cl.shadow_offset ?? 0.4;
+        console.log(`✅ Light config: angle=${cl.light_angle}°, offset=${cl.shadow_offset}`);
+      }
+
       await this._loadBackground();
 
       // Load collision obstacles from scene objects
@@ -1121,6 +1130,12 @@ export class Game {
   /** Set the icon URL for emotion drops (from epet_icons) */
   setEmotionDropIcon(url: string | null): void {
     this._emotionDropIconUrl = url;
+  }
+
+  /** Update light/shadow parameters */
+  setLightConfig(lightAngle: number, shadowOffset: number): void {
+    this._lightAngle = lightAngle * Math.PI / 180;
+    this._shadowOffset = shadowOffset;
   }
 
   /** Render emotion drops on the yard */

@@ -33,8 +33,14 @@ interface Zone {
   unlock_type: string;
   unlock_value: string;
   unlock_shop_item_id: number | null;
+  light_config?: { dawn: LightSlotConfig; day: LightSlotConfig; night: LightSlotConfig };
   created_at: string;
   updated_at: string;
+}
+
+interface LightSlotConfig {
+  light_angle: number;
+  shadow_offset: number;
 }
 
 export default function ZoneManager() {
@@ -54,6 +60,11 @@ export default function ZoneManager() {
   const [fUnlockValue, setFUnlockValue] = useState('');
   const [fUnlockShopItemId, setFUnlockShopItemId] = useState<number | null>(null);
   const [fWalkBounds, setFWalkBounds] = useState({ xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 });
+  const [fLightConfig, setFLightConfig] = useState<Record<string, LightSlotConfig>>({
+    dawn: { light_angle: 30, shadow_offset: 0.5 },
+    day: { light_angle: 315, shadow_offset: 0.4 },
+    night: { light_angle: 270, shadow_offset: 0.2 },
+  });
 
   const load = async () => {
     setLoading(true);
@@ -73,6 +84,11 @@ export default function ZoneManager() {
     setFKey('0,0'); setFName(''); setFGridX(0); setFGridY(0);
     setFUnlockType('free'); setFUnlockValue(''); setFUnlockShopItemId(null);
     setFWalkBounds({ xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 });
+    setFLightConfig({
+      dawn: { light_angle: 30, shadow_offset: 0.5 },
+      day: { light_angle: 315, shadow_offset: 0.4 },
+      night: { light_angle: 270, shadow_offset: 0.2 },
+    });
     setEditing(null); setShowForm(false);
   };
 
@@ -84,6 +100,13 @@ export default function ZoneManager() {
     setFUnlockShopItemId(zone.unlock_shop_item_id);
     const wb = typeof zone.walk_bounds === 'string' ? JSON.parse(zone.walk_bounds) : zone.walk_bounds;
     setFWalkBounds(wb || { xMin: 0.05, xMax: 0.88, yMin: 0.45, yMax: 0.78 });
+    const lc = zone.light_config || {};
+    const parsedLc = typeof lc === 'string' ? JSON.parse(lc) : lc;
+    setFLightConfig({
+      dawn: parsedLc.dawn || { light_angle: 30, shadow_offset: 0.5 },
+      day: parsedLc.day || { light_angle: 315, shadow_offset: 0.4 },
+      night: parsedLc.night || { light_angle: 270, shadow_offset: 0.2 },
+    });
     setShowForm(true);
   };
 
@@ -95,6 +118,7 @@ export default function ZoneManager() {
           walk_bounds: fWalkBounds,
           unlock_type: fUnlockType, unlock_value: fUnlockValue,
           unlock_shop_item_id: fUnlockShopItemId,
+          light_config: fLightConfig,
         });
       } else {
         await client.post('/admin/zones', {
@@ -299,6 +323,61 @@ export default function ZoneManager() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Light config per time slot */}
+              <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3 space-y-3">
+                <div className="text-xs font-semibold text-yellow-300">☀️ 光源与阴影（按时段）</div>
+                <p className="text-[10px] text-gray-500">角度：0°=右 → 90°=下 ↓ 180°=左 ← 270°=上 ↑ 315°=右上 ↗（模拟左上方光源）</p>
+                {TIME_SLOTS.map(slot => {
+                  const cfg = fLightConfig[slot.key] || { light_angle: 315, shadow_offset: 0.4 };
+                  return (
+                    <div key={slot.key} className="rounded-lg border border-white/10 bg-white/5 p-2.5 space-y-2">
+                      <div className="text-xs font-medium text-white">{slot.label}</div>
+                      <div className="flex items-center gap-4">
+                        {/* Angle */}
+                        <div className="flex-1">
+                          <label className="text-[10px] text-gray-400">光源角度</label>
+                          <div className="flex items-center gap-2">
+                            <input type="range" min="0" max="360" step="5"
+                              value={cfg.light_angle}
+                              onChange={e => setFLightConfig({ ...fLightConfig, [slot.key]: { ...cfg, light_angle: Number(e.target.value) } })}
+                              className="flex-1 accent-yellow-500" />
+                            <span className="w-10 text-right text-xs text-yellow-300">{cfg.light_angle}°</span>
+                          </div>
+                        </div>
+                        {/* Offset */}
+                        <div className="w-32">
+                          <label className="text-[10px] text-gray-400">阴影偏移</label>
+                          <div className="flex items-center gap-2">
+                            <input type="range" min="0" max="1" step="0.05"
+                              value={cfg.shadow_offset}
+                              onChange={e => setFLightConfig({ ...fLightConfig, [slot.key]: { ...cfg, shadow_offset: Number(e.target.value) } })}
+                              className="flex-1 accent-yellow-500" />
+                            <span className="w-8 text-right text-xs text-yellow-300">{cfg.shadow_offset}</span>
+                          </div>
+                        </div>
+                        {/* Mini preview */}
+                        <div className="flex-shrink-0">
+                          <svg width="48" height="48" viewBox="0 0 48 48" className="rounded bg-black/30">
+                            {/* Pet dot */}
+                            <circle cx="24" cy="24" r="5" fill="white" opacity="0.8" />
+                            {/* Shadow line */}
+                            <line x1="24" y1="24"
+                              x2={24 + Math.cos(cfg.light_angle * Math.PI / 180) * 18}
+                              y2={24 + Math.sin(cfg.light_angle * Math.PI / 180) * 18}
+                              stroke="rgba(0,0,0,0.3)" strokeWidth="4" strokeLinecap="round" />
+                            {/* Light source indicator */}
+                            <circle
+                              cx={24 + Math.cos((cfg.light_angle - 180) * Math.PI / 180) * 20}
+                              cy={24 + Math.sin((cfg.light_angle - 180) * Math.PI / 180) * 20}
+                              r="3" fill="#FFD700" opacity="0.7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Unlock condition */}

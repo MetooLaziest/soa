@@ -114,6 +114,25 @@ module.exports = (pool) => {
         iconsList = iconRes.rows;
       } catch (_) { /* icons table may not exist yet */ }
 
+      // Determine time of day based on server local time
+      const hour = new Date().getHours();
+      let timeSlot = 'day';
+      if (hour >= 6 && hour < 9) timeSlot = 'dawn';
+      else if (hour >= 9 && hour < 17) timeSlot = 'day';
+      else if (hour >= 17 && hour < 20) timeSlot = 'dawn'; // dusk uses dawn bg
+      else timeSlot = 'night';
+
+      // Pick bg_image for current time slot
+      const bgKey = `bg_image_${timeSlot}`;
+      const currentBgImage = singleZone ? (singleZone[bgKey] || singleZone.bg_image_day) : null;
+
+      // Extract light config for current time slot
+      let currentLight = { light_angle: 315, shadow_offset: 0.4 };
+      if (singleZone?.light_config) {
+        const lc = typeof singleZone.light_config === 'string' ? JSON.parse(singleZone.light_config) : singleZone.light_config;
+        currentLight = lc[timeSlot] || lc.day || currentLight;
+      }
+
       res.json({
         success: true,
         // New format
@@ -121,14 +140,19 @@ module.exports = (pool) => {
         furniture,
         // Icon assets for HUD
         icons: iconsList,
+        // Current time context
+        time_slot: timeSlot,
         // Legacy format (backward compat for existing Game.ts)
         scene: singleZone ? {
           id: 0,
           name: singleZone.zone_name,
-          bg_image_url: singleZone.bg_image_day,
+          bg_image_url: currentBgImage,
           bg_image_dawn: singleZone.bg_image_dawn,
+          bg_image_day: singleZone.bg_image_day,
           bg_image_night: singleZone.bg_image_night,
           walk_bounds: singleZone.walk_bounds,
+          light_config: singleZone.light_config,
+          current_light: currentLight,
         } : null,
         objects: singleZone ? singleZone.objects : [],
       });

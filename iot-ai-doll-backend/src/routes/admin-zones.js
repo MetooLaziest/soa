@@ -85,15 +85,16 @@ router.put('/:id', async (req, res) => {
     const id = Number(req.params.id);
     const fields = ['zone_name', 'grid_x', 'grid_y', 'walk_bounds',
       'bg_image_dawn', 'bg_image_day', 'bg_image_night',
-      'is_default', 'unlock_type', 'unlock_value', 'unlock_shop_item_id'];
+      'is_default', 'unlock_type', 'unlock_value', 'unlock_shop_item_id',
+      'light_config'];
     const sets = [];
     const vals = [];
     let idx = 1;
 
     for (const f of fields) {
       if (req.body[f] !== undefined) {
-        if (f === 'walk_bounds') {
-          sets.push(`walk_bounds = $${idx++}`);
+        if (f === 'walk_bounds' || f === 'light_config') {
+          sets.push(`${f} = $${idx++}`);
           vals.push(JSON.stringify(req.body[f]));
         } else {
           sets.push(`${f} = $${idx++}`);
