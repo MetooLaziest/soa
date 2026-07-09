@@ -58,7 +58,7 @@ router.get('/admin/items', async (_req, res) => {
   try {
     const { rows } = await poolEpet1.query(
       `SELECT id, name, item_type, item_category, shop_tab, price_emotion, price_real,
-              image_url, description, stock, is_active, purchasable, yard_width, yard_height, match3_level_id, unlock_zone_id
+              image_url, description, stock, is_active, purchasable, yard_width, yard_height, match3_level_id, unlock_zone_id, emotion_bonus_pct
        FROM shop_items ORDER BY shop_tab, id`
     );
     res.json({ ok: true, items: rows });
@@ -71,16 +71,16 @@ router.get('/admin/items', async (_req, res) => {
 router.post('/admin/items', async (req, res) => {
   try {
     const { name, item_type, item_category, shop_tab, price_emotion, price_real,
-            image_url, description, stock, yard_width, yard_height, match3_level_id, unlock_zone_id } = req.body;
+            image_url, description, stock, yard_width, yard_height, match3_level_id, unlock_zone_id, emotion_bonus_pct } = req.body;
     if (!name) return res.status(400).json({ error: '缺少名称' });
     const { rows: inserted } = await poolEpet1.query(
       `INSERT INTO shop_items (name, item_type, item_category, shop_tab, price_emotion, price_real,
-        image_url, description, stock, yard_width, yard_height, match3_level_id, unlock_zone_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+        image_url, description, stock, yard_width, yard_height, match3_level_id, unlock_zone_id, emotion_bonus_pct)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
       [name, item_type || 'virtual', item_category || 'food', shop_tab || 'food',
        price_emotion || 0, price_real || 0, image_url || '', description || '', stock ?? -1,
        yard_width || 0.08, yard_height || 0.12, match3_level_id || null,
-       unlock_zone_id || null]
+       unlock_zone_id || null, emotion_bonus_pct || 0]
     );
     res.json({ ok: true, item: inserted[0] });
   } catch (err) {
@@ -93,7 +93,7 @@ router.put('/admin/items/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, item_type, item_category, shop_tab, price_emotion, price_real,
-            image_url, description, stock, is_active, purchasable, yard_width, yard_height, match3_level_id, unlock_zone_id } = req.body;
+            image_url, description, stock, is_active, purchasable, yard_width, yard_height, match3_level_id, unlock_zone_id, emotion_bonus_pct } = req.body;
     const { rows: updated } = await poolEpet1.query(
       `UPDATE shop_items SET
         name=COALESCE($1,name), item_type=COALESCE($2,item_type),
@@ -103,13 +103,15 @@ router.put('/admin/items/:id', async (req, res) => {
         stock=COALESCE($9,stock), is_active=COALESCE($10,is_active),
         purchasable=COALESCE($11,purchasable),
         yard_width=COALESCE($12,yard_width), yard_height=COALESCE($13,yard_height),
-        match3_level_id=$14, unlock_zone_id=$15
+        match3_level_id=$14, unlock_zone_id=$15,
+        emotion_bonus_pct=COALESCE($17,emotion_bonus_pct)
        WHERE id=$16 RETURNING *`,
       [name, item_type, item_category, shop_tab, price_emotion, price_real,
        image_url, description, stock, is_active, purchasable, yard_width, yard_height,
        match3_level_id === undefined ? null : (match3_level_id || null),
        unlock_zone_id === undefined ? null : (unlock_zone_id || null),
-       id]
+       id,
+       emotion_bonus_pct === undefined ? null : emotion_bonus_pct]
     );
     if (!updated.length) return res.status(404).json({ error: '商品不存在' });
     res.json({ ok: true, item: updated[0] });

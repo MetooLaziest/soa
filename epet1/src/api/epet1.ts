@@ -464,6 +464,31 @@ export async function cookDish(
   return res;
 }
 
+// ─── 情绪值掉落 ─────────────────────────────────────────────
+
+export interface EmotionDrop {
+  id: number;
+  pos_x: number;
+  pos_y: number;
+  amount: number;
+  created_at: string;
+}
+
+/** 获取庭院中未收取的情绪值掉落 */
+export async function fetchEmotionDrops(userId: number): Promise<EmotionDrop[]> {
+  const res = await get<any>(`/emotion-drops?user_id=${userId}`);
+  return res.drops || [];
+}
+
+/** 收取单个情绪值掉落 */
+export async function collectEmotionDrop(
+  userId: number,
+  dropId: number
+): Promise<{ amount: number; new_emotion_points: number }> {
+  const res = await post<any>(`/emotion-drops/${dropId}/collect`, { user_id: userId });
+  return { amount: res.amount, new_emotion_points: res.new_emotion_points };
+}
+
 // ─── 小游戏 ─────────────────────────────────────────────────
 
 /** 可玩游戏列表 */

@@ -27,6 +27,8 @@ import {
   placeFurniture,
   removeFurniture,
   fetchYardFurniture,
+  fetchEmotionDrops,
+  collectEmotionDrop,
 } from './api/epet1';
 import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture } from './api/epet1';
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
@@ -1124,6 +1126,20 @@ function HomePanel() {
   const [gameReady, setGameReady] = useState(false);
   const [furnitureLoading, setFurnitureLoading] = useState(false);
 
+  // Load emotion drops + render in game
+  const loadEmotionDrops = useCallback(async (uid: number) => {
+    try {
+      const drops = await fetchEmotionDrops(uid);
+      // Set icon URL from epet_icons if available
+      const icons = usePixiGameStore.getState().icons;
+      const dropIcon = icons['icon-emotion-drop'];
+      gameRef.current?.setEmotionDropIcon(dropIcon?.url || null);
+      gameRef.current?.renderEmotionDrops(drops);
+    } catch (e) {
+      console.error('[App] loadEmotionDrops error:', e);
+    }
+  }, []);
+
   // Init PixiJS game + sync on ready
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1157,6 +1173,9 @@ function HomePanel() {
         setGameReady(true);
         // 启动定时行为轮询（每60秒查一次）
         g.startBehaviorPolling(60000);
+        // 加载情绪值掉落
+        const uid = useGameStore.getState().userId;
+        if (uid) loadEmotionDrops(uid);
       },
       onFurniturePlaced(shopItemId, posX, posY) {
         const currentUserId = useGameStore.getState().userId;
@@ -1217,6 +1236,19 @@ function HomePanel() {
       onFurnitureCancel() {
         setPlacingFurniture(null);
       },
+      onEmotionDropCollect(dropId) {
+        const currentUserId = useGameStore.getState().userId;
+        if (!currentUserId) return;
+        collectEmotionDrop(currentUserId, dropId)
+          .then((res) => {
+            gameRef.current?.removeEmotionDrop(dropId);
+            addEmotionPoints(res.amount);
+            setToast(`💛 +${res.amount} 情绪值！`);
+          })
+          .catch((e: any) => {
+            console.error('[App] collectEmotionDrop error:', e);
+          });
+      },
     });
 
     g.init(canvas).catch(console.error);
@@ -1272,6 +1304,15 @@ function HomePanel() {
       gameRef.current.hideRemoveButtons();
     }
   }, [removingFurnitureMode, gameReady]);
+
+  // Poll emotion drops every 60s
+  useEffect(() => {
+    if (!gameReady || !userId) return;
+    const iv = setInterval(() => {
+      loadEmotionDrops(userId);
+    }, 60000);
+    return () => clearInterval(iv);
+  }, [gameReady, userId, loadEmotionDrops]);
 
   return (
     <div className="home-panel">

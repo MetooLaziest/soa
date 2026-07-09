@@ -35,6 +35,7 @@ export interface PetEventCallbacks {
   onFurniturePlaced?: (shopItemId: number, posX: number, posY: number) => void;
   onFurnitureRemove?: (furnitureId: number) => void;
   onFurnitureCancel?: () => void;
+  onEmotionDropCollect?: (dropId: number) => void;
 }
 
 export class Game {
@@ -61,6 +62,8 @@ export class Game {
   private _readyNotified = false;
   private _behaviorPollTimer: ReturnType<typeof setInterval> | null = null;
   private _lastBehaviorFrame = new Map<string, string>(); // petId → last texture URL
+  private _emotionDropSprites = new Map<number, Container>(); // drop id → sprite container
+  private _emotionDropIconUrl: string | null = null; // icon from epet_icons
 
   /** Set tap handler for pets */
   setCallbacks(cb: PetEventCallbacks) {
@@ -538,6 +541,11 @@ export class Game {
 
     // Y-sort: arrange pet sprites by foot Y so closer pets overlap farther ones
     this._ySortPets();
+
+    // Emotion drop bob animation
+    this._emotionDropSprites.forEach((container) => {
+      container.emit('tick');
+    });
   }
 
   /** Load scene configuration from API and render scene objects */
@@ -1068,6 +1076,126 @@ export class Game {
     this._readyNotified = false;
     this.petEntities.clear();
     this.petSprites.clear();
+    this._emotionDropSprites.clear();
+  }
+
+  // ─── Emotion Drops ─────────────────────────────────────
+
+  /** Set the icon URL for emotion drops (from epet_icons) */
+  setEmotionDropIcon(url: string | null): void {
+    this._emotionDropIconUrl = url;
+  }
+
+  /** Render emotion drops on the yard */
+  async renderEmotionDrops(drops: { id: number; pos_x: number; pos_y: number; amount: number }[]): Promise<void> {
+    if (!this.sortedContainer) return;
+    const { W, H } = getViewport();
+
+    // Remove stale sprites
+    for (const [id, container] of this._emotionDropSprites) {
+      if (!drops.find(d => d.id === id)) {
+        container.destroy();
+        this._emotionDropSprites.delete(id);
+      }
+    }
+
+    for (const drop of drops) {
+      if (this._emotionDropSprites.has(drop.id)) continue; // already rendered
+
+      const container = new Container();
+      container.label = `emotion-drop-${drop.id}`;
+      container.eventMode = 'static';
+      container.cursor = 'pointer';
+
+      let sprite: Container;
+      const iconSize = Math.min(W, H) * 0.07; // 7% of smaller dimension
+
+      if (this._emotionDropIconUrl) {
+        try {
+          const base = `${window.location.protocol}//${window.location.host}`;
+          const url = this._emotionDropIconUrl.startsWith('/') ? `${base}${this._emotionDropIconUrl}` : this._emotionDropIconUrl;
+          const tex = await Assets.load(url);
+          const s = new Sprite(tex);
+          s.anchor.set(0.5);
+          const scale = iconSize / Math.max(tex.width, tex.height);
+          s.scale.set(scale);
+          sprite = s;
+        } catch {
+          sprite = this._createEmotionDropPlaceholder(iconSize, drop.amount);
+        }
+      } else {
+        sprite = this._createEmotionDropPlaceholder(iconSize, drop.amount);
+      }
+
+      container.addChild(sprite);
+
+      // Amount label
+      const label = new Text({
+        text: `+${drop.amount}`,
+        style: { fontSize: Math.max(10, iconSize * 0.35), fill: 0xFFFFFF, fontWeight: 'bold', stroke: { color: 0x000000, width: 2 } },
+      });
+      label.anchor.set(0.5);
+      label.y = iconSize * 0.55;
+      container.addChild(label);
+
+      container.x = drop.pos_x * W;
+      container.y = drop.pos_y * H;
+
+      // Bob animation
+      const startY = container.y;
+      const startTime = Date.now() + Math.random() * 2000;
+      container.on('tick', () => {
+        const t = (Date.now() - startTime) / 1000;
+        container.y = startY + Math.sin(t * 2) * 3;
+      });
+
+      // Click handler
+      const dropId = drop.id;
+      container.on('pointertap', (e: any) => {
+        e.stopPropagation?.();
+        console.log(`[Game] Emotion drop collected: ${dropId}`);
+        this._callbacks.onEmotionDropCollect?.(dropId);
+      });
+
+      this.sortedContainer.addChild(container);
+      this._emotionDropSprites.set(drop.id, container);
+    }
+  }
+
+  /** Remove a single emotion drop sprite */
+  removeEmotionDrop(dropId: number): void {
+    const container = this._emotionDropSprites.get(dropId);
+    if (container) {
+      // Quick scale-down animation
+      container.scale.set(1.5);
+      container.alpha = 0;
+      setTimeout(() => {
+        container.destroy();
+      }, 100);
+      this._emotionDropSprites.delete(dropId);
+    }
+  }
+
+  /** Create a placeholder graphic for emotion drops */
+  private _createEmotionDropPlaceholder(size: number, amount: number): Container {
+    const g = new Graphics();
+    const r = size / 2;
+    // Yellow diamond shape
+    g.moveTo(0, -r);
+    g.lineTo(r * 0.7, 0);
+    g.lineTo(0, r);
+    g.lineTo(-r * 0.7, 0);
+    g.closePath();
+    g.fill({ color: 0xFFD700, alpha: 0.9 });
+    g.stroke({ color: 0xFFA500, width: 2 });
+    // Inner glow
+    g.moveTo(0, -r * 0.5);
+    g.lineTo(r * 0.35, 0);
+    g.lineTo(0, r * 0.5);
+    g.lineTo(-r * 0.35, 0);
+    g.closePath();
+    g.fill({ color: 0xFFEF44, alpha: 0.7 });
+    return g;
   }
 }
 

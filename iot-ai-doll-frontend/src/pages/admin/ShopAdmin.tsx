@@ -30,6 +30,7 @@ interface ShopItem {
   match3_level_id: number | null;
   purchasable: boolean;
   unlock_zone_id: string | null;
+  emotion_bonus_pct: number;
 }
 
 export default function ShopAdmin() {
@@ -56,6 +57,7 @@ export default function ShopAdmin() {
   const [formMatch3LevelId, setFormMatch3LevelId] = useState<number | null>(null);
   const [formPurchasable, setFormPurchasable] = useState(true);
   const [formUnlockZoneId, setFormUnlockZoneId] = useState<string | null>(null);
+  const [formEmotionBonus, setFormEmotionBonus] = useState(0);
   const [match3Levels, setMatch3Levels] = useState<{id: number; name: string; difficulty: number}[]>([]);
   const [zones, setZones] = useState<{zone_key: string; zone_name: string}[]>([]);
 
@@ -87,6 +89,7 @@ export default function ShopAdmin() {
     setFormYardWidth(0.08); setFormYardHeight(0.12); setFormMatch3LevelId(null);
     setFormPurchasable(true);
     setFormUnlockZoneId(null);
+    setFormEmotionBonus(0);
     setFormImageRatio(null);
     setEditing(null); setShowForm(false);
   };
@@ -119,6 +122,7 @@ export default function ShopAdmin() {
     setFormMatch3LevelId(item.match3_level_id || null);
     setFormPurchasable(item.purchasable !== false);
     setFormUnlockZoneId(item.unlock_zone_id || null);
+    setFormEmotionBonus(item.emotion_bonus_pct ?? 0);
     setShowForm(true);
   };
 
@@ -184,6 +188,7 @@ export default function ShopAdmin() {
           match3_level_id: formMatch3LevelId,
           purchasable: formPurchasable,
           unlock_zone_id: formUnlockZoneId,
+          emotion_bonus_pct: formEmotionBonus,
         });
       } else {
         await client.post('/epet1/shop2/admin/items', {
@@ -194,6 +199,7 @@ export default function ShopAdmin() {
           match3_level_id: formMatch3LevelId,
           purchasable: formPurchasable,
           unlock_zone_id: formUnlockZoneId,
+          emotion_bonus_pct: formEmotionBonus,
         });
       }
       resetForm(); load();
@@ -276,7 +282,7 @@ export default function ShopAdmin() {
                     {!item.is_active && ' · ❌已下架'}
                     {item.purchasable === false && ' · 🔒不可购买'}
                     {item.item_category === 'furniture' && ` · 📐${item.yard_width}×${item.yard_height}`}
-                    {item.match3_level_id && ' · 💎需通关'}
+                    {item.item_category === 'furniture' && item.emotion_bonus_pct > 0 && ` · 💛+${item.emotion_bonus_pct}%`}
                     {item.unlock_zone_id && ` · 🗺️解锁${item.unlock_zone_id}`}
                   </div>
                 </div>
@@ -433,6 +439,20 @@ export default function ShopAdmin() {
                 </select>
                 <div className="text-xs text-gray-500">购买此商品后自动解锁对应庭院区域</div>
               </div>
+
+              {/* 情绪值加成（仅家具） */}
+              {formCategory === 'furniture' && (
+                <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3 space-y-2">
+                  <div className="text-xs font-semibold text-yellow-300">💛 情绪值掉落加成</div>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="0" max="100" step="1" value={formEmotionBonus}
+                      onChange={e => setFormEmotionBonus(Number(e.target.value))}
+                      className="w-20 rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    <span className="text-xs text-gray-400">%</span>
+                  </div>
+                  <div className="text-xs text-gray-500">家具为情绪值掉落提供的加成比例，0=无加成，10=每个家具+10%</div>
+                </div>
+              )}
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={resetForm} className="rounded-lg bg-white/10 px-4 py-2 text-sm text-gray-300 hover:bg-white/20">取消</button>
