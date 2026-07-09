@@ -830,6 +830,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
   const [buying, setBuying] = useState<number | null>(null);
   const [match3Passed, setMatch3Passed] = useState<Record<number, boolean>>({});
   const [ownedFurnitureIds, setOwnedFurnitureIds] = useState<Set<number>>(new Set());
+  const [confirmItem, setConfirmItem] = useState<any>(null); // 购买确认弹窗
 
   const SHOP_TABS = [
     { id: 'food', name: '🥘 食材' },
@@ -895,11 +896,19 @@ function ShopModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    // 显示购买确认弹窗
+    setConfirmItem(item);
+  };
+
+  const confirmBuy = async () => {
+    const item = confirmItem;
+    if (!item || !userId) return;
     if (emotionPoints < item.price_emotion) {
+      setConfirmItem(null);
       alert(`情绪值不足！需要 ${item.price_emotion}，你有 ${emotionPoints}`);
       return;
     }
-    if (item.stock === 0) { alert('该商品已售罄'); return; }
+    if (item.stock === 0) { setConfirmItem(null); alert('该商品已售罄'); return; }
     setBuying(item.id);
     try {
       const res = await buyItem(userId, item.id);
@@ -907,7 +916,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
       if (item.item_category === 'furniture') {
         setOwnedFurnitureIds(prev => new Set([...prev, item.id]));
       }
-      alert(`✅ 购买成功！${item.name}`);
+      setConfirmItem(null);
     } catch (e: any) {
       alert(e.message || '购买失败');
     } finally {
@@ -1025,6 +1034,97 @@ function ShopModal({ onClose }: { onClose: () => void }) {
           </div>
         )}
       </div>
+
+      {/* 购买确认弹窗 — 遮罩 + 卡片 + 素材图标 */}
+      {confirmItem && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1100,
+          background: 'rgba(0,0,0,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }} onClick={() => setConfirmItem(null)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            position: 'relative', width: '100%', maxWidth: 320,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+          }}>
+            {/* 弹窗底卡背景 */}
+            <img src="/epet/assets/shop-dialog-bg.png" style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              objectFit: 'fill', pointerEvents: 'none', borderRadius: 20,
+            }} />
+
+            <div style={{
+              position: 'relative', width: '100%', padding: '32px 20px 24px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+            }}>
+              {/* 关闭按钮 */}
+              <button onClick={() => setConfirmItem(null)} style={{
+                position: 'absolute', top: 12, right: 12, width: 28, height: 28,
+                borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.08)',
+                fontSize: 14, cursor: 'pointer', color: '#999', lineHeight: '28px', textAlign: 'center',
+              }}>✕</button>
+
+              {/* 紫色装饰图标 */}
+              <img src="/epet/assets/shop-icon-badge.png" style={{
+                width: 56, height: 56, marginBottom: 12, objectFit: 'contain',
+              }} />
+
+              {/* 商品图片 */}
+              <div style={{
+                width: 80, height: 80, borderRadius: 12,
+                background: 'rgba(0,0,0,0.04)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                marginBottom: 12, overflow: 'hidden',
+              }}>
+                {confirmItem.image_url
+                  ? <img src={confirmItem.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  : <span style={{ fontSize: 36 }}>📦</span>}
+              </div>
+
+              {/* 商品名称 */}
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#333', marginBottom: 6, textAlign: 'center' }}>
+                {confirmItem.name}
+              </div>
+
+              {/* 商品描述 */}
+              {confirmItem.description && (
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 10, textAlign: 'center', lineHeight: 1.4 }}>
+                  {confirmItem.description}
+                </div>
+              )}
+
+              {/* 价格 */}
+              <div style={{ fontSize: 14, color: '#8B6914', fontWeight: 700, marginBottom: 20 }}>
+                💛 {confirmItem.price_emotion}
+              </div>
+
+              {/* 购买按钮 (使用素材) */}
+              <button
+                onClick={confirmBuy}
+                disabled={buying === confirmItem.id || emotionPoints < confirmItem.price_emotion}
+                style={{
+                  position: 'relative', width: '70%', padding: '10px 0',
+                  border: 'none', borderRadius: 24, fontSize: 15, fontWeight: 700,
+                  cursor: 'pointer', color: '#fff', overflow: 'hidden',
+                  background: buying === confirmItem.id || emotionPoints < confirmItem.price_emotion
+                    ? '#ddd' : 'transparent',
+                }}
+              >
+                {/* 粉色按钮背景图 */}
+                {!((buying === confirmItem.id) || (emotionPoints < confirmItem.price_emotion)) && (
+                  <img src="/epet/assets/shop-btn-buy.png" style={{
+                    position: 'absolute', inset: 0, width: '100%', height: '100%',
+                    objectFit: 'cover', pointerEvents: 'none',
+                  }} />
+                )}
+                <span style={{ position: 'relative', zIndex: 1 }}>
+                  {buying === confirmItem.id ? '购买中...' : emotionPoints < confirmItem.price_emotion ? '情绪值不足' : '购买'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
