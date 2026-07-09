@@ -31,6 +31,7 @@ import match3AdminRoutes from './routes/admin-match3.js';
 import epetCookingRoutes from './routes/epet-cooking.js';
 import adminZonesRoutes from './routes/admin-zones.js';
 import adminIconsRoutes from './routes/admin-icons.js';
+import adminEpetUsersRoutes from './routes/admin-epet-users.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -83,6 +84,7 @@ app.use('/api/epet1/intro-video', adminIntroVideosRoutes);
 app.use('/api/epet1/pet-behavior', adminPetBehaviorsRoutes);
 app.use('/api/admin/exec', adminExecRoutes);
 app.use('/api/admin/match3', match3AdminRoutes);
+app.use('/api/admin/epet-users', adminEpetUsersRoutes);
 
 
 // ========== EPET1 公开接口（无需admin权限）==========

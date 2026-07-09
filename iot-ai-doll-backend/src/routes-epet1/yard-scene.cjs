@@ -76,7 +76,8 @@ module.exports = (pool) => {
       if (userId) {
         const furnRes = await pool.query(
           `SELECT yf.id, yf.shop_item_id, yf.pos_x, yf.pos_y, yf.width, yf.height,
-                  si.name as label, si.image_url, si.item_category
+                  si.name as label, si.image_url, si.item_category,
+                  si.yard_width, si.yard_height
            FROM yard_furniture yf
            JOIN shop_items si ON si.id = yf.shop_item_id
            WHERE yf.user_id = $1
@@ -90,8 +91,9 @@ module.exports = (pool) => {
           layer: 1,
           pos_x: parseFloat(f.pos_x),
           pos_y: parseFloat(f.pos_y),
-          width: parseFloat(f.width),
-          height: parseFloat(f.height),
+          // Use shop_items yard_width/yard_height (live) instead of yard_furniture snapshot
+          width: parseFloat(f.yard_width || f.width),
+          height: parseFloat(f.yard_height || f.height),
           image_url: f.image_url,
           collidable: true,
           sort_priority: 0,
