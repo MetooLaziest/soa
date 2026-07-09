@@ -64,6 +64,10 @@ export class Game {
   private _lastBehaviorFrame = new Map<string, string>(); // petId → last texture URL
   private _emotionDropSprites = new Map<number, Container>(); // drop id → sprite container
   private _emotionDropIconUrl: string | null = null; // icon from epet_icons
+  private _petShadows = new Map<string, Graphics>(); // petId → shadow ellipse
+  // Simulated light: upper-left at 315° (northwest)
+  private _lightAngle = 315 * Math.PI / 180;
+  private _shadowOffset = 0.4; // shadow offset as fraction of pet height
 
   /** Set tap handler for pets */
   setCallbacks(cb: PetEventCallbacks) {
@@ -320,6 +324,14 @@ export class Game {
 
       this.petSprites.set(petId, sprite);
       this.petContainer.addChild(sprite);
+
+      // Create shadow ellipse
+      const shadow = new Graphics();
+      shadow.label = `shadow-${petId}`;
+      this._petShadows.set(petId, shadow);
+      this.petContainer.addChild(shadow);
+      // Ensure shadow is below the sprite
+      this.petContainer.addChild(sprite); // re-add sprite so it's on top of shadow
     } catch (e) {
       console.warn(`Failed to load pet texture: ${imgPath}`, e);
     }
@@ -331,6 +343,12 @@ export class Game {
       this.petContainer.removeChild(sprite);
       sprite.destroy();
       this.petSprites.delete(petId);
+    }
+    const shadow = this._petShadows.get(petId);
+    if (shadow && this.petContainer) {
+      this.petContainer.removeChild(shadow);
+      shadow.destroy();
+      this._petShadows.delete(petId);
     }
     this.petEntities.delete(petId);
   }
@@ -509,6 +527,24 @@ export class Game {
       );
       sprite.x = entity.x;
       sprite.y = entity.y + entity.bobY;
+
+      // Update shadow position
+      const shadow = this._petShadows.get(petId);
+      if (shadow) {
+        const petH = baseSize * entity.scale;
+        const sw = petH * 0.55; // shadow ellipse width
+        const sh = petH * 0.18; // shadow ellipse height (flat)
+        // Light direction offset
+        const sdx = Math.cos(this._lightAngle) * petH * this._shadowOffset;
+        const sdy = Math.sin(this._lightAngle) * petH * this._shadowOffset * 0.5;
+        shadow.clear();
+        shadow.ellipse(
+          entity.x + sdx,
+          entity.y + sdy + petH * 0.02, // slightly below feet
+          sw, sh
+        );
+        shadow.fill({ color: 0x000000, alpha: 0.15 });
+      }
 
       // Animations
       if (entity.state === 'shaking') {
@@ -1077,6 +1113,7 @@ export class Game {
     this.petEntities.clear();
     this.petSprites.clear();
     this._emotionDropSprites.clear();
+    this._petShadows.clear();
   }
 
   // ─── Emotion Drops ─────────────────────────────────────
