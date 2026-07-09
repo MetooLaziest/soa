@@ -830,7 +830,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
   const [buying, setBuying] = useState<number | null>(null);
   const [match3Passed, setMatch3Passed] = useState<Record<number, boolean>>({});
   const [ownedFurnitureIds, setOwnedFurnitureIds] = useState<Set<number>>(new Set());
-  const [confirmItem, setConfirmItem] = useState<any>(null); // 购买确认弹窗
+  const [successToast, setSuccessToast] = useState<any>(null); // 购买成功弹窗
 
   const SHOP_TABS = [
     { id: 'food', name: '🥘 食材' },
@@ -896,19 +896,11 @@ function ShopModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    // 显示购买确认弹窗
-    setConfirmItem(item);
-  };
-
-  const confirmBuy = async () => {
-    const item = confirmItem;
-    if (!item || !userId) return;
     if (emotionPoints < item.price_emotion) {
-      setConfirmItem(null);
       alert(`情绪值不足！需要 ${item.price_emotion}，你有 ${emotionPoints}`);
       return;
     }
-    if (item.stock === 0) { setConfirmItem(null); alert('该商品已售罄'); return; }
+    if (item.stock === 0) { alert('该商品已售罄'); return; }
     setBuying(item.id);
     try {
       const res = await buyItem(userId, item.id);
@@ -916,7 +908,9 @@ function ShopModal({ onClose }: { onClose: () => void }) {
       if (item.item_category === 'furniture') {
         setOwnedFurnitureIds(prev => new Set([...prev, item.id]));
       }
-      setConfirmItem(null);
+      // 购买成功 → 显示成功弹窗
+      setSuccessToast(item);
+      setTimeout(() => setSuccessToast(null), 3000); // 3秒自动关闭
     } catch (e: any) {
       alert(e.message || '购买失败');
     } finally {
@@ -1035,91 +1029,84 @@ function ShopModal({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      {/* 购买确认弹窗 — 遮罩 + 卡片 + 素材图标 */}
-      {confirmItem && (
+      {/* 购买成功提示弹窗 — 遮罩 + 卡片 + 素材 */}
+      {successToast && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1100,
           background: 'rgba(0,0,0,0.45)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: 24,
-        }} onClick={() => setConfirmItem(null)}>
+          animation: 'fadeIn 0.2s ease',
+        }} onClick={() => setSuccessToast(null)}>
           <div onClick={e => e.stopPropagation()} style={{
-            position: 'relative', width: '100%', maxWidth: 320,
+            position: 'relative', width: '100%', maxWidth: 300,
             display: 'flex', flexDirection: 'column', alignItems: 'center',
           }}>
-            {/* 弹窗底卡背景 */}
+            {/* 弹窗底卡背景 (icon-05) */}
             <img src="/epet/assets/shop-dialog-bg.png" style={{
               position: 'absolute', inset: 0, width: '100%', height: '100%',
-              objectFit: 'fill', pointerEvents: 'none', borderRadius: 20,
+              objectFit: 'fill', pointerEvents: 'none', borderRadius: 24,
             }} />
 
             <div style={{
-              position: 'relative', width: '100%', padding: '32px 20px 24px',
+              position: 'relative', width: '100%', padding: '36px 24px 28px',
               display: 'flex', flexDirection: 'column', alignItems: 'center',
             }}>
               {/* 关闭按钮 */}
-              <button onClick={() => setConfirmItem(null)} style={{
-                position: 'absolute', top: 12, right: 12, width: 28, height: 28,
-                borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.08)',
-                fontSize: 14, cursor: 'pointer', color: '#999', lineHeight: '28px', textAlign: 'center',
+              <button onClick={() => setSuccessToast(null)} style={{
+                position: 'absolute', top: 10, right: 10, width: 24, height: 24,
+                borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.06)',
+                fontSize: 12, cursor: 'pointer', color: '#aaa', lineHeight: '24px', textAlign: 'center',
               }}>✕</button>
 
-              {/* 紫色装饰图标 */}
+              {/* 顶部紫色装饰图标 (icon-07) */}
               <img src="/epet/assets/shop-icon-badge.png" style={{
-                width: 56, height: 56, marginBottom: 12, objectFit: 'contain',
+                width: 72, height: 72, marginBottom: 16, objectFit: 'contain',
               }} />
+
+              {/* 成功文字 */}
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#333', marginBottom: 8 }}>
+                购买成功！
+              </div>
 
               {/* 商品图片 */}
               <div style={{
-                width: 80, height: 80, borderRadius: 12,
-                background: 'rgba(0,0,0,0.04)', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
+                width: 88, height: 88, borderRadius: 16,
+                background: 'linear-gradient(135deg, #EDE7F6, #E8DAEF)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginBottom: 12, overflow: 'hidden',
+                boxShadow: '0 2px 12px rgba(149,117,205,0.2)',
               }}>
-                {confirmItem.image_url
-                  ? <img src={confirmItem.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  : <span style={{ fontSize: 36 }}>📦</span>}
+                {successToast.image_url
+                  ? <img src={successToast.image_url} alt="" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+                  : <span style={{ fontSize: 40 }}>📦</span>}
               </div>
 
               {/* 商品名称 */}
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#333', marginBottom: 6, textAlign: 'center' }}>
-                {confirmItem.name}
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginBottom: 4 }}>
+                {successToast.name}
               </div>
 
-              {/* 商品描述 */}
-              {confirmItem.description && (
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 10, textAlign: 'center', lineHeight: 1.4 }}>
-                  {confirmItem.description}
-                </div>
-              )}
-
-              {/* 价格 */}
-              <div style={{ fontSize: 14, color: '#8B6914', fontWeight: 700, marginBottom: 20 }}>
-                💛 {confirmItem.price_emotion}
+              {/* 已扣减提示 */}
+              <div style={{ fontSize: 12, color: '#999', marginBottom: 24 }}>
+                💛 已扣减 {successToast.price_emotion} 情绪值
               </div>
 
-              {/* 购买按钮 (使用素材) */}
+              {/* 确认按钮 (icon-06 粉色按钮) */}
               <button
-                onClick={confirmBuy}
-                disabled={buying === confirmItem.id || emotionPoints < confirmItem.price_emotion}
+                onClick={() => setSuccessToast(null)}
                 style={{
-                  position: 'relative', width: '70%', padding: '10px 0',
-                  border: 'none', borderRadius: 24, fontSize: 15, fontWeight: 700,
+                  position: 'relative', width: '65%', height: 42,
+                  border: 'none', borderRadius: 21, fontSize: 15, fontWeight: 700,
                   cursor: 'pointer', color: '#fff', overflow: 'hidden',
-                  background: buying === confirmItem.id || emotionPoints < confirmItem.price_emotion
-                    ? '#ddd' : 'transparent',
+                  background: 'transparent',
                 }}
               >
-                {/* 粉色按钮背景图 */}
-                {!((buying === confirmItem.id) || (emotionPoints < confirmItem.price_emotion)) && (
-                  <img src="/epet/assets/shop-btn-buy.png" style={{
-                    position: 'absolute', inset: 0, width: '100%', height: '100%',
-                    objectFit: 'cover', pointerEvents: 'none',
-                  }} />
-                )}
-                <span style={{ position: 'relative', zIndex: 1 }}>
-                  {buying === confirmItem.id ? '购买中...' : emotionPoints < confirmItem.price_emotion ? '情绪值不足' : '购买'}
-                </span>
+                <img src="/epet/assets/shop-btn-buy.png" style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%',
+                  objectFit: 'cover', pointerEvents: 'none', borderRadius: 21,
+                }} />
+                <span style={{ position: 'relative', zIndex: 1 }}>好的</span>
               </button>
             </div>
           </div>
