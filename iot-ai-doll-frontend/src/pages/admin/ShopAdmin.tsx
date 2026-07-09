@@ -36,6 +36,8 @@ interface ShopItem {
 export default function ShopAdmin() {
   const [items, setItems] = useState<ShopItem[]>([]);
   const [bgImage, setBgImage] = useState('');
+  const [emotionDropBase, setEmotionDropBase] = useState('10');
+  const [emotionBaseSaving, setEmotionBaseSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [showForm, setShowForm] = useState(false);
@@ -72,6 +74,7 @@ export default function ShopAdmin() {
       ]);
       setItems(itemsRes.data.items || []);
       setBgImage(configRes.data.config?.background_image || '');
+      setEmotionDropBase(configRes.data.config?.emotion_drop_base || '10');
       setMatch3Levels((match3Res.data.levels || []).map((l: any) => ({ id: l.id, name: l.name, difficulty: l.difficulty })));
       setZones((zonesRes.data.zones || []).map((z: any) => ({ zone_key: z.zone_key, zone_name: z.zone_name })));
     } catch (err) {
@@ -249,6 +252,34 @@ export default function ShopAdmin() {
             未设置背景图，默认使用渐变色
           </div>
         )}
+      </div>
+
+      {/* 情绪值掉落基准值 */}
+      <div className="mb-6 rounded-xl border border-yellow-500/20 bg-gradient-to-r from-yellow-500/10 to-amber-500/10 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-white">💛 情绪值掉落基准值</h3>
+            <p className="mt-1 text-xs text-gray-500">每次掉落的基础情绪值，实际金额 = 基准值 × (1 + 家具加成总和%)</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="number" min="1" value={emotionDropBase}
+              onChange={e => setEmotionDropBase(e.target.value)}
+              className="w-20 rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white outline-none focus:ring-2 focus:ring-yellow-500" />
+            <button
+              onClick={async () => {
+                setEmotionBaseSaving(true);
+                try {
+                  await client.post('/epet1/shop2/config', { key: 'emotion_drop_base', value: emotionDropBase });
+                } catch { alert('保存失败'); }
+                setEmotionBaseSaving(false);
+              }}
+              disabled={emotionBaseSaving}
+              className="rounded-lg bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-yellow-700 disabled:opacity-50"
+            >
+              {emotionBaseSaving ? '...' : '保存'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Tab 筛选 */}
