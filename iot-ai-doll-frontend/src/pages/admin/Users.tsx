@@ -51,6 +51,7 @@ export default function Users() {
 
   // 删除确认
   const [clearingMatch3, setClearingMatch3] = useState(false);
+  const [resettingFishing, setResettingFishing] = useState(false);
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -253,6 +254,30 @@ export default function Users() {
                   className="rounded-lg bg-red-600/80 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
                 >
                   {clearingMatch3 ? '清空中...' : '🗑️ 清空所有记录'}
+                </button>
+              </div>
+
+              {/* 钓鱼次数重置 */}
+              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-3">
+                <div className="text-xs font-semibold text-blue-300">🎣 今日钓鱼次数</div>
+                <p className="text-xs text-gray-500">重置后用户今日可重新钓鱼（每日限制3次）</p>
+                <button
+                  onClick={async () => {
+                    if (!confirm('确认重置该用户今日钓鱼次数？')) return;
+                    setResettingFishing(true);
+                    try {
+                      const res = await client.delete(`/admin/epet-users/${selectedUser.id}/fishing-today`);
+                      alert(`已删除 ${res.data.deleted} 条今日钓鱼记录`);
+                    } catch (err: any) {
+                      alert('重置失败: ' + (err.response?.data?.error || err.message));
+                    } finally {
+                      setResettingFishing(false);
+                    }
+                  }}
+                  disabled={resettingFishing}
+                  className="rounded-lg bg-blue-600/80 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {resettingFishing ? '重置中...' : '🔄 重置今日次数'}
                 </button>
               </div>
 

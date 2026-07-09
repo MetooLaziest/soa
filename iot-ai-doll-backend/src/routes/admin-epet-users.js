@@ -98,4 +98,19 @@ router.delete('/:id/match3-records', async (req, res) => {
   }
 });
 
+// DELETE /api/admin/epet-users/:id/fishing-today — 重置今日钓鱼次数
+router.delete('/:id/fishing-today', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const today = new Date().toISOString().slice(0, 10);
+    const { rowCount } = await poolEpet1.query(
+      `DELETE FROM fishing_daily_records WHERE user_id = $1 AND caught_at::date = $2::date`,
+      [id, today]
+    );
+    res.json({ ok: true, deleted: rowCount });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 export default router;

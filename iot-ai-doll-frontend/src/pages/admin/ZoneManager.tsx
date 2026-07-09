@@ -14,9 +14,9 @@ const UNLOCK_TYPES = [
 ];
 
 const TIME_SLOTS = [
-  { key: 'dawn', label: '🌅 清晨/傍晚', field: 'bg_image_dawn' },
-  { key: 'day', label: '☀️ 白天', field: 'bg_image_day' },
-  { key: 'night', label: '🌙 夜晚', field: 'bg_image_night' },
+  { key: 'dawn', label: '🌅 清晨/傍晚 (6:00-9:00, 17:00-20:00)', field: 'bg_image_dawn' },
+  { key: 'day', label: '☀️ 白天 (9:00-17:00)', field: 'bg_image_day' },
+  { key: 'night', label: '🌙 夜晚 (20:00-6:00)', field: 'bg_image_night' },
 ];
 
 interface Zone {
