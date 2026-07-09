@@ -279,7 +279,7 @@ export default function ZoneManager() {
       {/* Form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={resetForm}>
-          <div className="w-full max-w-md rounded-xl bg-slate-800 p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-lg rounded-xl bg-slate-800 p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="mb-4 text-lg font-bold text-white">{editing ? '编辑' : '新增'}区域</h3>
             <div className="space-y-3">
               {!editing && (
@@ -307,21 +307,6 @@ export default function ZoneManager() {
                   <input type="number" value={fGridY} onChange={e => setFGridY(Number(e.target.value))}
                     className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
                   <p className="text-[10px] text-gray-500">-1=上 0=中 1=下</p>
-                </div>
-              </div>
-
-              {/* Walk bounds */}
-              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
-                <div className="text-xs font-semibold text-amber-300">🚶 可步行区域 (0~1 屏幕比例)</div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['xMin', 'xMax', 'yMin', 'yMax'] as const).map(k => (
-                    <div key={k}>
-                      <label className="text-[10px] text-gray-400">{k}</label>
-                      <input type="number" step="0.01" value={fWalkBounds[k]}
-                        onChange={e => setFWalkBounds({ ...fWalkBounds, [k]: Number(e.target.value) })}
-                        className="w-full rounded bg-white/10 px-2 py-1 text-sm text-white outline-none" />
-                    </div>
-                  ))}
                 </div>
               </div>
 
@@ -378,6 +363,21 @@ export default function ZoneManager() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Walk bounds */}
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+                <div className="text-xs font-semibold text-amber-300">🚶 可步行区域 (0~1 屏幕比例)</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['xMin', 'xMax', 'yMin', 'yMax'] as const).map(k => (
+                    <div key={k}>
+                      <label className="text-[10px] text-gray-400">{k}</label>
+                      <input type="number" step="0.01" value={fWalkBounds[k]}
+                        onChange={e => setFWalkBounds({ ...fWalkBounds, [k]: Number(e.target.value) })}
+                        className="w-full rounded bg-white/10 px-2 py-1 text-sm text-white outline-none" />
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Unlock condition */}

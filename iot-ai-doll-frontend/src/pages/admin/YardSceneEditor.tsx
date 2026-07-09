@@ -271,8 +271,8 @@ export default function YardSceneEditor() {
   return (
     <div className="flex h-full gap-4">
       {/* Left: Canvas Editor */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex items-center gap-3 mb-3 flex-wrap">
+      <div className="flex-1 flex flex-col items-center">
+        <div className="flex items-center gap-3 mb-3 flex-wrap w-full">
           <button onClick={() => navigate('/admin/zones')}
             className="px-2 py-1 text-xs rounded bg-white/5 hover:bg-white/10 text-gray-400">
             ← 返回区域管理
@@ -309,10 +309,11 @@ export default function YardSceneEditor() {
 
         {error && <div className="mb-2 text-sm text-red-400 bg-red-900/20 px-3 py-2 rounded">{error}</div>}
 
-        {/* Canvas */}
+        {/* Canvas — constrained to mobile portrait 9:16 ratio */}
+        <div className="relative w-full" style={{ maxWidth: '405px', aspectRatio: '9/16' }}>
         <div
           ref={canvasRef}
-          className="relative flex-1 bg-black/40 rounded-lg overflow-hidden border border-white/10 select-none"
+          className="relative w-full h-full bg-black/40 rounded-lg overflow-hidden border border-white/10 select-none"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
@@ -420,6 +421,7 @@ export default function YardSceneEditor() {
             );
           })}
         </div>
+        </div>{/* end 9:16 wrapper */}
       </div>
 
       {/* Right: Property Panel */}
