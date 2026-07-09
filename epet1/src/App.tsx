@@ -1043,7 +1043,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
             display: 'flex', flexDirection: 'column', alignItems: 'center',
           }}>
             {/* 弹窗底卡背景 (icon-05) */}
-            <img src="/epet/assets/shop-dialog-bg.png" style={{
+            <img src="/epet/static/shop-dialog-bg.png" style={{
               position: 'absolute', inset: 0, width: '100%', height: '100%',
               objectFit: 'fill', pointerEvents: 'none', borderRadius: 24,
             }} />
@@ -1060,7 +1060,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
               }}>✕</button>
 
               {/* 顶部紫色装饰图标 (icon-07) */}
-              <img src="/epet/assets/shop-icon-badge.png" style={{
+              <img src="/epet/static/shop-icon-badge.png" style={{
                 width: 72, height: 72, marginBottom: 16, objectFit: 'contain',
               }} />
 
@@ -1102,7 +1102,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                   background: 'transparent',
                 }}
               >
-                <img src="/epet/assets/shop-btn-buy.png" style={{
+                <img src="/epet/static/shop-btn-buy.png" style={{
                   position: 'absolute', inset: 0, width: '100%', height: '100%',
                   objectFit: 'cover', pointerEvents: 'none', borderRadius: 21,
                 }} />

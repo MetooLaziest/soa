@@ -28,6 +28,7 @@ import YardSceneEditor from './pages/admin/YardSceneEditor';
 import ZoneManager from './pages/admin/ZoneManager';
 import IconAssets from './pages/admin/IconAssets';
 import FishingAdmin from './pages/admin/FishingAdmin';
+import AssetManager from './pages/admin/AssetManager';
 import ShopAdmin from './pages/admin/ShopAdmin';
 import SpotDiffAdmin from './pages/admin/SpotDiffAdmin';
 import Match3Admin from './pages/admin/Match3Admin';
@@ -102,6 +103,7 @@ export default function App() {
           <Route path="zones" element={<ZoneManager />} />
           <Route path="icons" element={<IconAssets />} />
           <Route path="fishing" element={<FishingAdmin />} />
+          <Route path="assets" element={<AssetManager />} />
           <Route path="shop" element={<ShopAdmin />} />
           <Route path="spotdiff" element={<SpotDiffAdmin />} />
           <Route path="match3" element={<Match3Admin />} />
