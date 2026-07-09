@@ -14,7 +14,7 @@ const _texCache = new Map<string, Texture>();
 let walkBounds = { xMin: 0.02, xMax: 0.98, yMin: 0.02, yMax: 0.98 };
 
 /** Pet size multiplier: 1.21 = 10% + 10% bigger than original */
-const PET_SIZE_MULT = 1.21;
+// PET_SIZE_MULT moved to per-model pet_models.size_mult (default 1.0, 墩墩=1.21)
 
 function getViewport() {
   return { W: window.innerWidth, H: window.innerHeight };
@@ -288,6 +288,8 @@ export class Game {
     } as any);
     entity.imageUrl = opts?.imageUrl || '';
     entity.animations = opts?.animations || {};
+    entity.sizeMult = (opts as any)?.sizeMult ?? 1.0;
+    entity.animConfig = (opts as any)?.animConfig ?? {};
 
     const { W, H } = getViewport();
     entity.setWalkBounds(walkBounds);
@@ -519,7 +521,7 @@ export class Game {
       const sprite = this.petSprites.get(petId);
       if (!sprite) return;
 
-      const baseSize = Math.min(80, W * 0.12) * PET_SIZE_MULT;
+      const baseSize = Math.min(80, W * 0.12) * (entity.sizeMult || 1.0);
       const s = (baseSize * entity.scale) / (sprite.texture.width || 1);
       sprite.scale.set(
         entity.facingRight ? Math.abs(s) : -Math.abs(s),

@@ -57,7 +57,9 @@ export class PetEntity {
   private _userGuidedUntil: number = 0;   // 用户引导结束时间戳，之后1分钟恢复定时行为
   private _animFrameIndex: number = 0;    // 当前动画帧索引
   private _animFrameTimer: number = 0;    // 帧切换计时器
-  private _animFrameInterval: number = 200; // 帧间隔 ms
+  private _animFrameInterval: number = 200; // 帧间隔 ms (默认, 会被 animConfig 覆盖)
+  sizeMult: number = 1.0;  // 庭院大小比例 (来自 pet_models.size_mult)
+  animConfig: Record<string, number> = {}; // 各动作帧间隔 (来自 pet_models.anim_config)
 
   constructor(pet: Pet & { pet_model_id?: number; nickname?: string }) {
     this.petId = pet.petId;
@@ -222,11 +224,13 @@ export class PetEntity {
   }
 
   update(now: number, vpW: number, vpH: number): void {
-    // ── 动画帧切换 ──
+    // ── 动画帧切换 (使用 animConfig 中对应动作的帧间隔) ──
+    const stateKey = this._getStateAnimationKey();
+    const frameInterval = this.animConfig[stateKey] || this._animFrameInterval;
     this._animFrameTimer += 16; // ~60fps
-    if (this._animFrameTimer >= this._animFrameInterval) {
+    if (this._animFrameTimer >= frameInterval) {
       this._animFrameTimer = 0;
-      const frames = this.animations[this._getStateAnimationKey()];
+      const frames = this.animations[stateKey];
       if (frames && frames.length > 1) {
         this._animFrameIndex = (this._animFrameIndex + 1) % frames.length;
       }

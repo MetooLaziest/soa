@@ -57,7 +57,7 @@ router.get('/', async (_req, res) => {
       `SELECT id, name, description, image_url, animations, personality_template, mbti,
               growth_unlock_config, nfc_range_start, nfc_range_end, rarity, display_order, is_active,
               identity_anchor, core_personality, behavior_rules, skill_layer, context_memory_template,
-              prompt_version, created_at
+              prompt_version, size_mult, anim_config, created_at
        FROM pet_models
        WHERE is_active = true
        ORDER BY display_order, id`
@@ -127,6 +127,7 @@ router.put('/:id', async (req, res) => {
       'nfc_range_start', 'nfc_range_end', 'display_order', 'is_active',
       'identity_anchor', 'core_personality', 'behavior_rules',
       'skill_layer', 'context_memory_template', 'personality_template',
+      'size_mult', 'anim_config',
     ];
     const sets = [];
     const vals = [];

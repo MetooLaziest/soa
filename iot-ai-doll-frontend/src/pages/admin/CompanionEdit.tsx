@@ -593,6 +593,75 @@ export default function CompanionEdit() {
         ))}
       </div>
 
+      {/* 宠物大小与动画配置 */}
+      <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4">
+        <h3 className="text-sm font-medium text-gray-300 border-b border-white/10 pb-2">
+          🐾 宠物显示与动画配置
+        </h3>
+
+        {/* 大小比例 */}
+        <div className="rounded-lg bg-white/5 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-cyan-300">📏 庭院大小比例</span>
+              <p className="text-[10px] text-gray-500">1.0=标准大小，1.21=当前墩墩尺寸，越大显示越大</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                step="0.01"
+                min="0.3"
+                max="3"
+                value={model?.size_mult ?? 1.0}
+                onChange={async (e) => {
+                  const val = Number(e.target.value);
+                  if (isNaN(val) || val < 0.3 || val > 3) return;
+                  try {
+                    await client.put(`/admin/models/${id}`, { size_mult: val });
+                    setModel({ ...model, size_mult: val });
+                  } catch { alert('保存失败'); }
+                }}
+                className="w-20 rounded bg-white/10 border border-white/10 px-2 py-1 text-sm text-white text-center"
+              />
+              <span className="text-xs text-gray-500">×</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 各动作帧间隔 */}
+        <div className="rounded-lg bg-white/5 p-3 space-y-2">
+          <div className="text-xs font-semibold text-yellow-300">🎬 动画帧间隔 (ms)</div>
+          <p className="text-[10px] text-gray-500">每种动作独立设置帧切换间隔，数值越小动画越快</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(['idle', 'walk', 'eat', 'sleep', 'shake', 'work'] as const).map(action => {
+              const currentConfig = model?.anim_config || {};
+              const val = currentConfig[action] ?? 200;
+              return (
+                <div key={action} className="flex items-center gap-2 rounded bg-white/5 px-2 py-1.5">
+                  <span className="text-xs text-gray-400 w-12 capitalize">{action}</span>
+                  <input
+                    type="range"
+                    min="50"
+                    max="800"
+                    step="10"
+                    value={val}
+                    onChange={async (e) => {
+                      const newConfig = { ...currentConfig, [action]: Number(e.target.value) };
+                      try {
+                        await client.put(`/admin/models/${id}`, { anim_config: newConfig });
+                        setModel({ ...model, anim_config: newConfig });
+                      } catch { alert('保存失败'); }
+                    }}
+                    className="flex-1 accent-yellow-500"
+                  />
+                  <span className="w-10 text-right text-xs text-yellow-300">{val}ms</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* 对话测试 */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-3">
         <h3 className="text-sm font-medium text-gray-300">对话测试</h3>
