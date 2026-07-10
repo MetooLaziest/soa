@@ -37,6 +37,7 @@ import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture, PetSe
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
 import IntroVideoPlayer from './components/IntroVideoPlayer';
 import { LivePage } from './components/LivePage';
+import { IconImg } from './components/IconImg';
 import './App.css';
 import './components/LivePage.css';
 
@@ -50,18 +51,6 @@ const PET_IMAGES: Record<number, string> = {
   5: '/assets/pets/meimei.png',
   6: '/assets/pets/moomo.png',
 };
-
-/** Render icon from uploaded assets or fallback emoji */
-function IconImg({ iconKey, fallback }: { iconKey: string; fallback: string }) {
-  const icons = usePixiGameStore(s => s.icons);
-  const icon = icons[iconKey];
-  if (icon?.image_url) {
-    const base = `${window.location.protocol}//${window.location.host}`;
-    const url = icon.image_url.startsWith('/') ? `${base}${icon.image_url}` : icon.image_url;
-    return <img src={url} alt={icon.label || iconKey} className="bottom-bar-icon-img uploaded" />;
-  }
-  return <span className="bottom-bar-icon">{fallback}</span>;
-}
 
 // model_id → PixiJS monsterType (PetEntity.getImageName 映射)
 function getMonsterType(modelId: number): string {
@@ -2038,6 +2027,22 @@ export default function App() {
         setAllPets(allPets);
         setActiveTravel(travel);
         setYardFurniture(yardFurn);
+
+        // 加载图标到 Zustand store (yard/live 共用, 不管 homeMode)
+        try {
+          const sceneRes = await fetch(`/api/epet1/yard/scene?user_id=${user.user_id}`);
+          const sceneData = await sceneRes.json();
+          if (sceneData.icons?.length > 0) {
+            const iconMap: Record<string, any> = {};
+            for (const icon of sceneData.icons) {
+              if (icon.image_url) iconMap[icon.icon_key] = icon;
+            }
+            usePixiGameStore.getState().setIcons(iconMap);
+            console.log(`✅ ${Object.keys(iconMap).length} icons loaded (App init)`);
+          }
+        } catch (e) {
+          console.warn('Icons load failed, will retry in Game.ts if yard mode:', e);
+        }
       } catch (e) {
         console.error('init failed', e);
       } finally {
