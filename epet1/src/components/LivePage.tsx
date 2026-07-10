@@ -16,7 +16,7 @@ import { useGameStore } from '../store/gameStore';
 import { fetchPetVideos, fetchIcons, type IntroVideo, type IconConfig } from '../api/epet1';
 
 interface LivePageProps {
-  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'play') => void;
+  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'fishing' | 'cooking') => void;
   onSwitchToYard: () => void;
 }
 
@@ -317,7 +317,7 @@ function TopRightMenu({ onOpenModal, getIconUrl }: TopRightMenuProps) {
 
 // 底部菜单栏
 interface BottomMenuProps {
-  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'play') => void;
+  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'fishing' | 'cooking') => void;
   currentPetId: number | null;
   getIconUrl: (key: string) => string;
   onShowPlayMenu: () => void;
@@ -377,7 +377,7 @@ function BottomMenu({ onOpenModal, currentPetId, getIconUrl, onShowPlayMenu }: B
 // 游玩菜单弹窗
 interface PlayMenuModalProps {
   onClose: () => void;
-  onOpenModal: (modal: 'travel' | 'game') => void;
+  onOpenModal: (modal: 'travel' | 'game' | 'fishing' | 'cooking') => void;
   getIconUrl: (key: string) => string;
 }
 
@@ -411,6 +411,20 @@ function PlayMenuModal({ onClose, onOpenModal, getIconUrl }: PlayMenuModalProps)
               <span style={{ fontSize: 32 }}>🎮</span>
             )}
             <span>小游戏</span>
+          </button>
+          <button 
+            className="live-page-play-modal-item"
+            onClick={() => { onClose(); onOpenModal('fishing'); }}
+          >
+            <span style={{ fontSize: 32 }}>🎣</span>
+            <span>钓鱼</span>
+          </button>
+          <button 
+            className="live-page-play-modal-item"
+            onClick={() => { onClose(); onOpenModal('cooking'); }}
+          >
+            <span style={{ fontSize: 32 }}>🍳</span>
+            <span>料理</span>
           </button>
         </div>
         <button className="live-page-play-modal-close" onClick={onClose}>

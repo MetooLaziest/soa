@@ -550,7 +550,16 @@ export interface IconConfig {
 /** 获取图标配置列表 */
 export async function fetchIcons(): Promise<IconConfig[]> {
   const res = await get<any>('/admin/icons');
-  return res.icons || [];
+  const icons = res.icons || [];
+  // 将相对路径转换为完整URL
+  return icons.map((icon: IconConfig) => ({
+    ...icon,
+    image_url: icon.image_url && icon.image_url.startsWith('http') 
+      ? icon.image_url 
+      : icon.image_url 
+        ? `https://soa.laziestlife.com${icon.image_url}` 
+        : ''
+  }));
 }
 
 // ─── 用户设置 ───────────────────────────────────────────────

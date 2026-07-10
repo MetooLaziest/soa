@@ -2010,7 +2010,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 
 // ─── App 根组件 ──────────────────────────────────────────────
 export default function App() {
-  const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, activeModal, setActiveModal,
+  const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, loading, activeModal, setActiveModal,
           setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId,
           fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings } = useGameStore();
 
@@ -2048,7 +2048,7 @@ export default function App() {
   }, []);
 
   // 处理打开模态框
-  const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection') => {
+  const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'fishing' | 'cooking') => {
     setActiveModal(modal);
   }, [setActiveModal]);
 
@@ -2056,6 +2056,16 @@ export default function App() {
   const handleSwitchToYard = useCallback(() => {
     setHomeMode('yard');
   }, [setHomeMode]);
+
+  // 等待初始化完成后再渲染主内容，避免先显示yard再切换到live的闪烁
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <div className="app-loading-spinner">🌀</div>
+        <div>加载中...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -2081,6 +2091,16 @@ export default function App() {
       {activeModal === 'shop' && <ShopModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'inventory' && <InventoryModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'game' && <GameModal onClose={() => setActiveModal(null)} />}
+      {activeModal === 'fishing' && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#0a1628' }}>
+          <Fishing onScore={() => setActiveModal(null)} userId={userId} />
+        </div>
+      )}
+      {activeModal === 'cooking' && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'linear-gradient(180deg, #1a1a2e 0%, #2a1a0e 100%)' }}>
+          <Cooking onClose={() => setActiveModal(null)} />
+        </div>
+      )}
       {activeModal === 'match3' && match3LevelId && (
         <Match3Game
           levelId={match3LevelId}
