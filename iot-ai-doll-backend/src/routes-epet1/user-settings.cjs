@@ -2,13 +2,13 @@
  * 用户设置路由
  * GET  /api/epet1/user/settings/:userId     - 获取用户设置
  * POST /api/epet1/user/settings/:userId     - 更新用户设置
- * GET  /api/epet1/pet/videos/:petModelId    - 获取机伴所有时间段视频
+ * GET  /api/epet1/user/pet/videos/:petModelId - 获取机伴所有时间段视频
  */
 module.exports = (pool) => {
   const router = require('express').Router();
 
   // 获取用户设置
-  router.get('/settings/:userId', async (req, res) => {
+  router.get('/:userId', async (req, res) => {
     try {
       const { userId } = req.params;
       const result = await pool.query(
@@ -30,7 +30,7 @@ module.exports = (pool) => {
   });
 
   // 更新用户设置
-  router.post('/settings/:userId', async (req, res) => {
+  router.post('/:userId', async (req, res) => {
     try {
       const { userId } = req.params;
       const { home_mode } = req.body;
