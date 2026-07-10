@@ -16,7 +16,7 @@ import { useGameStore } from '../store/gameStore';
 import { fetchPetVideos, fetchIcons, type IntroVideo, type IconConfig } from '../api/epet1';
 
 interface LivePageProps {
-  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'fishing' | 'cooking') => void;
+  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'inventory' | 'collection' | 'fishing' | 'cooking') => void;
   onSwitchToYard: () => void;
 }
 
@@ -377,20 +377,19 @@ function BottomMenu({ onOpenModal, currentPetId, getIconUrl, onShowPlayMenu }: B
 // 游玩菜单弹窗
 interface PlayMenuModalProps {
   onClose: () => void;
-  onOpenModal: (modal: 'travel' | 'game' | 'fishing' | 'cooking') => void;
+  onOpenModal: (modal: 'travel' | 'fishing' | 'cooking') => void;
   getIconUrl: (key: string) => string;
 }
 
 function PlayMenuModal({ onClose, onOpenModal, getIconUrl }: PlayMenuModalProps) {
   const travelIcon = getIconUrl('icon-travel');
-  const gameIcon = getIconUrl('icon-minigame');
-  
+
   return (
     <div className="live-page-play-modal" onClick={onClose}>
       <div className="live-page-play-modal-content" onClick={e => e.stopPropagation()}>
         <div className="live-page-play-modal-title">游玩</div>
         <div className="live-page-play-modal-grid">
-          <button 
+          <button
             className="live-page-play-modal-item"
             onClick={() => { onClose(); onOpenModal('travel'); }}
           >
@@ -401,25 +400,14 @@ function PlayMenuModal({ onClose, onOpenModal, getIconUrl }: PlayMenuModalProps)
             )}
             <span>派遣旅行</span>
           </button>
-          <button 
-            className="live-page-play-modal-item"
-            onClick={() => { onClose(); onOpenModal('game'); }}
-          >
-            {gameIcon ? (
-              <img src={gameIcon} alt="小游戏" className="live-page-play-modal-icon" />
-            ) : (
-              <span style={{ fontSize: 32 }}>🎮</span>
-            )}
-            <span>小游戏</span>
-          </button>
-          <button 
+          <button
             className="live-page-play-modal-item"
             onClick={() => { onClose(); onOpenModal('fishing'); }}
           >
             <span style={{ fontSize: 32 }}>🎣</span>
             <span>钓鱼</span>
           </button>
-          <button 
+          <button
             className="live-page-play-modal-item"
             onClick={() => { onClose(); onOpenModal('cooking'); }}
           >
