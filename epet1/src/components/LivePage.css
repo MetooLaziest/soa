@@ -154,13 +154,19 @@
   object-fit: contain;
 }
 
-.live-page-menu-btn.travel-btn {
+.live-page-menu-btn.play-btn {
   background: linear-gradient(135deg, #667eea, #764ba2);
   padding: 10px 16px;
 }
 
-.live-page-menu-btn.travel-btn:hover {
+.live-page-menu-btn.play-btn:hover {
   background: linear-gradient(135deg, #5a6fd6, #6a4190);
+}
+
+.live-page-menu-icon-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 /* ========== 空状态 ========== */
@@ -240,6 +246,119 @@
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ========== 右上角菜单 ========== */
+.live-page-top-right-menu {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 30;
+}
+
+.live-page-top-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border: none;
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.live-page-top-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.05);
+}
+
+.live-page-top-btn img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* ========== 游玩菜单弹窗 ========== */
+.live-page-play-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+}
+
+.live-page-play-modal-content {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px;
+  width: 80%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.live-page-play-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  text-align: center;
+}
+
+.live-page-play-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.live-page-play-modal-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.live-page-play-modal-item:hover {
+  background: #e8e8e8;
+  transform: scale(1.02);
+}
+
+.live-page-play-modal-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.live-page-play-modal-close {
+  padding: 12px;
+  border: none;
+  background: #f0f0f0;
+  color: #666;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.live-page-play-modal-close:hover {
+  background: #e0e0e0;
 }
 
 /* ========== 模式切换弹窗 ========== */

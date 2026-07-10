@@ -2048,7 +2048,7 @@ export default function App() {
   }, []);
 
   // 处理打开模态框
-  const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory') => {
+  const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection') => {
     setActiveModal(modal);
   }, [setActiveModal]);
 

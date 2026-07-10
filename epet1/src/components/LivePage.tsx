@@ -5,16 +5,18 @@
  * - 显示 yardPets[0] 的视频
  * - 根据当前时间匹配最接近的时间段视频
  * - 上下滑动切换不同时间段的视频
- * - 底部菜单栏保持不变
- * - 【游玩】栏目中增加【派遣旅行】按钮
+ * - 底部菜单栏: 明信片、藏品库、背包、游玩
+ * - 【游玩】栏目中包含【派遣旅行】子选项
+ * - 右上角【商店】入口
+ * - 图标从后台配置获取
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { fetchPetVideos, type IntroVideo } from '../api/epet1';
+import { fetchPetVideos, fetchIcons, type IntroVideo, type IconConfig } from '../api/epet1';
 
 interface LivePageProps {
-  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory') => void;
+  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'play') => void;
   onSwitchToYard: () => void;
 }
 
@@ -25,7 +27,22 @@ export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
   const [loading, setLoading] = useState(true);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [showModeSwitch, setShowModeSwitch] = useState(false);
+  const [showPlayMenu, setShowPlayMenu] = useState(false);
+  const [icons, setIcons] = useState<IconConfig[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 获取图标配置
+  useEffect(() => {
+    const loadIcons = async () => {
+      try {
+        const iconList = await fetchIcons();
+        setIcons(iconList);
+      } catch (err) {
+        console.error('Failed to load icons:', err);
+      }
+    };
+    loadIcons();
+  }, []);
 
   // 获取第一个庭院机伴的视频列表
   useEffect(() => {
@@ -101,6 +118,12 @@ export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
     setTouchStart(null);
   }, [touchStart, currentIndex, videos.length]);
 
+  // 获取图标URL
+  const getIconUrl = (iconKey: string): string => {
+    const icon = icons.find(i => i.icon_key === iconKey);
+    return icon?.image_url || '';
+  };
+
   // 当前视频
   const currentVideo = videos[currentIndex];
 
@@ -114,12 +137,17 @@ export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
           <div className="live-page-empty-subtitle">去藏品库添加宠物，开始你的旅程</div>
           <button 
             className="live-page-empty-btn"
-            onClick={() => onOpenModal('inventory')}
+            onClick={() => onOpenModal('collection')}
           >
             去藏品库
           </button>
         </div>
-        <BottomMenu onOpenModal={onOpenModal} currentPetId={null} />
+        <BottomMenu 
+          onOpenModal={onOpenModal} 
+          currentPetId={null}
+          getIconUrl={getIconUrl}
+          onShowPlayMenu={() => setShowPlayMenu(true)}
+        />
       </div>
     );
   }
@@ -160,7 +188,24 @@ export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
           </div>
         </div>
 
-        <BottomMenu onOpenModal={onOpenModal} currentPetId={yardPets[0]?.id} />
+        {/* 右上角商店 */}
+        <TopRightMenu onOpenModal={onOpenModal} getIconUrl={getIconUrl} />
+
+        <BottomMenu 
+          onOpenModal={onOpenModal} 
+          currentPetId={yardPets[0]?.id}
+          getIconUrl={getIconUrl}
+          onShowPlayMenu={() => setShowPlayMenu(true)}
+        />
+
+        {/* 游玩菜单弹窗 */}
+        {showPlayMenu && (
+          <PlayMenuModal 
+            onClose={() => setShowPlayMenu(false)} 
+            onOpenModal={onOpenModal}
+            getIconUrl={getIconUrl}
+          />
+        )}
       </div>
     );
   }
@@ -210,6 +255,9 @@ export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
         </div>
       </div>
 
+      {/* 右上角商店 */}
+      <TopRightMenu onOpenModal={onOpenModal} getIconUrl={getIconUrl} />
+
       {/* 模式切换弹窗 */}
       {showModeSwitch && (
         <div className="live-page-mode-modal" onClick={() => setShowModeSwitch(false)}>
@@ -225,36 +273,150 @@ export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
         </div>
       )}
 
-      <BottomMenu onOpenModal={onOpenModal} currentPetId={yardPets[0]?.id} />
+      <BottomMenu 
+        onOpenModal={onOpenModal} 
+        currentPetId={yardPets[0]?.id}
+        getIconUrl={getIconUrl}
+        onShowPlayMenu={() => setShowPlayMenu(true)}
+      />
+
+      {/* 游玩菜单弹窗 */}
+      {showPlayMenu && (
+        <PlayMenuModal 
+          onClose={() => setShowPlayMenu(false)} 
+          onOpenModal={onOpenModal}
+          getIconUrl={getIconUrl}
+        />
+      )}
+    </div>
+  );
+}
+
+// 右上角菜单 - 商店
+interface TopRightMenuProps {
+  onOpenModal: (modal: 'shop') => void;
+  getIconUrl: (key: string) => string;
+}
+
+function TopRightMenu({ onOpenModal, getIconUrl }: TopRightMenuProps) {
+  const shopIcon = getIconUrl('icon-shop');
+  
+  return (
+    <div className="live-page-top-right-menu">
+      <button className="live-page-top-btn" onClick={() => onOpenModal('shop')}>
+        {shopIcon ? (
+          <img src={shopIcon} alt="商店" className="live-page-menu-icon-img" />
+        ) : (
+          <span style={{ fontSize: 24 }}>🏪</span>
+        )}
+        <span>商店</span>
+      </button>
     </div>
   );
 }
 
 // 底部菜单栏
 interface BottomMenuProps {
-  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory') => void;
+  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'play') => void;
   currentPetId: number | null;
+  getIconUrl: (key: string) => string;
+  onShowPlayMenu: () => void;
 }
 
-function BottomMenu({ onOpenModal, currentPetId }: BottomMenuProps) {
+function BottomMenu({ onOpenModal, currentPetId, getIconUrl, onShowPlayMenu }: BottomMenuProps) {
+  const postcardIcon = getIconUrl('icon-postcard');
+  const collectionIcon = getIconUrl('icon-collection');
+  const backpackIcon = getIconUrl('icon-backpack');
+  const gameIcon = getIconUrl('icon-minigame');
+  
   return (
     <div className="live-page-bottom-menu">
+      {/* 明信片 */}
       <button className="live-page-menu-btn" onClick={() => onOpenModal('postcard')}>
-        <span style={{ fontSize: 24 }}>🎑</span>
+        {postcardIcon ? (
+          <img src={postcardIcon} alt="明信片" className="live-page-menu-icon-img" />
+        ) : (
+          <span style={{ fontSize: 24 }}>🎑</span>
+        )}
         <span>明信片</span>
       </button>
-      <button className="live-page-menu-btn" onClick={() => onOpenModal('inventory')}>
-        <span style={{ fontSize: 24 }}>🏠</span>
+      
+      {/* 藏品库 */}
+      <button className="live-page-menu-btn" onClick={() => onOpenModal('collection')}>
+        {collectionIcon ? (
+          <img src={collectionIcon} alt="藏品库" className="live-page-menu-icon-img" />
+        ) : (
+          <span style={{ fontSize: 24 }}>🏠</span>
+        )}
         <span>藏品库</span>
       </button>
-      <button className="live-page-menu-btn" onClick={() => onOpenModal('shop')}>
-        <span style={{ fontSize: 24 }}>🎒</span>
+      
+      {/* 背包 */}
+      <button className="live-page-menu-btn" onClick={() => onOpenModal('inventory')}>
+        {backpackIcon ? (
+          <img src={backpackIcon} alt="背包" className="live-page-menu-icon-img" />
+        ) : (
+          <span style={{ fontSize: 24 }}>🎒</span>
+        )}
         <span>背包</span>
       </button>
-      <button className="live-page-menu-btn travel-btn" onClick={() => onOpenModal('travel')}>
-        <span style={{ fontSize: 24 }}>✈️</span>
-        <span>派遣旅行</span>
+      
+      {/* 游玩 - 展开子菜单 */}
+      <button className="live-page-menu-btn play-btn" onClick={onShowPlayMenu}>
+        {gameIcon ? (
+          <img src={gameIcon} alt="游玩" className="live-page-menu-icon-img" />
+        ) : (
+          <span style={{ fontSize: 24 }}>🎮</span>
+        )}
+        <span>游玩</span>
       </button>
+    </div>
+  );
+}
+
+// 游玩菜单弹窗
+interface PlayMenuModalProps {
+  onClose: () => void;
+  onOpenModal: (modal: 'travel' | 'game') => void;
+  getIconUrl: (key: string) => string;
+}
+
+function PlayMenuModal({ onClose, onOpenModal, getIconUrl }: PlayMenuModalProps) {
+  const travelIcon = getIconUrl('icon-travel');
+  const gameIcon = getIconUrl('icon-minigame');
+  
+  return (
+    <div className="live-page-play-modal" onClick={onClose}>
+      <div className="live-page-play-modal-content" onClick={e => e.stopPropagation()}>
+        <div className="live-page-play-modal-title">游玩</div>
+        <div className="live-page-play-modal-grid">
+          <button 
+            className="live-page-play-modal-item"
+            onClick={() => { onClose(); onOpenModal('travel'); }}
+          >
+            {travelIcon ? (
+              <img src={travelIcon} alt="派遣旅行" className="live-page-play-modal-icon" />
+            ) : (
+              <span style={{ fontSize: 32 }}>✈️</span>
+            )}
+            <span>派遣旅行</span>
+          </button>
+          <button 
+            className="live-page-play-modal-item"
+            onClick={() => { onClose(); onOpenModal('game'); }}
+          >
+            {gameIcon ? (
+              <img src={gameIcon} alt="小游戏" className="live-page-play-modal-icon" />
+            ) : (
+              <span style={{ fontSize: 32 }}>🎮</span>
+            )}
+            <span>小游戏</span>
+          </button>
+        </div>
+        <button className="live-page-play-modal-close" onClick={onClose}>
+          关闭
+        </button>
+      </div>
     </div>
   );
 }

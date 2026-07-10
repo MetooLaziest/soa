@@ -536,6 +536,23 @@ export async function fetchPetVideos(
   return res.videos || [];
 }
 
+// ─── 图标配置 ───────────────────────────────────────────────
+
+export interface IconConfig {
+  id: number;
+  icon_key: string;
+  label: string;
+  image_url: string;
+  width: number;
+  height: number;
+}
+
+/** 获取图标配置列表 */
+export async function fetchIcons(): Promise<IconConfig[]> {
+  const res = await get<any>('/admin/icons');
+  return res.icons || [];
+}
+
 // ─── 用户设置 ───────────────────────────────────────────────
 
 export interface UserSettings {
