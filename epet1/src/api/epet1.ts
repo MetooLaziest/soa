@@ -531,9 +531,32 @@ export async function fetchPetVideos(
   petModelId: number,
   growthLevel?: number
 ): Promise<IntroVideo[]> {
-  const query = growthLevel !== undefined ? `?growth_level=${growthLevel}` : '';
-  const res = await get<any>(`/pet/videos/${petModelId}${query}`);
-  return res.videos || [];
+  // 使用 /intro-video 路由获取某 model 的所有视频
+  const res = await get<any>(`/intro-video?pet_model_id=${petModelId}`);
+  if (!res.videos || res.videos.length === 0) return [];
+  
+  // 处理视频URL - 转换为完整路径
+  const processVideoUrl = (video: IntroVideo): IntroVideo => ({
+    ...video,
+    video_url: video.video_url && video.video_url.startsWith('http')
+      ? video.video_url
+      : `https://soa.laziestlife.com${video.video_url}`
+  });
+  
+  // 如果有 growthLevel 参数，优先返回匹配等级的视频，否则返回全部
+  if (growthLevel !== undefined) {
+    const exactMatch = res.videos
+      .filter((v: IntroVideo) => v.growth_level === growthLevel)
+      .map(processVideoUrl);
+    if (exactMatch.length > 0) return exactMatch;
+    // fallback: 返回通用等级(growth_level=0)的视频
+    const genericMatch = res.videos
+      .filter((v: IntroVideo) => v.growth_level === 0)
+      .map(processVideoUrl);
+    if (genericMatch.length > 0) return genericMatch;
+  }
+  
+  return res.videos.map(processVideoUrl) || [];
 }
 
 // ─── 图标配置 ───────────────────────────────────────────────
