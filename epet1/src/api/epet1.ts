@@ -512,3 +512,98 @@ export async function recordGameScore(
   });
   return { emotion_reward: res.emotion_reward || 3 };
 }
+
+// ─── 开场视频 ───────────────────────────────────────────────
+
+export interface IntroVideo {
+  id: number;
+  name: string;
+  time_start: string;  // "HH:MM" format
+  time_end: string;    // "HH:MM" format
+  growth_level: number;
+  video_url: string;
+  duration_sec: number;
+  sort_order: number;
+}
+
+/** 获取机伴的所有时间段视频 */
+export async function fetchPetVideos(
+  petModelId: number,
+  growthLevel?: number
+): Promise<IntroVideo[]> {
+  const query = growthLevel !== undefined ? `?growth_level=${growthLevel}` : '';
+  const res = await get<any>(`/pet/videos/${petModelId}${query}`);
+  return res.videos || [];
+}
+
+// ─── 用户设置 ───────────────────────────────────────────────
+
+export interface UserSettings {
+  home_mode: 'yard' | 'live';
+  updated_at: string | null;
+}
+
+/** 获取用户首页模式设置 */
+export async function fetchUserSettings(userId: number): Promise<UserSettings> {
+  const res = await get<any>(`/user/settings/${userId}`);
+  return res.settings || { home_mode: 'yard', updated_at: null };
+}
+
+/** 更新用户首页模式设置 (admin用) */
+export async function updateUserSettings(
+  userId: number,
+  homeMode: 'yard' | 'live'
+): Promise<UserSettings> {
+  const res = await post<any>(`/user/settings/${userId}`, { home_mode: homeMode });
+  return res.settings;
+}
+
+// ─── 藏品库系列 ─────────────────────────────────────────────
+
+export interface PetSeries {
+  id: number;
+  name: string;
+  bannerImageUrl?: string;
+  themeColor: string;
+  displayOrder: number;
+  silhouetteImageUrl?: string;
+  backgroundStyle?: Record<string, any>;
+  totalCount: number;
+  collectedCount: number;
+}
+
+export interface SeriesPet {
+  modelId: number;
+  displayOrder: number;
+  modelName: string;
+  portraitImageUrl?: string;
+  fullImageUrl?: string;
+  rarity: string;
+  isCollected: boolean;
+  growthLevel?: number;
+}
+
+export interface SeriesDetail {
+  series: PetSeries;
+  pets: SeriesPet[];
+  progress: {
+    total: number;
+    collected: number;
+  };
+}
+
+/** 获取系列列表 */
+export async function fetchCollectionSeries(userId: number): Promise<PetSeries[]> {
+  const res = await get<any>(`/collection/series?userId=${userId}`);
+  return res.series || [];
+}
+
+/** 获取系列详情 */
+export async function fetchSeriesDetail(userId: number, seriesId: number): Promise<SeriesDetail> {
+  const res = await get<any>(`/collection/series/${seriesId}?userId=${userId}`);
+  return {
+    series: res.series,
+    pets: res.pets || [],
+    progress: res.progress || { total: 0, collected: 0 },
+  };
+}

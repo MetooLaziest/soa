@@ -29,11 +29,16 @@ import {
   fetchYardFurniture,
   fetchEmotionDrops,
   collectEmotionDrop,
+  fetchCollectionSeries,
+  fetchSeriesDetail,
+  fetchUserSettings,
 } from './api/epet1';
-import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture } from './api/epet1';
+import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture, PetSeries, SeriesDetail } from './api/epet1';
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
 import IntroVideoPlayer from './components/IntroVideoPlayer';
+import { LivePage } from './components/LivePage';
 import './App.css';
+import './components/LivePage.css';
 
 // ─── 宠物图片映射 ────────────────────────────────────────────
 // model_id=1→海浪沫沫(蓝) model_id=2→团子糯糯(白) model_id=3→糖心莓莓(粉)
@@ -97,106 +102,413 @@ function ModalOverlay({ children, onClose }: { children: ReactNode; onClose: () 
   );
 }
 
-// ─── 藏品库 Modal ───────────────────────────────────────────
-function CollectionModal({ onClose }: { onClose: () => void }) {
-  const { userId, allPets, setAllPets, yardPets, setYardPets } = useGameStore();
-  const [loading, setLoading] = useState(false);
-  const [action, setAction] = useState<string>('');
-  const [travelingPetIds, setTravelingPetIds] = useState<Set<number>>(new Set());
+// ─── 藏品库 2.0 全页面（系列滑动）───────────────────────────────
+function CollectionPage({ onBack }: { onBack: () => void }) {
+  const { userId, setYardPets: setGlobalYardPets } = useGameStore();
+  const [seriesList, setSeriesList] = useState<PetSeries[]>([]);
+  const [currentSeriesIndex, setCurrentSeriesIndex] = useState(0);
+  const [seriesDetail, setSeriesDetail] = useState<SeriesDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [showNFCModal, setShowNFCModal] = useState(false);
+  const [collectionToast, setCollectionToast] = useState<{ type: 'success' | 'error'; message: string; petName?: string; petImage?: string } | null>(null);
+  
+  // 本地庭院宠物状态（藏品库独立管理）
+  const [yardPets, setYardPets] = useState<PetInstance[]>([]);
+  
+  // 展示柜容器引用和尺寸
+  const showcaseRef = useRef<HTMLDivElement>(null);
+  const [showcaseSize, setShowcaseSize] = useState({ width: 0, height: 0 });
 
+  // 加载系列列表和庭院宠物
   useEffect(() => {
     if (!userId) return;
-    fetchTravelingPetIds(userId).then((ids) => setTravelingPetIds(new Set(ids)));
+    Promise.all([
+      fetchCollectionSeries(userId),
+      fetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json())
+    ]).then(([list, yardRes]) => {
+      setSeriesList(list);
+      setYardPets(yardRes.pets || []);
+      setLoading(false);
+    });
   }, [userId]);
 
-  const handleToggleYard = async (pet: PetInstance) => {
+  // 加载当前系列详情
+  useEffect(() => {
+    if (!userId || seriesList.length === 0) return;
+    const series = seriesList[currentSeriesIndex];
+    if (!series) return;
+    fetchSeriesDetail(userId, series.id).then(setSeriesDetail);
+  }, [userId, seriesList, currentSeriesIndex]);
+
+  // 监听容器尺寸变化
+  useEffect(() => {
+    if (!showcaseRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setShowcaseSize({ width, height });
+      }
+    });
+    observer.observe(showcaseRef.current);
+    return () => observer.disconnect();
+  }, [seriesDetail]);
+
+  // 坐标转换函数：将设计稿百分比坐标转换为实际容器像素坐标
+  // 设计稿基准尺寸：1081×2281 (实际背景图尺寸)
+  const DESIGN_WIDTH = 1081;
+  const DESIGN_HEIGHT = 2281;
+  const getScaledPosition = (xPercent: number, yPercent: number, scale: number = 1) => {
+    if (showcaseSize.width === 0 || showcaseSize.height === 0) {
+      return { left: `${xPercent}%`, top: `${yPercent}%`, scale };
+    }
+    const scaleX = showcaseSize.width / DESIGN_WIDTH;
+    const scaleY = showcaseSize.height / DESIGN_HEIGHT;
+    const uniformScale = Math.min(scaleX, scaleY);
+    const offsetX = (showcaseSize.width - DESIGN_WIDTH * uniformScale) / 2;
+    const offsetY = (showcaseSize.height - DESIGN_HEIGHT * uniformScale) / 2;
+    const designPixelX = (xPercent / 100) * DESIGN_WIDTH;
+    const designPixelY = (yPercent / 100) * DESIGN_HEIGHT;
+    return {
+      left: offsetX + designPixelX * uniformScale,
+      top: offsetY + designPixelY * uniformScale,
+      scale: scale * uniformScale
+    };
+  };
+
+  // 手势滑动
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    const diff = touchStart - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0 && currentSeriesIndex < seriesList.length - 1) {
+        setCurrentSeriesIndex(prev => prev + 1);
+      } else if (diff < 0 && currentSeriesIndex > 0) {
+        setCurrentSeriesIndex(prev => prev - 1);
+      }
+    }
+    setTouchStart(null);
+  };
+
+  const currentSeries = seriesList[currentSeriesIndex];
+
+  const handleToggleYard = async (pet: any) => {
     if (!userId) return;
-    setAction(String(pet.id));
-    try {
-      const isInYard = yardPets.some(yp => yp.id === pet.id);
-      if (isInYard) {
-        await removeFromYard(userId, pet.id);
-        setYardPets(yardPets.filter((p) => p.id !== pet.id));
-      } else {
-        if (yardPets.length >= 3) {
-          alert('庭院最多放 3 只宠物！');
+    const targetModelId = Number(pet.modelId);
+    const petInstance = yardPets.find(p => Number(p.pet_model_id) === targetModelId);
+    if (petInstance) {
+      try {
+        await removeFromYard(userId, petInstance.id);
+        const yardRes = await fetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json());
+        const updatedYardPets = yardRes.pets || [];
+        setYardPets(updatedYardPets);
+        setGlobalYardPets(updatedYardPets);
+        setCollectionToast({ type: 'success', message: '已取消展示', petName: pet.modelName, petImage: pet.portraitImageUrl });
+        setTimeout(() => setCollectionToast(null), 1500);
+      } catch (e: any) {
+        setCollectionToast({ type: 'error', message: e.message || '操作失败' });
+        setTimeout(() => setCollectionToast(null), 2000);
+      }
+    } else {
+      if (yardPets.length >= 2) {
+        setCollectionToast({ type: 'error', message: '庭院最多展示 2 只机伴' });
+        setTimeout(() => setCollectionToast(null), 2000);
+        return;
+      }
+      try {
+        const allPetsRes = await fetch(`/api/epet1/pet/instances/${userId}`).then(r => r.json());
+        if (!allPetsRes.success) {
+          setCollectionToast({ type: 'error', message: '获取宠物列表失败' });
+          setTimeout(() => setCollectionToast(null), 2000);
           return;
         }
-        await addToYard(userId, pet.id);
-        setYardPets([...yardPets, pet]);
+        const targetPet = allPetsRes.pets?.find((p: any) => Number(p.pet_model_id) === targetModelId);
+        if (!targetPet) {
+          setCollectionToast({ type: 'error', message: '未找到该机伴' });
+          setTimeout(() => setCollectionToast(null), 2000);
+          return;
+        }
+        await addToYard(userId, targetPet.id);
+        const yardRes = await fetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json());
+        const updatedYardPets = yardRes.pets || [];
+        setYardPets(updatedYardPets);
+        setGlobalYardPets(updatedYardPets);
+        setCollectionToast({ type: 'success', message: '已展示在庭院', petName: pet.modelName, petImage: pet.portraitImageUrl });
+        setTimeout(() => setCollectionToast(null), 1500);
+      } catch (e: any) {
+        setCollectionToast({ type: 'error', message: e.message || '操作失败' });
+        setTimeout(() => setCollectionToast(null), 2000);
       }
-    } catch (e: any) {
-      alert(e.message || '操作失败');
-    } finally {
-      setAction('');
     }
   };
 
-  const handleNFCActivate = async () => {
-    const nfcId = prompt('请输入 NFC 标签 ID（卡片上的数字）：');
+  const handleNFCActivate = async (nfcId: string) => {
     if (!nfcId || !userId) return;
-    setLoading(true);
     try {
       const pet = await activatePet(userId, nfcId.trim());
-      setAllPets([...allPets, pet]);
-      alert(`🎉 激活成功！${pet.nickname} 加入你的藏品库！`);
+      alert(`🎉 激活成功！${pet.nickname} 加入藏品库！`);
+      const list = await fetchCollectionSeries(userId);
+      setSeriesList(list);
     } catch (e: any) {
       alert(e.message || '激活失败');
-    } finally {
-      setLoading(false);
     }
   };
 
-  return (
-    <ModalOverlay onClose={onClose}>
-      <div className="modal-header">
-        <h3>🏠 藏品库</h3>
-        <button className="modal-close" onClick={onClose}>×</button>
+  if (loading) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: '#F6F3EA', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{ color: '#999' }}>加载中...</div>
       </div>
-      <div className="modal-tip">最多同时展示 2 只宠物在庭院中</div>
+    );
+  }
 
-      {loading ? (
-        <div className="modal-loading">加载中...</div>
-      ) : (
-        <>
-          {/* 激活新宠物 */}
-          <button className="btn-nfc-activate" onClick={handleNFCActivate}>
-            📱 扫描NFC激活新宠物
-          </button>
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: currentSeries?.themeColor || '#F6F3EA',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* 顶部导航 */}
+      <div style={{
+        height: 56, display: 'flex', alignItems: 'center', padding: '12px 16px 0',
+        background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)',
+      }}>
+        <button onClick={onBack} style={{
+          width: 36, height: 36, borderRadius: '50%', border: 'none',
+          background: 'rgba(0,0,0,0.05)', fontSize: 18, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>←</button>
+        <span style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 600, color: '#333' }}>
+          藏品库
+        </span>
+        <button onClick={() => setShowNFCModal(true)} style={{
+          width: 36, height: 36, borderRadius: '50%', border: 'none',
+          background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff',
+          fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>+</button>
+      </div>
 
-          {allPets.length === 0 ? (
-            <div className="modal-empty">还没有宠物，扫描NFC标签激活吧！</div>
-          ) : (
-            <div className="collection-grid">
-              {allPets.map((pet) => {
-                const isInYard = yardPets.some(yp => yp.id === pet.id);
-                const isTraveling = travelingPetIds.has(Number(pet.id));
-                return (
+      {/* 系列指示器 */}
+      {seriesList.length > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '12px 0' }}>
+          {seriesList.map((s, idx) => (
+            <div key={s.id} onClick={() => setCurrentSeriesIndex(idx)} style={{
+              width: idx === currentSeriesIndex ? 20 : 8, height: 8, borderRadius: 4,
+              background: idx === currentSeriesIndex ? '#667eea' : 'rgba(0,0,0,0.2)',
+              transition: 'all 0.3s', cursor: 'pointer',
+            }} />
+          ))}
+        </div>
+      )}
+
+      {/* 展示柜区域 - 占满剩余空间，背景图在最底层 */}
+      <div
+        style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          background: seriesDetail?.series?.displayBackgroundUrl
+            ? `url(${seriesDetail.series.displayBackgroundUrl}) center/cover no-repeat`
+            : 'linear-gradient(180deg, #f5f0e8 0%, #e8e0d0 100%)',
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {currentSeries && seriesDetail && (
+          <div
+            ref={showcaseRef}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              overflow: 'visible',
+            }}
+          >
+            {/* Banner - 浮动在背景图上 */}
+            <div style={{
+              position: 'absolute',
+              top: 8,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 'calc(100% - 32px)',
+              maxWidth: 600,
+              aspectRatio: '16 / 9',
+              borderRadius: 16,
+              background: currentSeries.bannerImageUrl
+                ? `url(${currentSeries.bannerImageUrl}) center/cover no-repeat`
+                : 'linear-gradient(135deg, #FFE4B5, #FFDAB9)',
+              display: 'flex',
+              alignItems: 'flex-end',
+              padding: 16,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+              overflow: 'hidden',
+              zIndex: 1,
+            }}>
+              {/* 渐变遮罩 */}
+              <div style={{
+                position: 'absolute',
+                left: 0, right: 0, bottom: 0, height: '50%',
+                background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
+                borderRadius: '0 0 16px 16px',
+              }} />
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{
+                  fontSize: 32, fontWeight: 700, color: '#fff',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                }}>
+                  {currentSeries.name}
+                </div>
+                <div style={{
+                  fontSize: 18, color: 'rgba(255,255,255,0.9)', marginTop: 6,
+                  textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                }}>
+                  进度: {seriesDetail.progress.collected}/{seriesDetail.progress.total}
+                </div>
+              </div>
+            </div>
+
+            {/* 机伴列表 */}
+            {seriesDetail.pets.map((pet: any) => {
+              const isInYard = yardPets.some(yp => Number(yp.pet_model_id) === Number(pet.modelId));
+              const config = pet.displayConfig || { x: 50, y: 50, scale: 1 };
+              const posX = config.x ?? 50;
+              const posY = config.y ?? 50;
+              const petScale = config.scale ?? 1;
+              const position = getScaledPosition(posX, posY, petScale);
+              const baseSize = 280;
+
+              return (
                 <div
-                  key={pet.id}
-                  className={`collection-card ${isInYard ? 'active' : ''} ${isTraveling ? 'traveling' : ''}`}
-                  onClick={() => {
-                    if (isTraveling || action === String(pet.id)) return;
-                    handleToggleYard(pet);
+                  key={pet.modelId}
+                  onClick={() => pet.isCollected && handleToggleYard(pet)}
+                  style={{
+                    position: 'absolute',
+                    left: `${position.left}px`,
+                    top: `${position.top}px`,
+                    transform: `translate(-50%, -50%) scale(${position.scale})`,
+                    width: baseSize,
+                    cursor: pet.isCollected ? 'pointer' : 'default',
+                    opacity: pet.isCollected ? 1 : 0.7,
+                    transition: 'all 0.2s',
+                    zIndex: isInYard ? 10 : 1,
                   }}
                 >
-                  <div className="collection-card-img">
-                    <img src={getPetPortrait(pet)} alt={pet.nickname} />
-                    {isTraveling && <div className="collection-travel-badge">✈️</div>}
-                    {!isTraveling && isInYard && <div className="collection-check">✓</div>}
+                  <div style={{
+                    width: '100%', aspectRatio: '1', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    filter: pet.isCollected ? 'none' : 'grayscale(100%) brightness(0.4)',
+                  }}>
+                    {pet.isCollected ? (
+                      <img src={pet.portraitImageUrl || '/assets/pets/moomo.png'} alt={pet.modelName}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    ) : (
+                      <img src={currentSeries.silhouetteImageUrl || '/assets/pets/moomo.png'} alt="???"
+                        style={{ width: '80%', height: '80%', objectFit: 'contain', opacity: 0.5 }} />
+                    )}
                   </div>
-                  <div className="collection-card-name">{pet.model_name || pet.nickname}</div>
-                  <div className="collection-card-level">
-                    {isTraveling ? '🛫 旅行中' : `Lv.${pet.growth_level}`}
+                  <div style={{
+                    textAlign: 'center', marginTop: 8, padding: '4px 12px',
+                    background: 'rgba(0,0,0,0.6)', borderRadius: 12,
+                    fontSize: 42, color: pet.isCollected ? '#fff' : '#999', whiteSpace: 'nowrap',
+                  }}>
+                    {pet.isCollected ? pet.modelName : '???'}
+                    {pet.isCollected && pet.growthLevel > 0 && (
+                      <span style={{ marginLeft: 4, color: '#FFD700' }}>Lv.{pet.growthLevel}</span>
+                    )}
                   </div>
+                  {isInYard && (
+                    <div style={{
+                      position: 'absolute', top: -12, left: -12, right: -12, bottom: -12,
+                      borderRadius: 32, border: '6px solid #667eea',
+                      boxShadow: '0 0 24px rgba(102,126,234,0.5)',
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+                  {isInYard && (
+                    <div style={{
+                      position: 'absolute', top: -16, right: -16, width: 44, height: 44,
+                      borderRadius: '50%', background: '#667eea', color: '#fff',
+                      fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>✓</div>
+                  )}
                 </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* NFC弹窗 */}
+      {showNFCModal && (
+        <NFCDialog onClose={() => setShowNFCModal(false)} onConfirm={handleNFCActivate} />
       )}
-    </ModalOverlay>
+
+      {/* Toast 弹窗 */}
+      {collectionToast && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.4)',
+        }} onClick={() => setCollectionToast(null)}>
+          <div style={{
+            background: '#fff', borderRadius: 20, padding: 24,
+            width: '70%', maxWidth: 240, textAlign: 'center',
+          }} onClick={e => e.stopPropagation()}>
+            {collectionToast.type === 'success' && collectionToast.petImage ? (
+              <>
+                <div style={{
+                  width: 80, height: 80, margin: '0 auto 12px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #667eea20, #764ba220)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <img src={collectionToast.petImage} alt="" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#333' }}>{collectionToast.petName}</div>
+                <div style={{ fontSize: 14, color: '#667eea' }}>{collectionToast.message}</div>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  width: 60, height: 60, margin: '0 auto 12px', borderRadius: '50%',
+                  background: collectionToast.type === 'error' ? '#ff444420' : '#667eea20',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
+                }}>{collectionToast.type === 'error' ? '⚠️' : '✓'}</div>
+                <div style={{ fontSize: 14, color: collectionToast.type === 'error' ? '#ff4444' : '#667eea', fontWeight: 600 }}>
+                  {collectionToast.message}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NFCDialog({ onClose, onConfirm }: { onClose: () => void; onConfirm: (id: string) => void }) {
+  const [nfcId, setNfcId] = useState('');
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1100,
+      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }} onClick={onClose}>
+      <div style={{
+        background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 300,
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, textAlign: 'center' }}>📱 扫描 NFC 激活</div>
+        <input type="text" value={nfcId} onChange={e => setNfcId(e.target.value)} placeholder="输入 NFC 标签 ID"
+          style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid #ddd', padding: '0 12px', fontSize: 15, marginBottom: 16 }} />
+        <button onClick={() => { onConfirm(nfcId); onClose(); }}
+          style={{ width: '100%', height: 44, borderRadius: 22, border: 'none', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff', fontSize: 15, fontWeight: 600 }}>
+          激活
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1700,7 +2012,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, activeModal, setActiveModal,
           setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId,
-          fullscreenVideoUrl, setFullscreenVideoUrl } = useGameStore();
+          fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings } = useGameStore();
 
   useEffect(() => {
     const init = async () => {
@@ -1710,6 +2022,11 @@ export default function App() {
 
         // 保存 user_id 到 localStorage 供 Game.ts 场景加载使用
         localStorage.setItem('epet_user_id', String(user.user_id));
+
+        // 加载用户设置（首页模式）
+        const settings = await fetchUserSettings(user.user_id);
+        setUserSettings(settings);
+        setHomeMode(settings.home_mode);
 
         const [yardPets, allPets, travel, yardFurn] = await Promise.all([
           fetchYardPets(user.user_id),
@@ -1730,15 +2047,34 @@ export default function App() {
     init();
   }, []);
 
+  // 处理打开模态框
+  const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory') => {
+    setActiveModal(modal);
+  }, [setActiveModal]);
+
+  // 切换到庭院画面
+  const handleSwitchToYard = useCallback(() => {
+    setHomeMode('yard');
+  }, [setHomeMode]);
+
   return (
     <div className="app">
-      <div className="scene-bg" />
-      <div className="app-content">
-        <HomePanel />
-      </div>
+      {homeMode === 'yard' ? (
+        <>
+          <div className="scene-bg" />
+          <div className="app-content">
+            <HomePanel />
+          </div>
+        </>
+      ) : (
+        <LivePage 
+          onOpenModal={handleOpenModal}
+          onSwitchToYard={handleSwitchToYard}
+        />
+      )}
 
       {/* Modals */}
-      {activeModal === 'collection' && <CollectionModal onClose={() => setActiveModal(null)} />}
+      {activeModal === 'collection' && <CollectionPage onBack={() => setActiveModal(null)} />}
       {activeModal === 'postcard' && <PostcardModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'travel' && <TravelModal onClose={() => setActiveModal(null)} preselectedPetId={chatPetId ?? undefined} />}
       {activeModal === 'drift' && <DriftModal onClose={() => setActiveModal(null)} />}

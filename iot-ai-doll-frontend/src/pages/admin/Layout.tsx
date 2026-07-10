@@ -28,6 +28,7 @@ const navItems = [
   { key: 'yard-editor', label: '庭院地图编辑', icon: '🗺️', path: '/admin/yard-editor' },
   { key: 'zones', label: '区域管理', icon: '🌏', path: '/admin/zones' },
   { key: 'icons', label: '图标素材', icon: '🎨', path: '/admin/icons' },
+  { key: 'pet-series', label: '机伴系列', icon: '🏠', path: '/admin/pet-series' },
 ];
 
 export default function AdminLayout() {

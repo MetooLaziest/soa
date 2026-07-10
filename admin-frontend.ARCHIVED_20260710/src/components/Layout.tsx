@@ -5,9 +5,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
 
   const menuItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/companions', label: '宠物模板管理', icon: '🐾' },
     { path: '/pets', label: '宠物实体管理', icon: '🐶' },
     { path: '/rag', label: 'RAG 知识库管理', icon: '📚' },
+    { path: '/settings/home-mode', label: '首页展示设置', icon: '⚙️' },
   ];
 
   console.log('🚀 Admin Frontend v2.0 - Layout component loaded');

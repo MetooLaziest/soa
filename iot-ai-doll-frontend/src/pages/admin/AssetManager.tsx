@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import client from '../../api/client';
 
 /**
- * 素材管理 — 管理员上传/预览/删除 epet 静态素材
+ * 素材管理 — 管理员上传/预览/删除/替换 epet 静态素材
  * 文件存储在 /var/www/iot-ai-doll/epet-assets/ (nginx /epet/static/ 代理)
  */
 export default function AssetManager() {
@@ -46,6 +46,26 @@ export default function AssetManager() {
     }
   };
 
+  const handleReplace = async (filename: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await client.delete(`/admin/epet-assets/${encodeURIComponent(filename)}`);
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('filename', filename);
+      await client.post('/admin/epet-assets', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      await loadFiles();
+    } catch (e: any) {
+      setError(e.response?.data?.error || e.message);
+      await loadFiles();
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   const handleDelete = async (filename: string) => {
     if (!confirm(`确认删除 ${filename}？`)) return;
     try {
@@ -67,7 +87,7 @@ export default function AssetManager() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white">📁 素材管理</h2>
+          <h2 className="text-xl font-bold text-white">📁 素材管理 <span className="text-xs font-normal text-gray-500">v2</span></h2>
           <p className="text-sm text-gray-400 mt-1">
             管理 /epet/static/ 下的静态素材，上传后可通过 <code className="text-yellow-300">/epet/static/文件名</code> 访问
           </p>
@@ -105,13 +125,18 @@ export default function AssetManager() {
                 </div>
                 <div className="text-xs text-gray-300 truncate" title={name}>{name}</div>
                 <div className="text-[10px] text-gray-500 font-mono truncate select-all">{url}</div>
-                <div className="flex gap-1">
+                {/* 操作按钮行 */}
+                <div className="flex gap-1.5">
+                  <label className="flex-1 flex items-center justify-center gap-1 rounded-md bg-green-600/20 px-2 py-1.5 text-[11px] font-medium text-green-400 hover:bg-green-600/30 cursor-pointer transition">
+                    🔄 替换
+                    <input type="file" accept="image/*,video/*" onChange={(e) => handleReplace(name, e)} className="hidden" />
+                  </label>
                   <a href={url} target="_blank" rel="noopener"
-                     className="flex-1 rounded bg-white/5 px-2 py-1 text-[10px] text-center text-gray-400 hover:bg-white/10 hover:text-white">
-                    🔗 打开
+                     className="flex items-center justify-center rounded-md bg-white/5 px-2 py-1.5 text-[11px] text-gray-400 hover:bg-white/10 hover:text-white transition">
+                    🔗
                   </a>
                   <button onClick={() => handleDelete(name)}
-                          className="rounded bg-white/5 px-2 py-1 text-[10px] text-gray-400 hover:bg-red-500/20 hover:text-red-400">
+                          className="flex items-center justify-center rounded-md bg-white/5 px-2 py-1.5 text-[11px] text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition">
                     🗑️
                   </button>
                 </div>

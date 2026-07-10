@@ -33,6 +33,7 @@ import adminZonesRoutes from './routes/admin-zones.js';
 import adminIconsRoutes from './routes/admin-icons.js';
 import adminEpetUsersRoutes from './routes/admin-epet-users.js';
 import adminEpetAssetsRoutes from './routes/admin-epet-assets.js';
+import adminPetSeriesRoutes from './routes/admin-pet-series.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -77,6 +78,7 @@ app.use('/api/admin/pets', adminPetsRoutes);
 app.use('/api/admin/rag-kbs', adminRagRoutes);
 app.use('/api/admin/models', adminModelsRoutes);
 app.use('/api/admin/epet-assets', adminEpetAssetsRoutes);
+app.use('/api/admin/pet-series', adminPetSeriesRoutes);
 app.use('/api/admin/yard-scenes', adminYardScenesRoutes);
 app.use('/api/admin/zones', adminZonesRoutes);
 app.use('/api/admin/icons', adminIconsRoutes);
@@ -112,6 +114,8 @@ app.use('/api/epet1/shop2',     epetShop2Routes);
 app.use('/api/epet1/spotdiff',  epetSpotdiffRoutes);
 app.use('/api/epet1/match3',    requireCjs('./routes-epet1/match3.cjs')(poolEpet1));
 app.use('/api/epet1/cooking',   epetCookingRoutes);
+app.use('/api/epet1/collection', requireCjs('./routes-epet1/collection.cjs')(poolEpet1));
+app.use('/api/epet1/user/settings', requireCjs('./routes-epet1/user-settings.cjs')(poolEpet1));
 // 静态文件服务（前端构建产物）
 app.use(express.static(join(__dirname, '../frontend')));
 app.get('*', (req, res) => {

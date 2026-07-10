@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import type { PetInstance, TravelRecord, YardFurniture } from '../api/epet1';
+import type { PetInstance, TravelRecord, YardFurniture, UserSettings } from '../api/epet1';
 
-type ModalType = 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | 'match3' | null;
+type ModalType = 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | 'match3' | null;
+type PageType = 'home' | 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'inventory' | 'game' | 'chat';
+type HomeMode = 'yard' | 'live';
 
 interface GameStore {
   // User
@@ -14,6 +16,8 @@ interface GameStore {
   activeTravel: TravelRecord | null;
   // Modals
   activeModal: ModalType;
+  // Page routing (for full-screen pages)
+  currentPage: PageType;
   // Chat target
   chatPetId: number | null;
   // Intro video data
@@ -29,6 +33,10 @@ interface GameStore {
   match3ShopItemId: number | null;
   // 全屏视频播放
   fullscreenVideoUrl: string | null;
+  // 首页模式 (yard=庭院, live=直播画面)
+  homeMode: HomeMode;
+  // 用户设置
+  userSettings: UserSettings | null;
 
   setUser: (userId: number, emotionPoints: number) => void;
   setYardPets: (pets: PetInstance[]) => void;
@@ -37,6 +45,7 @@ interface GameStore {
   addEmotionPoints: (pts: number) => void;
   setActiveTravel: (t: TravelRecord | null) => void;
   setActiveModal: (m: ModalType) => void;
+  setCurrentPage: (p: PageType) => void;
   setChatPetId: (id: number | null) => void;
   setIntroVideoData: (data: { id: number; video_url: string; duration_sec: number; name: string } | null) => void;
   setLoading: (v: boolean) => void;
@@ -48,6 +57,8 @@ interface GameStore {
   setRemovingFurnitureMode: (v: boolean) => void;
   setMatch3LevelId: (levelId: number | null, shopItemId?: number | null) => void;
   setFullscreenVideoUrl: (url: string | null) => void;
+  setHomeMode: (mode: HomeMode) => void;
+  setUserSettings: (settings: UserSettings | null) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -57,6 +68,7 @@ export const useGameStore = create<GameStore>((set) => ({
   allPets: [],
   activeTravel: null,
   activeModal: null,
+  currentPage: 'home',
   chatPetId: null,
   introVideoData: null,
   loading: true,
@@ -66,6 +78,8 @@ export const useGameStore = create<GameStore>((set) => ({
   match3LevelId: null,
   match3ShopItemId: null,
   fullscreenVideoUrl: null,
+  homeMode: 'yard',
+  userSettings: null,
 
   setUser: (userId, emotionPoints) => set({ userId, emotionPoints }),
   setYardPets: (yardPets) => set({ yardPets }),
@@ -74,6 +88,7 @@ export const useGameStore = create<GameStore>((set) => ({
   addEmotionPoints: (pts) => set((s) => ({ emotionPoints: s.emotionPoints + pts })),
   setActiveTravel: (activeTravel) => set({ activeTravel }),
   setActiveModal: (activeModal) => set({ activeModal }),
+  setCurrentPage: (currentPage) => set({ currentPage }),
   setChatPetId: (chatPetId) => set({ chatPetId }),
   setIntroVideoData: (introVideoData) => set({ introVideoData }),
   setLoading: (loading) => set({ loading }),
@@ -91,4 +106,6 @@ export const useGameStore = create<GameStore>((set) => ({
   setRemovingFurnitureMode: (removingFurnitureMode) => set({ removingFurnitureMode }),
   setMatch3LevelId: (levelId, shopItemId) => set({ match3LevelId: levelId, match3ShopItemId: shopItemId ?? null }),
   setFullscreenVideoUrl: (fullscreenVideoUrl) => set({ fullscreenVideoUrl }),
+  setHomeMode: (homeMode) => set({ homeMode }),
+  setUserSettings: (userSettings) => set({ userSettings }),
 }));

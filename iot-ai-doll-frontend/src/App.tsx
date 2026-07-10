@@ -35,6 +35,7 @@ import Match3Admin from './pages/admin/Match3Admin';
 import CookingAdmin from './pages/admin/CookingAdmin';
 import TravelAdmin from './pages/admin/TravelAdmin';
 import CompanionRAG from './pages/admin/CompanionRAG';
+import PetSeriesAdmin from './pages/admin/PetSeries';
 import RAGList from './pages/admin/RAGKnowledgeBases';
 import RAGEdit from './pages/admin/RAGEdit';
 
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="match3" element={<Match3Admin />} />
           <Route path="cooking" element={<CookingAdmin />} />
           <Route path="travel" element={<TravelAdmin />} />
+          <Route path="pet-series" element={<PetSeriesAdmin />} />
         </Route>
 
         {/* 兜底 */}
