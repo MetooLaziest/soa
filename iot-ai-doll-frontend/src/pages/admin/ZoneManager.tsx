@@ -48,6 +48,10 @@ export default function ZoneManager() {
   const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  
+  // 首页模式配置
+  const [homeMode, setHomeMode] = useState<'yard' | 'live'>('yard');
+  const [homeModeLoading, setHomeModeLoading] = useState(false);
   const [editing, setEditing] = useState<Zone | null>(null);
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
 
@@ -78,7 +82,35 @@ export default function ZoneManager() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  // 加载首页模式配置
+  const loadHomeMode = async () => {
+    try {
+      const userId = 2; // 默认演示用户，实际应该从登录状态获取
+      const res = await client.get(`/epet1/user/settings/${userId}`);
+      if (res.data.success) {
+        setHomeMode(res.data.settings?.home_mode || 'yard');
+      }
+    } catch (err) {
+      console.error('加载首页模式失败:', err);
+    }
+  };
+
+  // 保存首页模式
+  const saveHomeMode = async (mode: 'yard' | 'live') => {
+    setHomeModeLoading(true);
+    try {
+      const userId = 2; // 默认演示用户
+      await client.post(`/epet1/user/settings/${userId}`, { home_mode: mode });
+      setHomeMode(mode);
+    } catch (err) {
+      console.error('保存首页模式失败:', err);
+      alert('保存失败');
+    } finally {
+      setHomeModeLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); loadHomeMode(); }, []);
 
   const resetForm = () => {
     setFKey('0,0'); setFName(''); setFGridX(0); setFGridY(0);
@@ -176,12 +208,61 @@ export default function ZoneManager() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-white">🗺️ 区域管理</h2>
-          <p className="mt-1 text-sm text-gray-500">管理庭院区域、时段背景图、解锁条件</p>
+          <p className="mt-1 text-sm text-gray-500">管理庭院区域、时段背景图、解锁条件、首页展示模式</p>
         </div>
         <button onClick={() => { resetForm(); setShowForm(true); }}
           className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700">
           + 新增区域
         </button>
+      </div>
+
+      {/* 首页展示模式配置 */}
+      <div className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-base font-semibold text-white">🏠 首页展示模式</h3>
+            <p className="text-xs text-gray-500">配置 epet 首页默认展示的视图模式</p>
+          </div>
+          {homeModeLoading && <span className="text-xs text-gray-400">保存中...</span>}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            onClick={() => saveHomeMode('yard')}
+            disabled={homeModeLoading}
+            className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition ${
+              homeMode === 'yard'
+                ? 'border-purple-500 bg-purple-500/20'
+                : 'border-white/10 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            <span className="text-2xl">🏡</span>
+            <div>
+              <div className="text-sm font-medium text-white">庭院画面</div>
+              <div className="text-xs text-gray-400">PixiJS 渲染的交互式场景，可抚摸互动</div>
+            </div>
+            {homeMode === 'yard' && (
+              <span className="ml-auto rounded-full bg-purple-500/30 px-2 py-0.5 text-xs text-purple-300">当前</span>
+            )}
+          </button>
+          <button
+            onClick={() => saveHomeMode('live')}
+            disabled={homeModeLoading}
+            className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition ${
+              homeMode === 'live'
+                ? 'border-purple-500 bg-purple-500/20'
+                : 'border-white/10 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            <span className="text-2xl">📹</span>
+            <div>
+              <div className="text-sm font-medium text-white">直播画面</div>
+              <div className="text-xs text-gray-400">根据时间段自动播放机伴视频，上下滑动切换</div>
+            </div>
+            {homeMode === 'live' && (
+              <span className="ml-auto rounded-full bg-purple-500/30 px-2 py-0.5 text-xs text-purple-300">当前</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Zone Grid */}
