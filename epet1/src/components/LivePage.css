@@ -155,12 +155,12 @@
 }
 
 .live-page-menu-btn.play-btn {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  /* 无特殊背景, 与其他菜单按钮一致 */
   padding: 10px 16px;
 }
 
 .live-page-menu-btn.play-btn:hover {
-  background: linear-gradient(135deg, #5a6fd6, #6a4190);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .live-page-menu-icon-img {
