@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { PetInstance, TravelRecord, YardFurniture, UserSettings } from '../api/epet1';
 
-type ModalType = 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | 'match3' | null;
+type ModalType = 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | 'match3' | 'collection' | null;
 type PageType = 'home' | 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'inventory' | 'game' | 'chat';
 type HomeMode = 'yard' | 'live';
 
