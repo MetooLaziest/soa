@@ -570,18 +570,32 @@ export interface IconConfig {
   height: number;
 }
 
-/** 获取图标配置列表 */
+/** 获取图标配置列表 - 使用 yard/icons 端点（与庭院页面一致） */
 export async function fetchIcons(): Promise<IconConfig[]> {
-  const res = await get<any>('/admin/icons');
-  const icons = res.icons || [];
-  // 将相对路径转换为完整URL
-  return icons.map((icon: IconConfig) => ({
-    ...icon,
-    image_url: icon.image_url && icon.image_url.startsWith('http') 
-      ? icon.image_url 
-      : icon.image_url 
-        ? `https://soa.laziestlife.com${icon.image_url}` 
-        : ''
+  console.log('[fetchIcons] Function called! BASE=', BASE);
+  const url = `${BASE}/yard/icons`;
+  console.log('[fetchIcons] URL:', url);
+  const res = await fetch(url);
+  console.log('[fetchIcons] Status:', res.status, res.statusText);
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('[fetchIcons] Error response:', text.substring(0, 200));
+    throw new Error(`GET /yard/icons failed: ${res.status}`);
+  }
+  const data = await res.json();
+  console.log('[fetchIcons] Response:', data);
+  const iconMap = data.icons || {};
+  // 转换为数组格式，并确保 image_url 完整
+  return Object.entries(iconMap).map(([icon_key, data]: [string, any]) => ({
+    icon_key,
+    label: data.label || icon_key,
+    image_url: data.url?.startsWith('http') 
+      ? data.url 
+      : data.url 
+        ? `https://soa.laziestlife.com${data.url}` 
+        : '',
+    width: data.width,
+    height: data.height,
   }));
 }
 
