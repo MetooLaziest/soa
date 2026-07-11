@@ -532,6 +532,22 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
   const [postcards, setPostcards] = useState<Postcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [bgUrl, setBgUrl] = useState<string | null>(null);
+
+  // 探测明信片背景图
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => setBgUrl('/epet/static/postcard-bg.png');
+    img.onerror = () => setBgUrl(null);
+    img.src = '/epet/static/postcard-bg.png';
+  }, []);
+
+  // ESC 关闭
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   useEffect(() => {
     if (!userId) return;
@@ -559,7 +575,10 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        background: bgUrl ? undefined : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        backgroundImage: bgUrl ? `url(${bgUrl})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         display: 'flex', flexDirection: 'column',
         touchAction: 'pan-y',
       }}
@@ -570,6 +589,7 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 16px', color: '#fff',
+        ...(bgUrl ? { background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } : {}),
       }}>
         <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>💌 明信片</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -903,7 +923,17 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
   const { userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture, addYardFurniture, removeYardFurniture, setRemovingFurnitureMode } = useGameStore();
   const [activeTab, setActiveTab] = useState<'food' | 'dish' | 'furniture'>('food');
   const [inventory, setInventory] = useState<{ food: any[]; dish: any[]; furniture: any[]; postcard: any[] }>({ food: [], dish: [], furniture: [], postcard: [] });
+  const [bgUrl, setBgUrl] = useState<string | null>(null);
 
+  // 探测背包背景图是否存在
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => setBgUrl('/epet/static/bg/backpack-bg.png');
+    img.onerror = () => setBgUrl(null);
+    img.src = '/epet/static/bg/backpack-bg.png';
+  }, []);
+
+  // 加载背包数据
   useEffect(() => {
     if (!userId) return;
     fetch(`/api/epet1/inventory/${userId}`)
@@ -914,7 +944,15 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
       .catch(e => console.error('Failed to load inventory:', e));
   }, [userId]);
 
+  // ESC 关闭
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   const items = inventory[activeTab] || [];
+  const hasBg = !!bgUrl;
 
   const handlePlaceFurniture = (item: any) => {
     if (!userId) return;
@@ -922,7 +960,6 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
       alert('庭院最多放置 8 件家具！');
       return;
     }
-    // 优先使用后台配置的 yard_width/yard_height，否则 fallback 到默认表
     const defaultSize = FURNITURE_DEFAULT_SIZE[item.name] || { width: 0.08, height: 0.12 };
     const info: PlacingFurnitureInfo = {
       shopItemId: item.shop_item_id || item.id,
@@ -933,15 +970,36 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
     };
     setPlacingFurniture(info);
     gameInstance.startPlacing(info);
-    onClose(); // close modal, show yard with placement ghost
+    onClose();
   };
 
   return (
-    <ModalOverlay onClose={onClose}>
-      <h3>🎒 背包</h3>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: hasBg ? undefined : 'linear-gradient(180deg, #FFF8F0 0%, #F0E6D3 100%)',
+      backgroundImage: hasBg ? `url(${bgUrl})` : undefined,
+      backgroundSize: 'cover', backgroundPosition: 'center',
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    }}>
+      {/* 顶部栏 */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '16px 20px', flexShrink: 0,
+        background: hasBg ? 'rgba(0,0,0,0.25)' : 'rgba(139,105,20,0.08)',
+        backdropFilter: hasBg ? 'blur(8px)' : undefined,
+        WebkitBackdropFilter: hasBg ? 'blur(8px)' : undefined,
+      }}>
+        <h3 style={{ color: hasBg ? '#fff' : '#8B6914', fontSize: 18, fontWeight: 700, margin: 0 }}>🎒 背包</h3>
+        <button onClick={onClose} style={{
+          width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer',
+          background: hasBg ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)',
+          color: hasBg ? '#fff' : '#8B6914', fontSize: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>✕</button>
+      </div>
 
       {/* Tab 切换 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, padding: '12px 20px', flexShrink: 0 }}>
         {INV_TABS.map(tab => (
           <button
             key={tab.id}
@@ -949,9 +1007,12 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
             style={{
               flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer',
               fontSize: 13, fontWeight: activeTab === tab.id ? 700 : 400,
-              color: activeTab === tab.id ? '#8B6914' : 'rgba(0,0,0,0.4)',
-              background: activeTab === tab.id ? 'rgba(139,105,20,0.12)' : 'rgba(0,0,0,0.04)',
-              position: 'relative',
+              color: activeTab === tab.id
+                ? (hasBg ? '#fff' : '#8B6914')
+                : (hasBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'),
+              background: activeTab === tab.id
+                ? (hasBg ? 'rgba(255,255,255,0.2)' : 'rgba(139,105,20,0.12)')
+                : (hasBg ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'),
             }}
           >
             {tab.name}
@@ -960,83 +1021,97 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* 内容区 */}
-      {activeTab === 'furniture' && yardFurniture.length > 0 && (
-        <button
-          onClick={() => { setRemovingFurnitureMode(true); onClose(); }}
-          style={{
-            width: '100%', marginBottom: 10, padding: '8px 12px', borderRadius: 8, border: 'none',
-            background: 'linear-gradient(135deg, #c0392b, #e74c3c)', color: '#fff',
-            fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          }}
-        >
-          🔄 回收家具
-        </button>
-      )}
-      {items.length === 0 ? (
-        <div className="modal-empty" style={{ padding: '40px 0' }}>
-          {INV_TABS.find(t => t.id === activeTab)?.empty}
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, maxHeight: '50vh', overflowY: 'auto' }}>
-          {items.map((item: any, i: number) => (
-            <div key={i} style={{
-              background: 'rgba(0,0,0,0.04)', borderRadius: 10, padding: 10,
-              textAlign: 'center', border: '1px solid rgba(0,0,0,0.06)',
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
+        {activeTab === 'furniture' && yardFurniture.length > 0 && (
+          <button
+            onClick={() => { setRemovingFurnitureMode(true); onClose(); }}
+            style={{
+              width: '100%', marginBottom: 10, padding: '8px 12px', borderRadius: 8, border: 'none',
+              background: hasBg ? 'rgba(192,57,43,0.6)' : 'linear-gradient(135deg, #c0392b, #e74c3c)',
+              color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
             }}
-            >
-              <div style={{
-                width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
-                background: 'rgba(0,0,0,0.06)', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', fontSize: 28,
-                backgroundImage: item.image_url ? `url(${item.image_url})` : undefined,
-                backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+          >
+            🔄 回收家具
+          </button>
+        )}
+        {items.length === 0 ? (
+          <div style={{
+            padding: '60px 0', textAlign: 'center',
+            color: hasBg ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.3)',
+            fontSize: 14,
+          }}>
+            {INV_TABS.find(t => t.id === activeTab)?.empty}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {items.map((item: any, i: number) => (
+              <div key={i} style={{
+                background: hasBg ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.04)',
+                borderRadius: 10, padding: 10, textAlign: 'center',
+                border: hasBg ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.06)',
+                backdropFilter: hasBg ? 'blur(6px)' : undefined,
+                WebkitBackdropFilter: hasBg ? 'blur(6px)' : undefined,
               }}>
-                {!item.image_url && (activeTab === 'food' ? '🐟' : activeTab === 'dish' ? '🍳' : '🪑')}
-              </div>
-              <div style={{ color: '#333', fontSize: 12, fontWeight: 600, marginBottom: 2,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {item.name}
-              </div>
-              {/* 料理评级星级 */}
-              {activeTab === 'dish' && item.dish_rating != null && (
-                <div style={{ fontSize: 10, marginBottom: 2 }}>
-                  {item.dish_rating >= 1 ? '⭐'.repeat(item.dish_rating) : '❌'}
+                <div style={{
+                  width: 48, height: 48, margin: '0 auto 6px', borderRadius: 8,
+                  background: hasBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
+                  backgroundImage: item.image_url ? `url(${item.image_url})` : undefined,
+                  backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+                }}>
+                  {!item.image_url && (activeTab === 'food' ? '🐟' : activeTab === 'dish' ? '🍳' : '🪑')}
                 </div>
-              )}
-              {item.quantity !== undefined && (
-                <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 10 }}>×{item.quantity}</div>
-              )}
-              {/* 家具布置按钮 */}
-              {activeTab === 'furniture' && (
-                yardFurniture.some(f => String(f.shop_item_id) === String(item.shop_item_id || item.id)) ? (
-                  <div style={{
-                    marginTop: 6, padding: '4px 10px', borderRadius: 6,
-                    background: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.35)',
-                    fontSize: 11, fontWeight: 500, textAlign: 'center',
-                  }}>
-                    ✅ 已放置
+                <div style={{
+                  color: hasBg ? '#fff' : '#333', fontSize: 12, fontWeight: 600, marginBottom: 2,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  textShadow: hasBg ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
+                }}>
+                  {item.name}
+                </div>
+                {/* 料理评级星级 */}
+                {activeTab === 'dish' && item.dish_rating != null && (
+                  <div style={{ fontSize: 10, marginBottom: 2 }}>
+                    {item.dish_rating >= 1 ? '⭐'.repeat(item.dish_rating) : '❌'}
                   </div>
-                ) : (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handlePlaceFurniture(item); }}
-                    style={{
-                      marginTop: 6, padding: '4px 10px', borderRadius: 6, border: 'none',
-                      background: 'linear-gradient(135deg, #8B6914, #C49B2A)', color: '#fff',
-                      fontSize: 11, fontWeight: 600, cursor: 'pointer', width: '100%',
-                    }}
-                  >
-                    🏗️ 布置
-                  </button>
-                )
-              )}
-              {item.duplicate_count !== undefined && item.duplicate_count > 0 && (
-                <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 10 }}>重复 ×{item.duplicate_count}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </ModalOverlay>
+                )}
+                {item.quantity !== undefined && (
+                  <div style={{ color: hasBg ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.45)', fontSize: 10 }}>×{item.quantity}</div>
+                )}
+                {/* 家具布置按钮 */}
+                {activeTab === 'furniture' && (
+                  yardFurniture.some(f => String(f.shop_item_id) === String(item.shop_item_id || item.id)) ? (
+                    <div style={{
+                      marginTop: 6, padding: '4px 10px', borderRadius: 6,
+                      background: hasBg ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)',
+                      color: hasBg ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.35)',
+                      fontSize: 11, fontWeight: 500, textAlign: 'center',
+                    }}>
+                      ✅ 已放置
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handlePlaceFurniture(item); }}
+                      style={{
+                        marginTop: 6, padding: '4px 10px', borderRadius: 6, border: 'none',
+                        background: hasBg
+                          ? 'rgba(139,105,20,0.7)'
+                          : 'linear-gradient(135deg, #8B6914, #C49B2A)',
+                        color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', width: '100%',
+                      }}
+                    >
+                      🏗️ 布置
+                    </button>
+                  )
+                )}
+                {item.duplicate_count !== undefined && item.duplicate_count > 0 && (
+                  <div style={{ color: hasBg ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.45)', fontSize: 10 }}>重复 ×{item.duplicate_count}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1421,6 +1496,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
 function GameModal({ onClose }: { onClose: () => void }) {
   const { userId } = useGameStore();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
   const [games] = useState([
     { id: 'fishing', name: '钓鱼', icon: '🎣', desc: '静待鱼儿上钩', status: 'ready' },
     { id: 'cooking', name: '料理', icon: '🍳', desc: '把食材变成料理', status: 'ready' },
@@ -1449,12 +1525,16 @@ function GameModal({ onClose }: { onClose: () => void }) {
 
   // 料理游戏全屏独立渲染
   if (selectedGame === 'cooking') {
+    const fallbackBg = 'linear-gradient(180deg, #1a1a2e 0%, #2a1a0e 100%)';
     return (
       <div style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'linear-gradient(180deg, #1a1a2e 0%, #2a1a0e 100%)',
+        background: cookingPageBg ? undefined : fallbackBg,
+        backgroundImage: cookingPageBg ? `url(${cookingPageBg})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
       }}>
-        <Cooking onClose={() => setSelectedGame(null)} />
+        <Cooking onClose={() => { setSelectedGame(null); setCookingPageBg(null); }} onPageBgChange={setCookingPageBg} />
       </div>
     );
   }
@@ -2002,6 +2082,8 @@ export default function App() {
           setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId,
           fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings } = useGameStore();
 
+  const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -2101,8 +2183,14 @@ export default function App() {
         </div>
       )}
       {activeModal === 'cooking' && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'linear-gradient(180deg, #1a1a2e 0%, #2a1a0e 100%)' }}>
-          <Cooking onClose={() => setActiveModal(null)} />
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: cookingPageBg ? undefined : 'linear-gradient(180deg, #1a1a2e 0%, #2a1a0e 100%)',
+          backgroundImage: cookingPageBg ? `url(${cookingPageBg})` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}>
+          <Cooking onClose={() => { setActiveModal(null); setCookingPageBg(null); }} onPageBgChange={setCookingPageBg} />
         </div>
       )}
       {activeModal === 'match3' && match3LevelId && (

@@ -11,6 +11,8 @@ export default function TravelAdmin() {
   const [allPostcards, setAllPostcards] = useState<any[]>([]);
   const [shopItems, setShopItems] = useState<any[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [postcardBgUrl, setPostcardBgUrl] = useState('/epet/static/postcard-bg.png');
+  const [uploadingBg, setUploadingBg] = useState(false);
   const [showAddPostcard, setShowAddPostcard] = useState(false);
   const [addForm, setAddForm] = useState({ postcard_id: 0, probability: 10, unlock_shop_item_id: 0 });
 
@@ -48,6 +50,32 @@ export default function TravelAdmin() {
       timeout: 300000,
     });
     return res.data?.asset?.url || '';
+  };
+
+  // 刷新明信片背景预览
+  const refreshPostcardBg = () => {
+    setPostcardBgUrl('/epet/static/postcard-bg.png?t=' + Date.now());
+  };
+
+  // 上传明信片背景图
+  const uploadPostcardBg = async (file: File) => {
+    setUploadingBg(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'bg');
+      const res = await client.post('/game-assets/upload', formData, { timeout: 300000 });
+      const uploadedUrl = res.data?.asset?.url || '';
+      if (!uploadedUrl) throw new Error('上传返回无URL');
+      // 提取 filename 从 url
+      const filename = uploadedUrl.split('/').pop();
+      await client.post('/game-assets/set-postcard-bg', { filename, type: 'bg' });
+      refreshPostcardBg();
+      alert('明信片背景已更新！');
+    } catch (err: any) {
+      alert('上传失败: ' + (err?.message || err));
+    }
+    setUploadingBg(false);
   };
 
   // 添加明信片关联
@@ -121,6 +149,40 @@ export default function TravelAdmin() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">🧳 旅游管理</h1>
+
+      {/* 明信片页面背景配置 */}
+      <div className="bg-gray-800 rounded-xl p-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-white">🖼️ 明信片页面背景</h2>
+          <div className="flex gap-2">
+            <button onClick={refreshPostcardBg} className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-500">🔄 刷新</button>
+            <label className={`cursor-pointer px-3 py-1 rounded text-sm ${uploadingBg ? 'bg-gray-600 text-gray-400' : 'bg-cyan-700 text-white hover:bg-cyan-600'}`}>
+              {uploadingBg ? '上传中...' : '📤 上传背景图'}
+              <input type="file" accept="image/*" className="hidden"
+                disabled={uploadingBg}
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (f) await uploadPostcardBg(f);
+                }}
+              />
+            </label>
+          </div>
+        </div>
+        <div className="flex items-start gap-4">
+          <div className="w-32 h-44 bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img src={postcardBgUrl} alt="明信片背景预览" className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+            />
+            <span className="text-gray-500 text-xs hidden">暂无背景</span>
+          </div>
+          <div className="text-sm space-y-1">
+            <div className="text-gray-400">路径: <code className="text-cyan-400">/epet/static/postcard-bg.png</code></div>
+            <div className="text-gray-400">建议尺寸: <span className="text-amber-400">1080×1920</span> (竖版)</div>
+            <div className="text-gray-400">支持格式: PNG / JPG / WebP</div>
+            <div className="text-gray-500 text-xs mt-2">上传后自动设为明信片页面背景，H5端即时生效</div>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 左侧: pet_models 列表 */}

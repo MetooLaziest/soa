@@ -47,6 +47,7 @@ export default function MiniGameAssets() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [yardBgUrl, setYardBgUrl] = useState<string>('/epet/yard-bg.png');
   const [chatBgUrl, setChatBgUrl] = useState<string>('/epet/chat-bg.png');
+  const [backpackBgUrl, setBackpackBgUrl] = useState<string>('/epet/static/bg/backpack-bg.png');
   const fileRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +66,11 @@ export default function MiniGameAssets() {
   // 刷新当前庭院背景
   const refreshYardBg = () => {
     setYardBgUrl(`/epet/yard-bg.png?t=${Date.now()}`);
+  };
+
+  // 刷新当前背包背景
+  const refreshBackpackBg = () => {
+    setBackpackBgUrl(`/epet/static/bg/backpack-bg.png?t=${Date.now()}`);
   };
 
   useEffect(() => { load(); }, [activeType]);
@@ -160,6 +166,19 @@ export default function MiniGameAssets() {
     }
   };
 
+  // 设为背包背景
+  const setAsBackpackBg = async (url: string) => {
+    if (!confirm('将此图设为背包背景？\n（会替换当前的 backpack-bg.png）')) return;
+    try {
+      const filename = url.split('/').pop();
+      await client.post('/game-assets/set-backpack-bg', { filename, type: activeType });
+      alert('已设为背包背景！刷新 H5 背包页面即可看到新背景');
+      refreshBackpackBg();
+    } catch (err: any) {
+      alert('设置失败: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   const handleDelete = async (name: string) => {
     if (!confirm(`确认删除 ${name}？`)) return;
     try {
@@ -194,7 +213,7 @@ export default function MiniGameAssets() {
         <div className="mb-6 rounded-xl border border-white/10 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white">🏡 当前庭院背景</h3>
-            <button 
+            <button
               onClick={refreshYardBg}
               className="text-xs text-blue-400 hover:text-blue-300"
             >
@@ -202,8 +221,8 @@ export default function MiniGameAssets() {
             </button>
           </div>
           <div className="relative overflow-hidden rounded-lg" style={{ maxHeight: '200px' }}>
-            <img 
-              src={yardBgUrl} 
+            <img
+              src={yardBgUrl}
               alt="当前庭院背景"
               className="w-full object-cover object-top"
               style={{ maxHeight: '200px' }}
@@ -214,6 +233,38 @@ export default function MiniGameAssets() {
           </div>
           <p className="mt-2 text-xs text-gray-500">
             路径: /epet/yard-bg.png | 上传新背景图后点击"设为庭院背景"即可替换
+          </p>
+        </div>
+      )}
+
+      {/* 当前背包背景预览（仅在背景图标签显示） */}
+      {activeType === 'bg' && (
+        <div className="mb-6 rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white">🎒 当前背包背景</h3>
+            <button
+              onClick={refreshBackpackBg}
+              className="text-xs text-amber-400 hover:text-amber-300"
+            >
+              🔄 刷新预览
+            </button>
+          </div>
+          <div className="relative overflow-hidden rounded-lg" style={{ maxHeight: '200px' }}>
+            <img
+              src={backpackBgUrl}
+              alt="当前背包背景"
+              className="w-full object-cover object-center"
+              style={{ maxHeight: '200px' }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/epet/static/bg/backpack-bg.png';
+              }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            路径: /epet/static/bg/backpack-bg.png | 上传新背景图后点击"设为背包背景"即可替换
+          </p>
+          <p className="mt-1 text-xs text-amber-400/80">
+            💡 背景图会以 cover 模式铺满全屏，建议使用竖版图片（如 1080×1920）
           </p>
         </div>
       )}
@@ -359,13 +410,22 @@ export default function MiniGameAssets() {
                 {/* 操作按钮 */}
                 <div className="mt-2 flex gap-2">
                   {activeType === 'bg' && (
-                    <button
-                      onClick={() => setAsYardBg(asset.url)}
-                      className="flex-1 rounded bg-blue-500/20 px-2 py-1 text-[10px] text-blue-300 hover:bg-blue-500/30 transition"
-                      title="复制为 yard-bg.png, 庭院背景"
-                    >
-                      设为庭院背景
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setAsYardBg(asset.url)}
+                        className="flex-1 rounded bg-blue-500/20 px-2 py-1 text-[10px] text-blue-300 hover:bg-blue-500/30 transition"
+                        title="复制为 yard-bg.png, 庭院背景"
+                      >
+                        设为庭院背景
+                      </button>
+                      <button
+                        onClick={() => setAsBackpackBg(asset.url)}
+                        className="flex-1 rounded bg-amber-500/20 px-2 py-1 text-[10px] text-amber-300 hover:bg-amber-500/30 transition"
+                        title="复制为 backpack-bg.png, 背包背景"
+                      >
+                        设为背包背景
+                      </button>
+                    </>
                   )}
                   {activeType === 'chat-bgs' && (
                     <button

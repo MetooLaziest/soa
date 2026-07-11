@@ -11,6 +11,8 @@ interface CookingMethod {
   name: string;
   description: string;
   kitchen_bg_url: string;
+  page_bg_url: string;
+  cook_btn_url: string;
   img_empty: string;
   img_loaded: string;
   img_0: string;
@@ -255,7 +257,8 @@ export default function CookingAdmin() {
                 <th style={thStyle}>ID</th>
                 <th style={thStyle}>名称</th>
                 <th style={thStyle}>描述</th>
-                <th style={thStyle}>状态图预览</th>
+                <th style={thStyle}>背景/按钮</th>
+                <th style={thStyle}>状态图</th>
                 <th style={thStyle}>排序</th>
                 <th style={thStyle}>状态</th>
                 <th style={thStyle}>操作</th>
@@ -267,6 +270,12 @@ export default function CookingAdmin() {
                   <td style={tdStyle}>{m.id}</td>
                   <td style={tdStyle}>{m.name}</td>
                   <td style={tdStyle}>{m.description}</td>
+                  <td style={tdStyle}>
+                    <div style={{ display: 'flex', gap: 4, fontSize: 10 }}>
+                      <span title="页面背景图">{m.page_bg_url ? '🌄' : '❌'}</span>
+                      <span title="起锅按钮图">{m.cook_btn_url ? '🍳' : '❌'}</span>
+                    </div>
+                  </td>
                   <td style={tdStyle}>
                     <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                       {STAGE_IMAGES.map(si => (
@@ -429,7 +438,7 @@ function MethodForm({
 
       {/* 厨房背景 */}
       <label style={{ display: 'block', marginBottom: 12 }}>
-        厨房背景图
+        厨房背景图（锅区域）
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {form.kitchen_bg_url && <img src={form.kitchen_bg_url} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />}
           <input type="file" accept="image/*" onChange={e => {
@@ -438,6 +447,34 @@ function MethodForm({
           }} disabled={uploading === 'kitchen_bg_url'} />
         </div>
         <input value={form.kitchen_bg_url || ''} onChange={e => setForm(prev => ({ ...prev, kitchen_bg_url: e.target.value }))}
+          placeholder="或直接输入URL" style={inputStyle} />
+      </label>
+
+      {/* 页面背景图 */}
+      <label style={{ display: 'block', marginBottom: 12 }}>
+        🌄 页面背景图（做菜全屏背景，建议竖版 1080×1920）
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {form.page_bg_url && <img src={form.page_bg_url} style={{ width: 32, height: 56, objectFit: 'cover', borderRadius: 6 }} />}
+          <input type="file" accept="image/*" onChange={e => {
+            const f = e.target.files?.[0];
+            if (f) handleImageUpload('page_bg_url', f);
+          }} disabled={uploading === 'page_bg_url'} />
+        </div>
+        <input value={form.page_bg_url || ''} onChange={e => setForm(prev => ({ ...prev, page_bg_url: e.target.value }))}
+          placeholder="或直接输入URL" style={inputStyle} />
+      </label>
+
+      {/* 起锅按钮图 */}
+      <label style={{ display: 'block', marginBottom: 12 }}>
+        🍳 起锅按钮图（替代默认按钮，建议 200×80 以上）
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {form.cook_btn_url && <img src={form.cook_btn_url} style={{ height: 40, objectFit: 'contain', borderRadius: 6 }} />}
+          <input type="file" accept="image/*" onChange={e => {
+            const f = e.target.files?.[0];
+            if (f) handleImageUpload('cook_btn_url', f);
+          }} disabled={uploading === 'cook_btn_url'} />
+        </div>
+        <input value={form.cook_btn_url || ''} onChange={e => setForm(prev => ({ ...prev, cook_btn_url: e.target.value }))}
           placeholder="或直接输入URL" style={inputStyle} />
       </label>
 

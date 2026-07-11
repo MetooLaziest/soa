@@ -409,6 +409,8 @@ export interface CookingMethod {
   name: string;
   description: string;
   kitchen_bg_url: string;
+  page_bg_url: string;
+  cook_btn_url: string;
   img_empty: string;
   img_loaded: string;
   img_0: string;

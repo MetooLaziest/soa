@@ -166,10 +166,14 @@ router.get('/config', async (req, res) => {
   try {
     const yardExists = await stat(join(EPET_ASSETS_BASE, 'yard-bg.png')).then(() => true).catch(() => false);
     const chatExists = await stat(CHAT_BG_PATH).then(() => true).catch(() => false);
+    const backpackExists = await stat(join(EPET_ASSETS_BASE, 'bg', 'backpack-bg.png')).then(() => true).catch(() => false);
+    const postcardExists = await stat(join(EPET_ASSETS_BASE, 'postcard-bg.png')).then(() => true).catch(() => false);
     res.json({
       ok: true,
       yardBg: yardExists ? '/epet/static/yard-bg.png' : null,
       chatBg: chatExists ? '/epet/static/chat-bg.png' : null,
+      backpackBg: backpackExists ? '/epet/static/bg/backpack-bg.png' : null,
+      postcardBg: postcardExists ? '/epet/static/postcard-bg.png' : null,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -242,6 +246,56 @@ router.post('/set-fishing-bg', async (req, res) => {
     res.json({ ok: true, message: '已设为钓鱼背景', target: '/epet/static/fishing/fishbg.png' });
   } catch (err) {
     console.error('[game-assets] set-fishing-bg error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/game-assets/set-backpack-bg - 把指定素材设为背包背景
+router.post('/set-backpack-bg', async (req, res) => {
+  try {
+    const { filename, type } = req.body;
+    if (!filename || !type) return res.status(400).json({ error: '缺少参数' });
+    if (!ASSET_TYPES.includes(type) || /[\/\\.]{2,}/.test(filename)) {
+      return res.status(400).json({ error: '非法参数' });
+    }
+
+    const sourceDir = type === 'game-assets'
+      ? EPET_ASSETS_BASE
+      : join(EPET_ASSETS_BASE, type);
+    const sourcePath = join(sourceDir, filename);
+    const bgDir = join(EPET_ASSETS_BASE, 'bg');
+    await ensureDir(bgDir);
+    const targetPath = join(bgDir, 'backpack-bg.png');
+
+    await copyFile(sourcePath, targetPath);
+    console.log('[game-assets] set as backpack-bg:', filename);
+    res.json({ ok: true, message: '已设为背包背景', target: '/epet/static/bg/backpack-bg.png' });
+  } catch (err) {
+    console.error('[game-assets] set-backpack-bg error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/game-assets/set-postcard-bg - 把指定素材设为明信片背景
+router.post('/set-postcard-bg', async (req, res) => {
+  try {
+    const { filename, type } = req.body;
+    if (!filename || !type) return res.status(400).json({ error: '缺少参数' });
+    if (!ASSET_TYPES.includes(type) || /[\/\\.]{2,}/.test(filename)) {
+      return res.status(400).json({ error: '非法参数' });
+    }
+
+    const sourceDir = type === 'game-assets'
+      ? EPET_ASSETS_BASE
+      : join(EPET_ASSETS_BASE, type);
+    const sourcePath = join(sourceDir, filename);
+    const targetPath = join(EPET_ASSETS_BASE, 'postcard-bg.png');
+
+    await copyFile(sourcePath, targetPath);
+    console.log('[game-assets] set as postcard-bg:', filename);
+    res.json({ ok: true, message: '已设为明信片背景', target: '/epet/static/postcard-bg.png' });
+  } catch (err) {
+    console.error('[game-assets] set-postcard-bg error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/methods', async (_req, res) => {
   try {
     const { rows } = await poolEpet1.query(
-      `SELECT id, name, description, kitchen_bg_url,
+      `SELECT id, name, description, kitchen_bg_url, page_bg_url, cook_btn_url,
               img_empty, img_loaded, img_0, img_1, img_2, img_3, img_4, img_5,
               sort_order
        FROM cooking_methods
@@ -237,14 +237,15 @@ router.get('/admin/methods', async (_req, res) => {
 // POST /api/epet1/cooking/admin/methods
 router.post('/admin/methods', async (req, res) => {
   try {
-    const { name, description, kitchen_bg_url, img_empty, img_loaded,
+    const { name, description, kitchen_bg_url, page_bg_url, cook_btn_url, img_empty, img_loaded,
             img_0, img_1, img_2, img_3, img_4, img_5, sort_order } = req.body;
     if (!name) return res.status(400).json({ error: '缺少名称' });
     const { rows: inserted } = await poolEpet1.query(
-      `INSERT INTO cooking_methods (name, description, kitchen_bg_url,
+      `INSERT INTO cooking_methods (name, description, kitchen_bg_url, page_bg_url, cook_btn_url,
         img_empty, img_loaded, img_0, img_1, img_2, img_3, img_4, img_5, sort_order)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [name, description || '', kitchen_bg_url || '', img_empty || '', img_loaded || '',
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [name, description || '', kitchen_bg_url || '', page_bg_url || '', cook_btn_url || '',
+       img_empty || '', img_loaded || '',
        img_0 || '', img_1 || '', img_2 || '', img_3 || '', img_4 || '', img_5 || '',
        sort_order || 0]
     );
@@ -258,7 +259,7 @@ router.post('/admin/methods', async (req, res) => {
 router.put('/admin/methods/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const fields = ['name', 'description', 'kitchen_bg_url', 'img_empty', 'img_loaded',
+    const fields = ['name', 'description', 'kitchen_bg_url', 'page_bg_url', 'cook_btn_url', 'img_empty', 'img_loaded',
       'img_0', 'img_1', 'img_2', 'img_3', 'img_4', 'img_5', 'sort_order', 'is_active'];
     const sets = [];
     const vals = [];

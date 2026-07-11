@@ -29,7 +29,7 @@ const STAGE_RATING: Record<number, { rating: number; name: string }> = {
   5: { rating: 0, name: '失败' },
 };
 
-export default function Cooking({ onClose }: { onClose: () => void }) {
+export default function Cooking({ onClose, onPageBgChange }: { onClose: () => void; onPageBgChange?: (url: string | null) => void }) {
   const userId = useGameStore(s => s.userId);
 
   // 阶段
@@ -38,6 +38,13 @@ export default function Cooking({ onClose }: { onClose: () => void }) {
   // 数据
   const [methods, setMethods] = useState<CookingMethod[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<CookingMethod | null>(null);
+
+  // 通知父组件全页背景变化
+  useEffect(() => {
+    if (onPageBgChange) {
+      onPageBgChange(selectedMethod?.page_bg_url || null);
+    }
+  }, [selectedMethod, onPageBgChange]);
   const [availableIngredients, setAvailableIngredients] = useState<(CookingIngredient & { quantity: number })[]>([]);
   const [selectedIngredients, setSelectedIngredients] = useState<(CookingIngredient & { quantity: number })[]>([]);
 
@@ -471,26 +478,50 @@ export default function Cooking({ onClose }: { onClose: () => void }) {
               )}
 
               {/* 起锅按钮 */}
-              <button
-                onClick={serveDish}
-                disabled={currentStage < 0 || submitting}
-                style={{
-                  width: '100%', padding: '16px 0',
-                  background: currentStage >= 0
-                    ? (currentStage === 3
-                      ? 'linear-gradient(135deg, #FFD700, #FFA000)'
-                      : 'linear-gradient(135deg, #FF6B35, #FF9800)')
-                    : '#333',
-                  border: 'none', borderRadius: 14,
-                  color: currentStage >= 0 ? '#fff' : '#666',
-                  fontSize: 22, fontWeight: 700,
-                  cursor: currentStage >= 0 && !submitting ? 'pointer' : 'not-allowed',
-                  boxShadow: currentStage === 3 ? '0 0 24px rgba(255,215,0,0.5)' : 'none',
-                  transition: 'all 0.3s',
-                }}
-              >
-                {submitting ? '料理中…' : currentStage < 0 ? '等待开火…' : '🍳 起锅！'}
-              </button>
+              {selectedMethod.cook_btn_url ? (
+                <button
+                  onClick={serveDish}
+                  disabled={currentStage < 0 || submitting}
+                  style={{
+                    width: '100%', padding: 0,
+                    background: 'none', border: 'none',
+                    cursor: currentStage >= 0 && !submitting ? 'pointer' : 'not-allowed',
+                    opacity: currentStage < 0 ? 0.4 : 1,
+                    transition: 'opacity 0.3s',
+                  }}
+                >
+                  <img
+                    src={selectedMethod.cook_btn_url}
+                    alt="起锅"
+                    style={{
+                      width: '100%', maxHeight: 80,
+                      objectFit: 'contain', display: 'block',
+                      filter: currentStage === 3 ? 'drop-shadow(0 0 16px rgba(255,215,0,0.6))' : 'none',
+                    }}
+                  />
+                </button>
+              ) : (
+                <button
+                  onClick={serveDish}
+                  disabled={currentStage < 0 || submitting}
+                  style={{
+                    width: '100%', padding: '16px 0',
+                    background: currentStage >= 0
+                      ? (currentStage === 3
+                        ? 'linear-gradient(135deg, #FFD700, #FFA000)'
+                        : 'linear-gradient(135deg, #FF6B35, #FF9800)')
+                      : '#333',
+                    border: 'none', borderRadius: 14,
+                    color: currentStage >= 0 ? '#fff' : '#666',
+                    fontSize: 22, fontWeight: 700,
+                    cursor: currentStage >= 0 && !submitting ? 'pointer' : 'not-allowed',
+                    boxShadow: currentStage === 3 ? '0 0 24px rgba(255,215,0,0.5)' : 'none',
+                    transition: 'all 0.3s',
+                  }}
+                >
+                  {submitting ? '料理中…' : currentStage < 0 ? '等待开火…' : '🍳 起锅！'}
+                </button>
+              )}
             </div>
           )}
 
