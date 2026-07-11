@@ -26,6 +26,14 @@ const ITEM_CATEGORIES: Record<string, string> = {
   furniture: '🪑 家具',
 };
 
+// 固定素材 key 定义
+const FIXED_ASSET_KEYS = [
+  { key: 'bg', label: '🖼️ 背景', desc: '地图背景图' },
+  { key: 'avatar', label: '👤 角色头像', desc: '钓鱼角色头像' },
+  { key: 'cast_gif', label: '🎣 抛竿动画', desc: '抛竿 GIF 动画（优先使用）' },
+  { key: 'pull_gif', label: '💪 拉杆动画', desc: '拉杆 GIF 动画' },
+];
+
 interface FishItem {
   id: number;
   name: string;
@@ -53,8 +61,37 @@ interface FishingMap {
   is_active: boolean;
 }
 
+interface AssetRow {
+  id: number;
+  asset_key: string;
+  asset_url: string;
+  sort_order: number;
+  created_at: string;
+}
+
+interface MapConfig {
+  fishing_map_id: number;
+  lake_top_pct: number;
+  lake_left_pct: number;
+  lake_width_pct: number;
+  lake_height_pct: number;
+  green_start_pct: number;
+  green_end_pct: number;
+  cast_duration_ms: number;
+  pull_duration_ms: number;
+  waiting_min_ms: number;
+  waiting_max_ms: number;
+}
+
+const DEFAULT_CONFIG: Omit<MapConfig, 'fishing_map_id'> = {
+  lake_top_pct: 55, lake_left_pct: 0, lake_width_pct: 100, lake_height_pct: 45,
+  green_start_pct: 40, green_end_pct: 70,
+  cast_duration_ms: 800, pull_duration_ms: 1200,
+  waiting_min_ms: 1000, waiting_max_ms: 4000,
+};
+
 export default function FishingAdmin() {
-  const [tab, setTab] = useState<'fish' | 'maps'>('fish');
+  const [tab, setTab] = useState<'fish' | 'maps' | 'assets'>('fish');
   const [fish, setFish] = useState<FishItem[]>([]);
   const [maps, setMaps] = useState<FishingMap[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +108,14 @@ export default function FishingAdmin() {
   const [formImageUrl, setFormImageUrl] = useState('');
   const [formItemCategory, setFormItemCategory] = useState('food');
   const [uploadingImg, setUploadingImg] = useState(false);
+
+  // Assets tab state
+  const [assetMapId, setAssetMapId] = useState<number>(0);
+  const [assets, setAssets] = useState<AssetRow[]>([]);
+  const [config, setConfig] = useState<MapConfig | null>(null);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [uploadingAsset, setUploadingAsset] = useState<string | null>(null);
+  const [configSaving, setConfigSaving] = useState(false);
 
   const uploadImage = async (file: File) => {
     setUploadingImg(true);
@@ -89,6 +134,29 @@ export default function FishingAdmin() {
     }
   };
 
+  // 素材专用上传 → 上传文件后直接保存到 fishing_assets
+  const uploadAsset = async (file: File, assetKey: string) => {
+    setUploadingAsset(assetKey);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', 'fishing');
+      const res = await client.post('/game-assets/upload', form, { timeout: 300000 });
+      const url = res.data?.asset?.url;
+      if (url) {
+        await client.post(`/epet1/fishing/admin/assets/${assetMapId}`, {
+          asset_key: assetKey,
+          asset_url: url,
+        });
+        loadAssets(assetMapId);
+      }
+    } catch (err: any) {
+      alert('素材上传失败: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setUploadingAsset(null);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -98,6 +166,10 @@ export default function FishingAdmin() {
       ]);
       setFish(fishRes.data.fish || []);
       setMaps(mapsRes.data.maps || []);
+      if (mapsRes.data.maps?.length && !assetMapId) {
+        const firstId = mapsRes.data.maps[0].id;
+        setAssetMapId(firstId);
+      }
     } catch (err) {
       console.error('加载失败:', err);
     } finally {
@@ -105,7 +177,25 @@ export default function FishingAdmin() {
     }
   };
 
+  const loadAssets = async (mapId: number) => {
+    if (!mapId) return;
+    setAssetsLoading(true);
+    try {
+      const [aRes, cRes] = await Promise.all([
+        client.get(`/epet1/fishing/admin/assets/${mapId}`),
+        client.get(`/epet1/fishing/admin/map-config/${mapId}`),
+      ]);
+      setAssets(aRes.data.assets || []);
+      setConfig(cRes.data.config || { fishing_map_id: mapId, ...DEFAULT_CONFIG });
+    } catch (err) {
+      console.error('素材加载失败:', err);
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
+
   useEffect(() => { load(); }, []);
+  useEffect(() => { if (assetMapId) loadAssets(assetMapId); }, [assetMapId]);
 
   const resetForm = () => {
     setFormName(''); setFormRarity('common'); setFormDesc('');
@@ -184,6 +274,37 @@ export default function FishingAdmin() {
     }
   };
 
+  const deleteAsset = async (assetKey: string) => {
+    if (!confirm(`确认删除素材 ${assetKey}？`)) return;
+    try {
+      await client.delete(`/epet1/fishing/admin/assets/${assetMapId}/${assetKey}`);
+      loadAssets(assetMapId);
+    } catch (err: any) {
+      alert('删除失败: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const saveConfig = async () => {
+    if (!config) return;
+    setConfigSaving(true);
+    try {
+      await client.put(`/epet1/fishing/admin/map-config/${assetMapId}`, config);
+      loadAssets(assetMapId);
+    } catch (err: any) {
+      alert('配置保存失败: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
+  // 获取 cast_frame_N 帧列表
+  const castFrames = assets.filter(a => a.asset_key.startsWith('cast_frame_'));
+  const nextFrameIdx = castFrames.length;
+
+  // 构建素材 lookup
+  const assetMap: Record<string, AssetRow> = {};
+  for (const a of assets) assetMap[a.asset_key] = a;
+
   return (
     <div className="p-6 animate-fade-in-up">
       <div className="mb-6 flex items-center justify-between">
@@ -191,12 +312,14 @@ export default function FishingAdmin() {
           <h2 className="text-xl font-bold text-white">🎣 钓鱼管理</h2>
           <p className="mt-1 text-sm text-gray-500">管理鱼类、钓鱼地图和素材</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowForm(true); }}
-          className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
-        >
-          + 新增{tab === 'fish' ? '鱼类' : '地图'}
-        </button>
+        {tab !== 'assets' && (
+          <button
+            onClick={() => { resetForm(); setShowForm(true); }}
+            className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
+          >
+            + 新增{tab === 'fish' ? '鱼类' : '地图'}
+          </button>
+        )}
       </div>
 
       {/* Tab */}
@@ -216,6 +339,14 @@ export default function FishingAdmin() {
           }`}
         >
           🏞️ 地图管理
+        </button>
+        <button
+          onClick={() => setTab('assets')}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            tab === 'assets' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+          }`}
+        >
+          🎨 素材管理
         </button>
       </div>
 
@@ -278,6 +409,183 @@ export default function FishingAdmin() {
             </div>
           ))}
           {maps.length === 0 && <div className="py-12 text-center text-sm text-gray-500">暂无地图</div>}
+        </div>
+      )}
+
+      {/* 素材管理 */}
+      {tab === 'assets' && (
+        <div>
+          {/* 地图选择器 */}
+          <div className="mb-4 flex items-center gap-3">
+            <label className="text-sm text-gray-400">选择地图：</label>
+            <select
+              value={assetMapId}
+              onChange={e => setAssetMapId(Number(e.target.value))}
+              className="rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none"
+            >
+              {maps.map(m => <option key={m.id} value={m.id} className="bg-slate-800">{m.name}</option>)}
+            </select>
+          </div>
+
+          {assetsLoading ? (
+            <div className="py-12 text-center text-sm text-gray-400">加载中...</div>
+          ) : (
+            <>
+              {/* 固定素材 */}
+              <h3 className="mb-3 text-sm font-semibold text-gray-300">📦 基础素材</h3>
+              <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {FIXED_ASSET_KEYS.map(({ key, label, desc }) => {
+                  const existing = assetMap[key];
+                  return (
+                    <div key={key} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="mb-2 text-xs font-medium text-gray-300">{label}</div>
+                      <div className="mb-2 text-xs text-gray-600">{desc}</div>
+                      {existing ? (
+                        <div className="mb-2 overflow-hidden rounded-lg border border-white/20">
+                          <img src={existing.asset_url} alt={key} className="h-20 w-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="mb-2 flex h-20 items-center justify-center rounded-lg border border-dashed border-white/20 text-xs text-gray-600">
+                          未上传
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <label className={`cursor-pointer rounded-lg px-2 py-1 text-xs font-medium ${
+                          uploadingAsset === key ? 'bg-gray-600 text-gray-400' : 'bg-cyan-600/80 text-white hover:bg-cyan-600'
+                        }`}>
+                          {uploadingAsset === key ? '上传中...' : (existing ? '替换' : '上传')}
+                          <input type="file" accept="image/*,video/*" className="hidden" disabled={uploadingAsset === key}
+                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadAsset(f, key); e.target.value = ''; }} />
+                        </label>
+                        {existing && (
+                          <button onClick={() => deleteAsset(key)} className="rounded-lg bg-red-500/20 px-2 py-1 text-xs text-red-300 hover:bg-red-500/30">删除</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 抛竿帧序列 */}
+              <h3 className="mb-3 text-sm font-semibold text-gray-300">🎞️ 抛竿帧序列 (cast_frame_0, 1, 2...)</h3>
+              <div className="mb-6 grid grid-cols-3 gap-3 sm:grid-cols-6">
+                {castFrames.map(frame => (
+                  <div key={frame.asset_key} className="rounded-xl border border-white/10 bg-white/5 p-2">
+                    <div className="mb-1 text-xs text-gray-400 text-center">{frame.asset_key}</div>
+                    <div className="mb-1 overflow-hidden rounded-lg border border-white/20">
+                      <img src={frame.asset_url} alt={frame.asset_key} className="h-16 w-full object-cover" />
+                    </div>
+                    <div className="flex gap-1">
+                      <label className={`flex-1 cursor-pointer text-center rounded px-1 py-0.5 text-xs ${
+                        uploadingAsset === frame.asset_key ? 'bg-gray-600 text-gray-400' : 'bg-cyan-600/80 text-white hover:bg-cyan-600'
+                      }`}>
+                        {uploadingAsset === frame.asset_key ? '...' : '替换'}
+                        <input type="file" accept="image/*" className="hidden" disabled={uploadingAsset === frame.asset_key}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) uploadAsset(f, frame.asset_key); e.target.value = ''; }} />
+                      </label>
+                      <button onClick={() => deleteAsset(frame.asset_key)} className="rounded bg-red-500/20 px-1 py-0.5 text-xs text-red-300">✕</button>
+                    </div>
+                  </div>
+                ))}
+                {/* 添加帧按钮 */}
+                <div className="flex items-center justify-center rounded-xl border border-dashed border-white/20 p-2">
+                  <label className="cursor-pointer text-center text-xs text-gray-500 hover:text-gray-300">
+                    + 帧 {nextFrameIdx}
+                    <input type="file" accept="image/*" className="hidden"
+                      disabled={uploadingAsset === `cast_frame_${nextFrameIdx}`}
+                      onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (f) uploadAsset(f, `cast_frame_${nextFrameIdx}`);
+                        e.target.value = '';
+                      }} />
+                  </label>
+                </div>
+              </div>
+
+              {/* 湖面 & 判定配置 */}
+              <h3 className="mb-3 text-sm font-semibold text-gray-300">⚙️ 地图配置</h3>
+              {config && (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {/* 湖面配置 */}
+                    <div>
+                      <label className="text-xs text-gray-400">湖面顶部位置 (%)</label>
+                      <input type="number" value={config.lake_top_pct}
+                        onChange={e => setConfig({ ...config, lake_top_pct: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400">湖面左边位置 (%)</label>
+                      <input type="number" value={config.lake_left_pct}
+                        onChange={e => setConfig({ ...config, lake_left_pct: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400">湖面宽度 (%)</label>
+                      <input type="number" value={config.lake_width_pct}
+                        onChange={e => setConfig({ ...config, lake_width_pct: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400">湖面高度 (%)</label>
+                      <input type="number" value={config.lake_height_pct}
+                        onChange={e => setConfig({ ...config, lake_height_pct: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+
+                    {/* 判定配置 */}
+                    <div>
+                      <label className="text-xs text-gray-400">绿区起始 (%)</label>
+                      <input type="number" value={config.green_start_pct}
+                        onChange={e => setConfig({ ...config, green_start_pct: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400">绿区结束 (%)</label>
+                      <input type="number" value={config.green_end_pct}
+                        onChange={e => setConfig({ ...config, green_end_pct: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+
+                    {/* 时长配置 */}
+                    <div>
+                      <label className="text-xs text-gray-400">抛竿动画时长 (ms)</label>
+                      <input type="number" value={config.cast_duration_ms}
+                        onChange={e => setConfig({ ...config, cast_duration_ms: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400">拉杆动画时长 (ms)</label>
+                      <input type="number" value={config.pull_duration_ms}
+                        onChange={e => setConfig({ ...config, pull_duration_ms: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400">等待最短时间 (ms)</label>
+                      <input type="number" value={config.waiting_min_ms}
+                        onChange={e => setConfig({ ...config, waiting_min_ms: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400">等待最长时间 (ms)</label>
+                      <input type="number" value={config.waiting_max_ms}
+                        onChange={e => setConfig({ ...config, waiting_max_ms: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      onClick={saveConfig}
+                      disabled={configSaving}
+                      className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700 disabled:bg-gray-600"
+                    >
+                      {configSaving ? '保存中...' : '保存配置'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

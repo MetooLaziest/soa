@@ -1441,8 +1441,7 @@ function GameModal({ onClose }: { onClose: () => void }) {
         background: '#0a1628',
       }}>
         <Fishing
-          onScore={() => { setSelectedGame(null); }}
-          userId={userId}
+          onClose={() => { setSelectedGame(null); }}
         />
       </div>
     );
@@ -2098,7 +2097,7 @@ export default function App() {
       {activeModal === 'game' && <GameModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'fishing' && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#0a1628' }}>
-          <Fishing onScore={() => setActiveModal(null)} userId={userId} />
+          <Fishing onClose={() => setActiveModal(null)} />
         </div>
       )}
       {activeModal === 'cooking' && (

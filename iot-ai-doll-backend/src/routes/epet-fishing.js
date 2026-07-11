@@ -397,4 +397,171 @@ router.delete('/admin/maps/:id', async (req, res) => {
   }
 });
 
+// ─── 钓鱼素材 & 地图配置 ─────────────────────────────
+
+// GET /api/epet1/fishing/maps/:mapId/assets — 公开，获取某地图全部素材 + 配置
+router.get('/maps/:mapId/assets', async (req, res) => {
+  try {
+    const { mapId } = req.params;
+
+    // 素材 → key-value 对象
+    const { rows: assetRows } = await poolEpet1.query(
+      'SELECT asset_key, asset_url FROM fishing_assets WHERE fishing_map_id = $1 ORDER BY sort_order',
+      [mapId]
+    );
+    const assets = {};
+    for (const row of assetRows) {
+      assets[row.asset_key] = row.asset_url;
+    }
+
+    // 配置 → 默认值兜底
+    const { rows: cfgRows } = await poolEpet1.query(
+      'SELECT * FROM fishing_map_config WHERE fishing_map_id = $1',
+      [mapId]
+    );
+    const config = cfgRows[0] || {
+      lake_top_pct: 55, lake_left_pct: 0, lake_width_pct: 100, lake_height_pct: 45,
+      green_start_pct: 40, green_end_pct: 70,
+      cast_duration_ms: 800, pull_duration_ms: 1200,
+      waiting_min_ms: 1000, waiting_max_ms: 4000,
+    };
+
+    res.json({ ok: true, assets, config });
+  } catch (err) {
+    console.error('[fishing] map-assets error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/epet1/fishing/admin/assets/:mapId — 管理端，获取素材列表
+router.get('/admin/assets/:mapId', async (req, res) => {
+  try {
+    const { rows } = await poolEpet1.query(
+      'SELECT id, asset_key, asset_url, sort_order, created_at FROM fishing_assets WHERE fishing_map_id = $1 ORDER BY sort_order, asset_key',
+      [req.params.mapId]
+    );
+    res.json({ ok: true, assets: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/epet1/fishing/admin/assets/:mapId — 管理端，upsert 单个素材 (by key)
+router.post('/admin/assets/:mapId', async (req, res) => {
+  try {
+    const { mapId } = req.params;
+    const { asset_key, asset_url, sort_order } = req.body;
+    if (!asset_key || !asset_url) return res.status(400).json({ error: '缺少 asset_key 或 asset_url' });
+
+    const { rows } = await poolEpet1.query(
+      `INSERT INTO fishing_assets (fishing_map_id, asset_key, asset_url, sort_order)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (fishing_map_id, asset_key)
+       DO UPDATE SET asset_url = EXCLUDED.asset_url, sort_order = EXCLUDED.sort_order
+       RETURNING *`,
+      [mapId, asset_key, asset_url, sort_order || 0]
+    );
+    res.json({ ok: true, asset: rows[0] });
+  } catch (err) {
+    console.error('[fishing] admin assets upsert error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/epet1/fishing/admin/assets/:mapId/:assetKey — 管理端，删除单个素材
+router.delete('/admin/assets/:mapId/:assetKey', async (req, res) => {
+  try {
+    const { mapId, assetKey } = req.params;
+    const { rowCount } = await poolEpet1.query(
+      'DELETE FROM fishing_assets WHERE fishing_map_id = $1 AND asset_key = $2',
+      [mapId, assetKey]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: '素材不存在' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/epet1/fishing/admin/map-config/:mapId — 管理端，获取地图配置
+router.get('/admin/map-config/:mapId', async (req, res) => {
+  try {
+    const { rows } = await poolEpet1.query(
+      'SELECT * FROM fishing_map_config WHERE fishing_map_id = $1',
+      [req.params.mapId]
+    );
+    // 无配置时返回默认值
+    const config = rows[0] || {
+      fishing_map_id: Number(req.params.mapId),
+      lake_top_pct: 55, lake_left_pct: 0, lake_width_pct: 100, lake_height_pct: 45,
+      green_start_pct: 40, green_end_pct: 70,
+      cast_duration_ms: 800, pull_duration_ms: 1200,
+      waiting_min_ms: 1000, waiting_max_ms: 4000,
+    };
+    res.json({ ok: true, config });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/epet1/fishing/admin/map-config/:mapId — 管理端，更新地图配置
+router.put('/admin/map-config/:mapId', async (req, res) => {
+  try {
+    const { mapId } = req.params;
+    const {
+      lake_top_pct, lake_left_pct, lake_width_pct, lake_height_pct,
+      green_start_pct, green_end_pct,
+      cast_duration_ms, pull_duration_ms,
+      waiting_min_ms, waiting_max_ms,
+    } = req.body;
+
+    // Upsert: 先尝试更新，无行则插入
+    const { rowCount } = await poolEpet1.query(
+      `UPDATE fishing_map_config SET
+         lake_top_pct = COALESCE($1, lake_top_pct),
+         lake_left_pct = COALESCE($2, lake_left_pct),
+         lake_width_pct = COALESCE($3, lake_width_pct),
+         lake_height_pct = COALESCE($4, lake_height_pct),
+         green_start_pct = COALESCE($5, green_start_pct),
+         green_end_pct = COALESCE($6, green_end_pct),
+         cast_duration_ms = COALESCE($7, cast_duration_ms),
+         pull_duration_ms = COALESCE($8, pull_duration_ms),
+         waiting_min_ms = COALESCE($9, waiting_min_ms),
+         waiting_max_ms = COALESCE($10, waiting_max_ms)
+       WHERE fishing_map_id = $11`,
+      [lake_top_pct, lake_left_pct, lake_width_pct, lake_height_pct,
+       green_start_pct, green_end_pct,
+       cast_duration_ms, pull_duration_ms,
+       waiting_min_ms, waiting_max_ms, mapId]
+    );
+
+    if (rowCount === 0) {
+      // 首次创建配置行
+      await poolEpet1.query(
+        `INSERT INTO fishing_map_config (
+           fishing_map_id, lake_top_pct, lake_left_pct, lake_width_pct, lake_height_pct,
+           green_start_pct, green_end_pct,
+           cast_duration_ms, pull_duration_ms,
+           waiting_min_ms, waiting_max_ms
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [mapId,
+         lake_top_pct ?? 55, lake_left_pct ?? 0, lake_width_pct ?? 100, lake_height_pct ?? 45,
+         green_start_pct ?? 40, green_end_pct ?? 70,
+         cast_duration_ms ?? 800, pull_duration_ms ?? 1200,
+         waiting_min_ms ?? 1000, waiting_max_ms ?? 4000]
+      );
+    }
+
+    // 返回最终配置
+    const { rows } = await poolEpet1.query(
+      'SELECT * FROM fishing_map_config WHERE fishing_map_id = $1',
+      [mapId]
+    );
+    res.json({ ok: true, config: rows[0] });
+  } catch (err) {
+    console.error('[fishing] admin map-config upsert error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

@@ -670,3 +670,59 @@ export async function fetchSeriesDetail(userId: number, seriesId: number): Promi
     progress: res.progress || { total: 0, collected: 0 },
   };
 }
+
+// ─── 钓鱼 (Fishing) ────────────────────────────────────────
+
+export interface FishMap {
+  id: number;
+  name: string;
+  description: string;
+  image_url: string;
+  sort_order: number;
+  fish: { id: number; name: string; rarity: string; weight: number; image_url: string; item_category: string }[];
+}
+
+export interface FishingAssets {
+  [key: string]: string; // asset_key → url
+}
+
+export interface FishingMapConfig {
+  lake_top_pct: number;
+  lake_left_pct: number;
+  lake_width_pct: number;
+  lake_height_pct: number;
+  green_start_pct: number;
+  green_end_pct: number;
+  cast_duration_ms: number;
+  pull_duration_ms: number;
+  waiting_min_ms: number;
+  waiting_max_ms: number;
+}
+
+/** 获取钓鱼地图列表（含可钓鱼种） */
+export async function fetchFishingMaps(): Promise<FishMap[]> {
+  const res = await get<any>('/fishing/maps');
+  return res.maps || [];
+}
+
+/** 获取今日钓鱼次数 */
+export async function fetchFishingDailyStatus(userId: number): Promise<{ used: number; limit: number; remaining: number }> {
+  const res = await get<any>(`/fishing/daily-status?user_id=${userId}`);
+  return { used: res.used || 0, limit: res.limit || 3, remaining: res.remaining || 0 };
+}
+
+/** 钓鱼（投竿 + 后端抽鱼） */
+export async function castFishingRod(
+  userId: number,
+  mapId: number,
+  petId?: number
+): Promise<{ ok: boolean; fish?: { id: number; name: string; rarity: string; image_url: string; item_category: string }; remaining?: number; error?: string }> {
+  const res = await post<any>('/fishing/cast', { user_id: userId, fishing_map_id: mapId, pet_instance_id: petId });
+  return res;
+}
+
+/** 获取某地图的全部素材 + 配置 */
+export async function fetchFishingMapAssets(mapId: number): Promise<{ assets: FishingAssets; config: FishingMapConfig }> {
+  const res = await get<any>(`/fishing/maps/${mapId}/assets`);
+  return { assets: res.assets || {}, config: res.config };
+}
