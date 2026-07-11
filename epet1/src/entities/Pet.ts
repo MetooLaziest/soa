@@ -46,6 +46,7 @@ export class PetEntity {
   private _walkSpeed: number = 0.5; // px per tick (60fps)
   private _bobPhase: number = 0;
   private _walkBounds: { xMin: number; xMax: number; yMin: number; yMax: number };
+  private _collisionRadius = 0.035; // viewport-width fraction; ~13px at 375, ~26px at 750
 
   // Animation timers
   private _shakeStart: number = 0;
@@ -138,8 +139,9 @@ export class PetEntity {
     const cx = Math.max(vpW * this._walkBounds.xMin, Math.min(vpW * this._walkBounds.xMax, targetX));
     const cy = Math.max(vpH * this._walkBounds.yMin, Math.min(vpH * this._walkBounds.yMax, targetY));
 
-    // Check if target is walkable
-    if (collisionMap.isLoaded && !collisionMap.isWalkable(cx, cy, vpW, vpH)) {
+    // Check if target is walkable (5-point volume check)
+    const cr = vpW * this._collisionRadius;
+    if (collisionMap.isLoaded && !collisionMap.isWalkableArea(cx, cy, cr, vpW, vpH)) {
       const found = this._findNearbyWalkable(cx, cy, vpW, vpH);
       if (found) {
         this._targetX = found.x;
@@ -191,12 +193,13 @@ export class PetEntity {
   /** Find a walkable position near (x,y) using spiral search */
   private _findNearbyWalkable(x: number, y: number, vpW: number, vpH: number): { x: number; y: number } | null {
     const step = Math.min(vpW, vpH) * 0.03;
+    const cr = vpW * this._collisionRadius;
     for (let r = 1; r <= 5; r++) {
       for (let angle = 0; angle < 8 * r; angle++) {
         const a = (angle / (8 * r)) * Math.PI * 2;
         const tx = x + Math.cos(a) * step * r;
         const ty = y + Math.sin(a) * step * r;
-        if (collisionMap.isWalkable(tx, ty, vpW, vpH) &&
+        if (collisionMap.isWalkableArea(tx, ty, cr, vpW, vpH) &&
             tx >= vpW * this._walkBounds.xMin && tx <= vpW * this._walkBounds.xMax &&
             ty >= vpH * this._walkBounds.yMin && ty <= vpH * this._walkBounds.yMax) {
           return { x: tx, y: ty };
@@ -208,10 +211,11 @@ export class PetEntity {
 
   /** Pick a random target within walkable bounds */
   private _pickTarget(vpW: number, vpH: number) {
+    const cr = vpW * this._collisionRadius;
     for (let attempt = 0; attempt < 10; attempt++) {
       const tx = vpW * (this._walkBounds.xMin + Math.random() * (this._walkBounds.xMax - this._walkBounds.xMin));
       const ty = vpH * (this._walkBounds.yMin + Math.random() * (this._walkBounds.yMax - this._walkBounds.yMin));
-      if (!collisionMap.isLoaded || collisionMap.isWalkable(tx, ty, vpW, vpH)) {
+      if (!collisionMap.isLoaded || collisionMap.isWalkableArea(tx, ty, cr, vpW, vpH)) {
         this._targetX = tx;
         this._targetY = ty;
         this._walkSpeed = 0.3 + Math.random() * 0.9;
@@ -313,8 +317,9 @@ export class PetEntity {
         const ratio = Math.min(step / dist, 1);
         const nextX = this.x + dx * ratio;
         const nextY = this.y + dy * ratio;
+        const cr = vpW * this._collisionRadius;
 
-        const walkable = collisionMap.findWalkable(this.x, this.y, nextX, nextY, vpW, vpH);
+        const walkable = collisionMap.findWalkableArea(this.x, this.y, nextX, nextY, cr, vpW, vpH);
 
         if (walkable.x === this.x && walkable.y === this.y) {
           if (this._behaviorMode === 'scheduled' && this._scheduledBehavior?.behavior_type === 'walk') {

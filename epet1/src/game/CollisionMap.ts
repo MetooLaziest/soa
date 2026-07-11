@@ -157,13 +157,24 @@ export class CollisionMap {
           const imgData = ctx.getImageData(0, 0, bmp.width, bmp.height);
           bmp.close();
 
+          // Y-flip pixel data (PixiJS renders textures with Y-flip,
+          // so image row 0 = visual bottom, not visual top.
+          // Must match the flip applied to furniture sprites in Game.ts)
+          const flippedData = new Uint8ClampedArray(imgData.data.length);
+          const rowBytes = bmp.width * 4;
+          for (let y = 0; y < bmp.height; y++) {
+            const srcOffset = y * rowBytes;
+            const dstOffset = (bmp.height - 1 - y) * rowBytes;
+            flippedData.set(imgData.data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+          }
+
           spriteCols.push({
             label: o.label,
             xMin: bounds.xMin,
             yMin: bounds.yMin,
             xMax: bounds.xMax,
             yMax: bounds.yMax,
-            pixels: imgData.data,
+            pixels: flippedData,
             pixelW: bmp.width,
             pixelH: bmp.height,
           });
@@ -269,6 +280,21 @@ export class CollisionMap {
     return true;
   }
 
+  /**
+   * Check if a screen-space area (pet body) is walkable.
+   * Samples 5 points: center + 4 cardinal directions at radius r.
+   * All 5 must be walkable for the area to be considered walkable.
+   */
+  isWalkableArea(x: number, y: number, r: number, vpW: number, vpH: number): boolean {
+    return (
+      this.isWalkable(x, y, vpW, vpH) &&
+      this.isWalkable(x - r, y, vpW, vpH) &&
+      this.isWalkable(x + r, y, vpW, vpH) &&
+      this.isWalkable(x, y - r, vpW, vpH) &&
+      this.isWalkable(x, y + r, vpW, vpH)
+    );
+  }
+
   /** Find a nearby walkable position (slide along obstacles) */
   findWalkable(fromX: number, fromY: number, toX: number, toY: number, vpW: number, vpH: number): { x: number; y: number } {
     if (this.isWalkable(toX, toY, vpW, vpH)) {
@@ -282,6 +308,26 @@ export class CollisionMap {
 
     // Try sliding along Y only
     if (this.isWalkable(fromX, toY, vpW, vpH)) {
+      return { x: fromX, y: toY };
+    }
+
+    // Both blocked — stay put
+    return { x: fromX, y: fromY };
+  }
+
+  /** Find a nearby walkable position for a pet body (volume-aware sliding collision) */
+  findWalkableArea(fromX: number, fromY: number, toX: number, toY: number, r: number, vpW: number, vpH: number): { x: number; y: number } {
+    if (this.isWalkableArea(toX, toY, r, vpW, vpH)) {
+      return { x: toX, y: toY };
+    }
+
+    // Try sliding along X only
+    if (this.isWalkableArea(toX, fromY, r, vpW, vpH)) {
+      return { x: toX, y: fromY };
+    }
+
+    // Try sliding along Y only
+    if (this.isWalkableArea(fromX, toY, r, vpW, vpH)) {
       return { x: fromX, y: toY };
     }
 
