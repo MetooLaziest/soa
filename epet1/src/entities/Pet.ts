@@ -59,6 +59,13 @@ export class PetEntity {
   private _animFrameIndex: number = 0;    // 当前动画帧索引
   private _animFrameTimer: number = 0;    // 帧切换计时器
   private _animFrameInterval: number = 200; // 帧间隔 ms (默认, 会被 animConfig 覆盖)
+
+  // ═══════ 卡住脱困系统 ═══════
+  private _stuckCheckStart: number = 0;   // 开始检测卡住的时间
+  private _lastStuckX: number = -1;       // 上次检测时的 X
+  private _lastStuckY: number = -1;       // 上次检测时的 Y
+  private static readonly STUCK_THRESHOLD = 3000;  // 3秒未移动视为卡住
+  private static readonly STUCK_MOVE_TOLERANCE = 2; // 移动小于2px视为未移动
   sizeMult: number = 1.0;  // 庭院大小比例 (来自 pet_models.size_mult)
   animConfig: Record<string, number> = {}; // 各动作帧间隔 (来自 pet_models.anim_config)
 
@@ -106,10 +113,26 @@ export class PetEntity {
       };
       this.state = stateMap[behavior.behavior_type] || 'idle';
 
-      // 如果行为指定了位置，移动过去
+      // 如果行为指定了位置，移动过去（先检查碰撞，避免初始化卡在家具里）
       if (behavior.position_x != null && behavior.position_y != null) {
-        this.x = vpW * behavior.position_x;
-        this.y = vpH * behavior.position_y;
+        const targetX = vpW * behavior.position_x;
+        const targetY = vpH * behavior.position_y;
+        const cr = vpW * this._collisionRadius;
+        if (collisionMap.isLoaded && !collisionMap.isWalkableArea(targetX, targetY, cr, vpW, vpH)) {
+          // 目标位置在家具内 → 螺旋搜索附近可行走位置
+          const escape = this._findNearbyWalkable(targetX, targetY, vpW, vpH);
+          if (escape) {
+            this.x = escape.x;
+            this.y = escape.y;
+            console.log(`🐾 Pet ${this.displayName} scheduled position inside furniture → adjusted to (${escape.x.toFixed(1)}, ${escape.y.toFixed(1)})`);
+          } else {
+            this.x = targetX;
+            this.y = targetY;
+          }
+        } else {
+          this.x = targetX;
+          this.y = targetY;
+        }
       }
 
       // scheduled idle 不需要再 pickTarget
@@ -228,6 +251,56 @@ export class PetEntity {
   }
 
   update(now: number, vpW: number, vpH: number): void {
+    // ── 卡住脱困检测 ──
+    // 如果宠物连续 3 秒几乎没移动，且当前位置不可行走，自动螺旋搜索脱困
+    if (collisionMap.isLoaded && now - this._stuckCheckStart >= 1000) {
+      const moved = Math.abs(this.x - this._lastStuckX) + Math.abs(this.y - this._lastStuckY);
+      if (moved < PetEntity.STUCK_MOVE_TOLERANCE) {
+        // 检查当前是否在不通行区域
+        const cr = vpW * this._collisionRadius;
+        if (!collisionMap.isWalkableArea(this.x, this.y, cr, vpW, vpH)) {
+          // 已经卡了至少1秒，累计检测
+          if (this._stuckCheckStart > 0 && now - this._stuckCheckStart >= PetEntity.STUCK_THRESHOLD) {
+            // 卡住超过阈值 → 螺旋搜索脱困
+            const escape = this._findNearbyWalkable(this.x, this.y, vpW, vpH);
+            if (escape) {
+              console.log(`🐾 Pet ${this.displayName} stuck → escaped to (${escape.x.toFixed(1)}, ${escape.y.toFixed(1)})`);
+              this.x = escape.x;
+              this.y = escape.y;
+              this.state = 'idle';
+              this._idleUntil = now + 500 + Math.random() * 1000;
+            } else {
+              // 螺旋搜索也找不到 → 强制移到可行走区域中心
+              const cx = vpW * (this._walkBounds.xMin + 0.5 * (this._walkBounds.xMax - this._walkBounds.xMin));
+              const cy = vpH * (this._walkBounds.yMin + 0.5 * (this._walkBounds.yMax - this._walkBounds.yMin));
+              if (collisionMap.isWalkableArea(cx, cy, cr, vpW, vpH)) {
+                console.log(`🐾 Pet ${this.displayName} stuck → forced reset to center`);
+                this.x = cx;
+                this.y = cy;
+              }
+              this.state = 'idle';
+              this._idleUntil = now + 500;
+            }
+            // 重置检测
+            this._stuckCheckStart = 0;
+            this._lastStuckX = this.x;
+            this._lastStuckY = this.y;
+          } else if (this._stuckCheckStart === 0) {
+            // 开始计时
+            this._stuckCheckStart = now;
+          }
+        } else {
+          // 当前位置可行走，重置
+          this._stuckCheckStart = 0;
+        }
+      } else {
+        // 有移动，重置
+        this._stuckCheckStart = 0;
+      }
+      this._lastStuckX = this.x;
+      this._lastStuckY = this.y;
+    }
+
     // ── 动画帧切换 (使用 animConfig 中对应动作的帧间隔) ──
     const stateKey = this._getStateAnimationKey();
     const frameInterval = this.animConfig[stateKey] || this._animFrameInterval;
