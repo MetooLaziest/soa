@@ -356,8 +356,3 @@ export class CollisionMap {
 
 /** Singleton collision map instance */
 export const collisionMap = new CollisionMap();
-
-// DEBUG: expose collisionMap to window for runtime inspection
-if (typeof window !== 'undefined') {
-  (window as any).__collisionMap = collisionMap;
-}
