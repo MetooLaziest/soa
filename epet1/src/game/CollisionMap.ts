@@ -117,6 +117,20 @@ export class CollisionMap {
     this._obstacles = obs;
   }
 
+  /** Add a single rect obstacle (for furniture full-bounding-box collision) */
+  addObstacle(obs: RectObstacle): void {
+    // Remove any existing entry with the same label
+    if (obs.label) {
+      this._obstacles = this._obstacles.filter(o => o.label !== obs.label);
+    }
+    this._obstacles.push(obs);
+  }
+
+  /** Remove a rect obstacle by label */
+  removeObstacle(label: string): void {
+    this._obstacles = this._obstacles.filter(o => o.label !== label);
+  }
+
   /** Load obstacles from API scene objects — loads sprite pixel data for collidable objects */
   async loadFromSceneObjects(objects: SceneObjectData[]): Promise<void> {
     const obs: RectObstacle[] = [];
@@ -155,16 +169,20 @@ export class CollisionMap {
           const ctx = canvas.getContext('2d')!;
           ctx.drawImage(bmp, 0, 0);
           const imgData = ctx.getImageData(0, 0, bmp.width, bmp.height);
+
+          // ⚠️ Save dimensions BEFORE closing the bitmap — after close(), width/height return 0
+          const bmpW = bmp.width;
+          const bmpH = bmp.height;
           bmp.close();
 
           // Y-flip pixel data (PixiJS renders textures with Y-flip,
           // so image row 0 = visual bottom, not visual top.
           // Must match the flip applied to furniture sprites in Game.ts)
           const flippedData = new Uint8ClampedArray(imgData.data.length);
-          const rowBytes = bmp.width * 4;
-          for (let y = 0; y < bmp.height; y++) {
+          const rowBytes = bmpW * 4;
+          for (let y = 0; y < bmpH; y++) {
             const srcOffset = y * rowBytes;
-            const dstOffset = (bmp.height - 1 - y) * rowBytes;
+            const dstOffset = (bmpH - 1 - y) * rowBytes;
             flippedData.set(imgData.data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
           }
 
@@ -175,10 +193,10 @@ export class CollisionMap {
             xMax: bounds.xMax,
             yMax: bounds.yMax,
             pixels: flippedData,
-            pixelW: bmp.width,
-            pixelH: bmp.height,
+            pixelW: bmpW,
+            pixelH: bmpH,
           });
-          console.log(`✅ Sprite collision (aspect-fit): ${o.label} (${bmp.width}x${bmp.height}), bounds=`, bounds);
+          console.log(`✅ Sprite collision (aspect-fit): ${o.label} (${bmpW}x${bmpH}), bounds=`, bounds);
         } catch (e) {
           console.warn(`Failed to load sprite for collision: ${o.label}`, e);
           // Fallback to rect

@@ -795,7 +795,10 @@ export class Game {
     // Store full data including image_url for pixel-accurate collision
     this._furnitureData.set(f.id, f);
 
-    // Register sprite collision by loading the image separately
+    // Register furniture collision — use RECT (bounding box) instead of per-pixel.
+    // Per-pixel collision allows pets to walk through transparent interior areas
+    // (e.g., tent has ~50% transparent pixels inside). The full bounding box
+    // ensures pets cannot walk through furniture at all.
     try {
       const base = `${window.location.protocol}//${window.location.host}`;
       const url = f.image_url.startsWith('/') ? `${base}${f.image_url}` : f.image_url;
@@ -808,48 +811,32 @@ export class Game {
       });
 
       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          const imgData = ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+        const bounds = computeCollisionBounds(f, img.naturalWidth, img.naturalHeight);
 
-          const bounds = computeCollisionBounds(f, img.naturalWidth, img.naturalHeight);
-
-          let solidCount = 0;
-          for (let i = 3; i < imgData.data.length; i += 4) {
-            if (imgData.data[i] > 30) solidCount++;
-          }
-
-          if (solidCount > 0) {
-            // Flip pixel data vertically (PixiJS renders textures with Y-flip,
-            // so image row 0 = visual bottom, not visual top)
-            const flippedData = new Uint8ClampedArray(imgData.data.length);
-            const rowBytes = img.naturalWidth * 4;
-            for (let y = 0; y < img.naturalHeight; y++) {
-              const srcOffset = y * rowBytes;
-              const dstOffset = (img.naturalHeight - 1 - y) * rowBytes;
-              flippedData.set(imgData.data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
-            }
-
-            collisionMap.addSpriteCollision({
-              label: `furniture-${f.id}`,
-              xMin: bounds.xMin, yMin: bounds.yMin,
-              xMax: bounds.xMax, yMax: bounds.yMax,
-              pixels: flippedData,
-              pixelW: img.naturalWidth,
-              pixelH: img.naturalHeight,
-            });
-            console.log(`✅ Furniture sprite collision registered: ${f.label} (${img.naturalWidth}x${img.naturalHeight}), solid=${solidCount}, bounds=`, bounds);
-          } else {
-            console.warn(`⚠️ Furniture all transparent, no collision: ${f.label}`);
-          }
-        }
+        // Use rect collision (full bounding box) for furniture
+        collisionMap.addObstacle({
+          xMin: bounds.xMin, yMin: bounds.yMin,
+          xMax: bounds.xMax, yMax: bounds.yMax,
+          label: `furniture-${f.id}`,
+        });
+        console.log(`✅ Furniture RECT collision registered: ${f.label} (${img.naturalWidth}x${img.naturalHeight}), bounds=`, bounds);
+      } else {
+        // Fallback: use width/height directly as rect (no aspect-fit)
+        collisionMap.addObstacle({
+          xMin: f.pos_x - f.width / 2, yMin: f.pos_y - f.height * 0.85,
+          xMax: f.pos_x + f.width / 2, yMax: f.pos_y + f.height * 0.15,
+          label: `furniture-${f.id}`,
+        });
+        console.log(`✅ Furniture RECT collision (fallback): ${f.label}, bounds from width/height`);
       }
     } catch (e) {
-      console.warn(`⚠️ Furniture collision registration failed: ${f.label}`, e);
+      // Image failed — still register rect collision using configured width/height
+      collisionMap.addObstacle({
+        xMin: f.pos_x - f.width / 2, yMin: f.pos_y - f.height * 0.85,
+        xMax: f.pos_x + f.width / 2, yMax: f.pos_y + f.height * 0.15,
+        label: `furniture-${f.id}`,
+      });
+      console.warn(`⚠️ Furniture image load failed, using rect collision: ${f.label}`, e);
     }
     console.log(`  🪑 Furniture: ${f.label} at (${f.pos_x.toFixed(2)}, ${f.pos_y.toFixed(2)})`);
   }
@@ -1066,7 +1053,7 @@ export class Game {
     }
     this._furnitureData.delete(furnitureId);
     // Remove the furniture's sprite collision
-    collisionMap.removeSpriteCollision(`furniture-${furnitureId}`);
+    collisionMap.removeObstacle(`furniture-${furnitureId}`);
     console.log(`[Game] Furniture sprite removed: ${furnitureId}`);
   }
 
