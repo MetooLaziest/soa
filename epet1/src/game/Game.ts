@@ -1,6 +1,6 @@
 import { Application, Container, Sprite, Assets, Text, Graphics, Texture } from 'pixi.js';
 import { PetEntity, type ScheduledBehavior } from '../entities/Pet';
-import { collisionMap, type SceneObjectData, computeCollisionBounds } from './CollisionMap';
+import { collisionMap, type SceneObjectData, computeCollisionBounds, fillScanlineHoles } from './CollisionMap';
 import { useGameStore } from './GameState';
 
 /** Max texture dimension (px) — oversized textures are auto-downscaled to prevent GPU OOM crash */
@@ -795,10 +795,9 @@ export class Game {
     // Store full data including image_url for pixel-accurate collision
     this._furnitureData.set(f.id, f);
 
-    // Register furniture collision — use RECT (bounding box) instead of per-pixel.
-    // Per-pixel collision allows pets to walk through transparent interior areas
-    // (e.g., tent has ~50% transparent pixels inside). The full bounding box
-    // ensures pets cannot walk through furniture at all.
+    // Register furniture collision — per-pixel with scanline hole-fill.
+    // Scanline fill closes interior transparent holes (pets can't walk through)
+    // while preserving exterior transparent areas (pets CAN walk beside outline).
     try {
       const base = `${window.location.protocol}//${window.location.host}`;
       const url = f.image_url.startsWith('/') ? `${base}${f.image_url}` : f.image_url;
@@ -811,17 +810,43 @@ export class Game {
       });
 
       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        const bounds = computeCollisionBounds(f, img.naturalWidth, img.naturalHeight);
+        const imgW = img.naturalWidth;
+        const imgH = img.naturalHeight;
+        const bounds = computeCollisionBounds(f, imgW, imgH);
 
-        // Use rect collision (full bounding box) for furniture
-        collisionMap.addObstacle({
+        // Extract pixel data from the image
+        const canvas = document.createElement('canvas');
+        canvas.width = imgW;
+        canvas.height = imgH;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, imgW, imgH);
+        const pixels = new Uint8ClampedArray(imgData.data);
+
+        // Y-flip pixel data (PixiJS renders textures with Y-flip:
+        // image row 0 = visual bottom, not visual top)
+        const flippedData = new Uint8ClampedArray(pixels.length);
+        const rowBytes = imgW * 4;
+        for (let y = 0; y < imgH; y++) {
+          const srcOffset = y * rowBytes;
+          const dstOffset = (imgH - 1 - y) * rowBytes;
+          flippedData.set(pixels.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+        }
+
+        // Scanline hole-fill: close interior transparent areas
+        fillScanlineHoles(flippedData, imgW, imgH);
+
+        collisionMap.addSpriteCollision({
+          label: `furniture-${f.id}`,
           xMin: bounds.xMin, yMin: bounds.yMin,
           xMax: bounds.xMax, yMax: bounds.yMax,
-          label: `furniture-${f.id}`,
+          pixels: flippedData,
+          pixelW: imgW,
+          pixelH: imgH,
         });
-        console.log(`✅ Furniture RECT collision registered: ${f.label} (${img.naturalWidth}x${img.naturalHeight}), bounds=`, bounds);
+        console.log(`✅ Furniture SPRITE+SCANLINE collision: ${f.label} (${imgW}x${imgH}), bounds=`, bounds);
       } else {
-        // Fallback: use width/height directly as rect (no aspect-fit)
+        // Fallback: use rect collision (no aspect-fit)
         collisionMap.addObstacle({
           xMin: f.pos_x - f.width / 2, yMin: f.pos_y - f.height * 0.85,
           xMax: f.pos_x + f.width / 2, yMax: f.pos_y + f.height * 0.15,
@@ -1053,7 +1078,7 @@ export class Game {
     }
     this._furnitureData.delete(furnitureId);
     // Remove the furniture's sprite collision
-    collisionMap.removeObstacle(`furniture-${furnitureId}`);
+    collisionMap.removeSpriteCollision(`furniture-${furnitureId}`);
     console.log(`[Game] Furniture sprite removed: ${furnitureId}`);
   }
 

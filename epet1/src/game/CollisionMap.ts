@@ -95,6 +95,49 @@ function computeRectCollisionBounds(
 
 const ALPHA_THRESHOLD = 30; // alpha > 30 = solid
 
+/**
+ * Scanline hole-fill: for each row, find the first and last opaque pixel,
+ * then fill all transparent pixels between them as opaque.
+ * This closes interior "holes" (preventing pets from walking through
+ * transparent areas inside a furniture outline) while preserving
+ * exterior transparent areas (allowing pets to walk beside the outline).
+ */
+export function fillScanlineHoles(data: Uint8ClampedArray, w: number, h: number): void {
+  const rowBytes = w * 4;
+  for (let y = 0; y < h; y++) {
+    const rowStart = y * rowBytes;
+    // Find first opaque pixel in this row
+    let first = -1;
+    for (let x = 0; x < w; x++) {
+      if (data[rowStart + x * 4 + 3] > ALPHA_THRESHOLD) {
+        first = x;
+        break;
+      }
+    }
+    if (first === -1) continue; // entire row transparent — skip
+
+    // Find last opaque pixel in this row
+    let last = -1;
+    for (let x = w - 1; x >= 0; x--) {
+      if (data[rowStart + x * 4 + 3] > ALPHA_THRESHOLD) {
+        last = x;
+        break;
+      }
+    }
+
+    // Fill all pixels between first and last as opaque
+    for (let x = first; x <= last; x++) {
+      const idx = rowStart + x * 4;
+      if (data[idx + 3] <= ALPHA_THRESHOLD) {
+        data[idx] = 255;   // R
+        data[idx + 1] = 255; // G
+        data[idx + 2] = 255; // B
+        data[idx + 3] = 255; // A — mark as solid
+      }
+    }
+  }
+}
+
 export class CollisionMap {
   private _obstacles: RectObstacle[] = [];
   private _spriteCollisions: SpriteCollision[] = [];
