@@ -34,6 +34,7 @@ import adminIconsRoutes from './routes/admin-icons.js';
 import adminEpetUsersRoutes from './routes/admin-epet-users.js';
 import adminEpetAssetsRoutes from './routes/admin-epet-assets.js';
 import adminPetSeriesRoutes from './routes/admin-pet-series.js';
+import landingPageRoutes from './routes/landing-page.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -90,6 +91,8 @@ app.use('/api/admin/exec', adminExecRoutes);
 app.use('/api/admin/match3', match3AdminRoutes);
 app.use('/api/admin/epet-users', adminEpetUsersRoutes);
 
+// ========== 着陆页 + 站点配置 (Plan C) ==========
+app.use('/api', landingPageRoutes);  // GET /api/landing, GET /api/site-config, POST /api/admin/site-config
 
 // ========== EPET1 公开接口（无需admin权限）==========
 app.use('/api/epet1/yard', requireCjs('./routes-epet1/yard-scene.cjs')(poolEpet1));
@@ -116,6 +119,7 @@ app.use('/api/epet1/match3',    requireCjs('./routes-epet1/match3.cjs')(poolEpet
 app.use('/api/epet1/cooking',   epetCookingRoutes);
 app.use('/api/epet1/collection', requireCjs('./routes-epet1/collection.cjs')(poolEpet1));
 app.use('/api/epet1/user/settings', requireCjs('./routes-epet1/user-settings.cjs')(poolEpet1));
+
 // 静态文件服务（前端构建产物）
 app.use(express.static(join(__dirname, '../frontend')));
 app.get('*', (req, res) => {

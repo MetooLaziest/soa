@@ -36,6 +36,7 @@ import CookingAdmin from './pages/admin/CookingAdmin';
 import TravelAdmin from './pages/admin/TravelAdmin';
 import CompanionRAG from './pages/admin/CompanionRAG';
 import PetSeriesAdmin from './pages/admin/PetSeries';
+import SiteConfigAdmin from './pages/admin/SiteConfigAdmin';
 import RAGList from './pages/admin/RAGKnowledgeBases';
 import RAGEdit from './pages/admin/RAGEdit';
 
@@ -111,6 +112,7 @@ export default function App() {
           <Route path="cooking" element={<CookingAdmin />} />
           <Route path="travel" element={<TravelAdmin />} />
           <Route path="pet-series" element={<PetSeriesAdmin />} />
+          <Route path="site-config" element={<SiteConfigAdmin />} />
         </Route>
 
         {/* 兜底 */}
