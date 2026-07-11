@@ -66,6 +66,12 @@ export class PetEntity {
   private _lastStuckY: number = -1;       // 上次检测时的 Y
   private static readonly STUCK_THRESHOLD = 3000;  // 3秒未移动视为卡住
   private static readonly STUCK_MOVE_TOLERANCE = 2; // 移动小于2px视为未移动
+
+  // ═══════ 行走进展停滞检测 ═══════
+  private _walkStuckStart: number = 0;    // 开始检测行走停滞的时间
+  private _walkStuckDist: number = Infinity; // 开始检测时到目标的距离
+  private static readonly WALK_STUCK_THRESHOLD = 2000; // 2秒进展停滞则换方向
+  private static readonly WALK_STUCK_MIN_PROGRESS = 5;  // 距离缩小小于5px视为无进展
   sizeMult: number = 1.0;  // 庭院大小比例 (来自 pet_models.size_mult)
   animConfig: Record<string, number> = {}; // 各动作帧间隔 (来自 pet_models.anim_config)
 
@@ -372,8 +378,31 @@ export class PetEntity {
       const dy = this._targetY - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
+      // ── 行走进展停滞检测 ──
+      // 如果连续 2 秒离目标距离没缩小超过 5px，说明这条路走不通 → 换方向
+      if (this._walkStuckStart === 0) {
+        // 刚开始走，记录基准
+        this._walkStuckStart = now;
+        this._walkStuckDist = dist;
+      } else if (now - this._walkStuckStart >= PetEntity.WALK_STUCK_THRESHOLD) {
+        const progress = this._walkStuckDist - dist; // 距离缩小了多少
+        if (progress < PetEntity.WALK_STUCK_MIN_PROGRESS) {
+          // 进展不足 → 换方向
+          console.log(`🐾 Pet ${this.displayName} walk stalled (progress=${progress.toFixed(1)}px in 2s) → picking new target`);
+          this._pickTarget(vpW, vpH);
+          this._walkStuckStart = 0; // 重置检测
+          this._walkStuckDist = Infinity;
+          // 跳过本帧移动，下帧从新目标开始
+        } else {
+          // 有进展，重置基准继续检测
+          this._walkStuckStart = now;
+          this._walkStuckDist = dist;
+        }
+      }
+
       if (dist < 5) {
         // Reached target
+        this._walkStuckStart = 0; // 重置行走停滞检测
         if (this._behaviorMode === 'scheduled' && this._scheduledBehavior?.behavior_type === 'walk') {
           // 定时散步：到达后立刻选下一个目标（持续走）
           this._pickTarget(vpW, vpH);
