@@ -250,7 +250,6 @@ function TopRightMenu({ onOpenModal }: { onOpenModal: (modal: 'shop') => void })
     <div className="live-page-top-right-menu">
       <button className="live-page-top-btn" onClick={() => onOpenModal('shop')}>
         <IconImg iconKey="icon-shop" fallback="🏪" />
-        <span>商店</span>
       </button>
     </div>
   );
@@ -265,22 +264,18 @@ function BottomMenu({ onOpenModal, onShowPlayMenu }: {
     <div className="live-page-bottom-menu">
       <button className="live-page-menu-btn" onClick={() => onOpenModal('postcard')}>
         <IconImg iconKey="icon-postcard" fallback="💌" />
-        <span>明信片</span>
       </button>
 
       <button className="live-page-menu-btn" onClick={() => onOpenModal('collection')}>
         <IconImg iconKey="icon-collection" fallback="🏠" />
-        <span>藏品库</span>
       </button>
 
       <button className="live-page-menu-btn" onClick={() => onOpenModal('inventory')}>
         <IconImg iconKey="icon-backpack" fallback="🎒" />
-        <span>背包</span>
       </button>
 
       <button className="live-page-menu-btn play-btn" onClick={onShowPlayMenu}>
         <IconImg iconKey="icon-minigame" fallback="🎮" />
-        <span>游玩</span>
       </button>
     </div>
   );
