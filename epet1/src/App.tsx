@@ -186,6 +186,12 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
 
   const handleToggleYard = async (pet: any) => {
     if (!userId) return;
+    // 旅行中的宠物不能放入庭院
+    if (pet.isTraveling) {
+      setCollectionToast({ type: 'error', message: '宠物正在出游中，无法放入庭院' });
+      setTimeout(() => setCollectionToast(null), 2000);
+      return;
+    }
     const targetModelId = Number(pet.modelId);
     const petInstance = yardPets.find(p => Number(p.pet_model_id) === targetModelId);
     if (petInstance) {
@@ -374,14 +380,14 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
               return (
                 <div
                   key={pet.modelId}
-                  onClick={() => pet.isCollected && handleToggleYard(pet)}
+                  onClick={() => pet.isCollected && !pet.isTraveling && handleToggleYard(pet)}
                   style={{
                     position: 'absolute',
                     left: `${position.left}px`,
                     top: `${position.top}px`,
                     transform: `translate(-50%, -50%) scale(${position.scale})`,
                     width: baseSize,
-                    cursor: pet.isCollected ? 'pointer' : 'default',
+                    cursor: pet.isCollected && !pet.isTraveling ? 'pointer' : 'default',
                     opacity: pet.isCollected ? 1 : 0.7,
                     transition: 'all 0.2s',
                     zIndex: isInYard ? 10 : 1,
@@ -410,6 +416,16 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
                       <span style={{ marginLeft: 4, color: '#FFD700' }}>Lv.{pet.growthLevel}</span>
                     )}
                   </div>
+                  {pet.isCollected && pet.isTraveling && (
+                    <div style={{
+                      position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
+                      background: 'linear-gradient(135deg, #FF6B6B, #ee5a24)',
+                      color: '#fff', fontSize: 22, fontWeight: 700,
+                      padding: '2px 12px', borderRadius: 20, whiteSpace: 'nowrap',
+                      boxShadow: '0 2px 8px rgba(238,90,36,0.4)',
+                      zIndex: 20,
+                    }}>✈️ 旅行中</div>
+                  )}
                   {isInYard && (
                     <div style={{
                       position: 'absolute', top: -12, left: -12, right: -12, bottom: -12,

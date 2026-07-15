@@ -81,10 +81,12 @@ function getSeriesDetail(pool) {
           pm.full_image_url,
           pm.rarity,
           pi.id IS NOT NULL as is_collected,
-          pi.growth_level
+          pi.growth_level,
+          (tr.id IS NOT NULL) as is_traveling
         FROM series_pets sp
         JOIN pet_models pm ON sp.model_id = pm.id
         LEFT JOIN pet_instances pi ON pm.id = pi.pet_model_id AND pi.user_id = $1
+        LEFT JOIN travel_records tr ON tr.pet_instance_id = pi.id AND tr.status = 'traveling'
         WHERE sp.series_id = $2
         ORDER BY sp.display_order ASC, sp.model_id ASC
       `, [userId, seriesId]);
@@ -109,6 +111,7 @@ function getSeriesDetail(pool) {
           rarity: row.rarity,
           isCollected: row.is_collected,
           growthLevel: row.growth_level,
+          isTraveling: row.is_traveling,
         })),
         progress: {
           total: petsResult.rows.length,

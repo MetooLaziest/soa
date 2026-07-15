@@ -98,15 +98,17 @@ module.exports = (pool) => {
     }
   });
 
-  // 获取用户所有宠物实例
+  // 获取用户所有宠物实例（含出游状态）
   router.get('/instances/:userId', async (req, res) => {
     try {
       const result = await pool.query(
         `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity, pm.animations, pm.size_mult, pm.anim_config, pm.nfc_range_start, pm.nfc_range_end,
-                yp.position as yard_position, yp.is_active as yard_active
+                yp.position as yard_position, yp.is_active as yard_active,
+                (tr.id IS NOT NULL) as is_traveling
          FROM pet_instances pi
          JOIN pet_models pm ON pm.id = pi.pet_model_id
          LEFT JOIN yard_pets yp ON yp.pet_instance_id = pi.id AND yp.is_active = true
+         LEFT JOIN travel_records tr ON tr.pet_instance_id = pi.id AND tr.status = 'traveling'
          WHERE pi.user_id = $1
          ORDER BY pi.created_at`,
         [req.params.userId]
@@ -117,7 +119,7 @@ module.exports = (pool) => {
     }
   });
 
-  // 获取庭院宠物
+  // 获取庭院宠物（防御性过滤出游中的宠物）
   router.get('/yard/:userId', async (req, res) => {
     try {
       const result = await pool.query(
@@ -128,6 +130,10 @@ module.exports = (pool) => {
          JOIN pet_instances pi ON pi.id = yp.pet_instance_id
          JOIN pet_models pm ON pm.id = pi.pet_model_id
          WHERE yp.user_id = $1 AND yp.is_active = true
+           AND NOT EXISTS (
+             SELECT 1 FROM travel_records tr
+             WHERE tr.pet_instance_id = yp.pet_instance_id AND tr.status = 'traveling'
+           )
          ORDER BY yp.position`,
         [req.params.userId]
       );
@@ -137,7 +143,7 @@ module.exports = (pool) => {
     }
   });
 
-  // 放入庭院（修复：补上 BEGIN，修复事务流程）
+  // 放入庭院（修复：补上 BEGIN，修复事务流程 + 出游校验）
   router.post('/yard/add', async (req, res) => {
     const client = await pool.connect();
     try {
@@ -148,6 +154,16 @@ module.exports = (pool) => {
       }
 
       await client.query('BEGIN');
+
+      // 检查宠物是否正在出游（防止旅行中宠物被加入庭院）
+      const traveling = await client.query(
+        `SELECT id FROM travel_records WHERE pet_instance_id = $1 AND status = 'traveling' LIMIT 1`,
+        [pet_instance_id]
+      );
+      if (traveling.rows[0]) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: '宠物正在出游中，无法放入庭院' });
+      }
 
       // 检查庭院是否已有2只
       const count = await client.query(

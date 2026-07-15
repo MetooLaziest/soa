@@ -32,6 +32,7 @@ export interface PetInstance {
   total_postcards: number;
   is_in_yard: boolean;
   yard_position: number | null;
+  is_traveling?: boolean;
   emotion_value: number;
   last_interact_at: string;
   pet_model?: PetModel;
@@ -646,6 +647,7 @@ export interface SeriesPet {
   rarity: string;
   isCollected: boolean;
   growthLevel?: number;
+  isTraveling?: boolean;
 }
 
 export interface SeriesDetail {
