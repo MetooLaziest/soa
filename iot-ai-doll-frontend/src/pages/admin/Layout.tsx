@@ -12,7 +12,7 @@ const navItems = [
   { key: 'stories', label: '主剧情框架', icon: '📖', path: '/admin/stories' },
   { key: 'items', label: '道具管理', icon: '🎒', path: '/admin/items' },
   { key: 'cgs', label: 'CG图鉴管理', icon: '🖼️', path: '/admin/cgs' },
-  { key: 'devices', label: '设备SN录入', icon: '📱', path: '/admin/devices' },
+  // { key: 'devices', label: '设备SN录入', icon: '📱', path: '/admin/devices' },  // 已废弃, 统一用宠物实体管理
   { key: 'users', label: '用户列表', icon: '👥', path: '/admin/users' },
   { key: 'sys-config', label: '系统配置', icon: '⚙️', path: '/admin/sys-config' },
   { key: 'pets', label: '宠物实体管理', icon: '🐾', path: '/admin/pets' },

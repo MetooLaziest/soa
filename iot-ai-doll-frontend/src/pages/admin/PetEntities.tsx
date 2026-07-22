@@ -20,6 +20,8 @@ interface PetInstance {
   user_id: string;
   pet_model_id: number;
   nfc_id: string;
+  activation_code: string | null;
+  status: string;
   nickname: string;
   growth_level: number;
   growth_exp: number;
@@ -155,6 +157,53 @@ export default function PetEntities() {
     }
   };
 
+  const handleGenerateCodes = async (petModelId: number, modelName: string) => {
+    const count = prompt(`为 ${modelName} 批量生成激活码 (1-100):`, '5');
+    if (!count) return;
+    const n = parseInt(count);
+    if (isNaN(n) || n < 1 || n > 100) {
+      alert('数量范围 1-100');
+      return;
+    }
+    try {
+      const res = await client.post('/admin/pets/generate-codes', {
+        pet_model_id: petModelId,
+        count: n,
+      });
+      if (res.data.success) {
+        const codes = res.data.generated;
+        alert(`✅ 已生成 ${codes.length} 个激活码:\n\n${codes.map((c: any) => `id=${c.id} nfc=${c.nfc_id}\n🔑 ${c.activation_code}`).join('\n\n')}`);
+        await loadData();
+      } else {
+        alert('生成失败: ' + (res.data.error || '未知错误'));
+      }
+    } catch (err: any) {
+      alert('生成失败: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleRegenerateCode = async (instance: PetInstance) => {
+    if (!confirm(`重新生成 #${instance.id} 的激活码？旧码将失效。`)) return;
+    try {
+      const res = await client.post(`/admin/pets/${instance.id}/regenerate-code`);
+      if (res.data.success) {
+        alert(`✅ 新激活码: ${res.data.instance.activation_code}`);
+        await loadData();
+      } else {
+        alert('生成失败: ' + (res.data.error || '未知错误'));
+      }
+    } catch (err: any) {
+      alert('生成失败: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => { /* copied */ },
+      () => { /* fallback: ignore */ }
+    );
+  };
+
   const filteredModels = models
     .map((g) => ({
       ...g,
@@ -224,6 +273,9 @@ export default function PetEntities() {
             onEditModel={(id) => navigate(`/admin/companions/${id}/edit`)}
             onDispatchTravel={handleDispatchTravel}
             onForceReturn={handleForceReturn}
+            onGenerateCodes={handleGenerateCodes}
+            onRegenerateCode={handleRegenerateCode}
+            onCopy={copyToClipboard}
           />
         ))}
         {filteredModels.length === 0 && (
@@ -252,6 +304,9 @@ function ModelCard({
   onEditModel,
   onDispatchTravel,
   onForceReturn,
+  onGenerateCodes,
+  onRegenerateCode,
+  onCopy,
 }: {
   group: ModelGroup;
   onEdit: (i: PetInstance) => void;
@@ -259,6 +314,9 @@ function ModelCard({
   onEditModel: (modelId: number) => void;
   onDispatchTravel: (i: PetInstance) => void;
   onForceReturn: (i: PetInstance) => void;
+  onGenerateCodes: (petModelId: number, modelName: string) => void;
+  onRegenerateCode: (i: PetInstance) => void;
+  onCopy: (text: string) => void;
 }) {
   const m = group.model;
   const rarityColor = {
@@ -298,6 +356,12 @@ function ModelCard({
             <div className="text-2xl font-bold text-gray-700">{group.instances.length}</div>
           </div>
           <button
+            onClick={() => onGenerateCodes(group.model.id, group.model.name)}
+            className="rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 px-3 py-1.5 text-xs text-white font-medium hover:from-green-600 hover:to-emerald-600 shadow-sm"
+          >
+            🔑 批量生成激活码
+          </button>
+          <button
             onClick={() => onEditModel(group.model.id)}
             className="rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1.5 text-xs text-white font-medium hover:from-purple-600 hover:to-pink-600 shadow-sm"
           >
@@ -314,6 +378,7 @@ function ModelCard({
           <thead className="bg-gray-50 text-xs text-gray-500">
             <tr>
               <th className="text-left px-4 py-2 font-medium">nfc_id</th>
+              <th className="text-left px-4 py-2 font-medium">激活码 / 状态</th>
               <th className="text-left px-4 py-2 font-medium">所属用户</th>
               <th className="text-left px-4 py-2 font-medium">昵称</th>
               <th className="text-left px-4 py-2 font-medium">等级</th>
@@ -332,9 +397,39 @@ function ModelCard({
                     {inst.nfc_id}
                   </code>
                 </td>
+                <td className="px-4 py-3">
+                  {inst.activation_code ? (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1">
+                        <code
+                          className="text-xs bg-amber-50 text-amber-800 px-2 py-0.5 rounded cursor-pointer hover:bg-amber-100 font-mono"
+                          onClick={() => onCopy(inst.activation_code!)}
+                          title="点击复制"
+                        >
+                          🔑 {inst.activation_code}
+                        </code>
+                      </div>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        inst.status === 'claimed'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {inst.status === 'claimed' ? '🟢 已认领' : '⚪ 未认领'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400 text-xs">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-sm">
-                  <div className="font-medium text-gray-800">{inst.user_nickname || `user_${inst.user_id}`}</div>
-                  <div className="text-xs text-gray-400">id={inst.user_id}</div>
+                  {inst.user_id ? (
+                    <>
+                      <div className="font-medium text-gray-800">{inst.user_nickname || `user_${inst.user_id}`}</div>
+                      <div className="text-xs text-gray-400">id={inst.user_id}</div>
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">待认领</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-700">
                   {inst.nickname || <span className="text-gray-400">未命名</span>}
@@ -396,6 +491,13 @@ function ModelCard({
                       ✈️ 派遣
                     </button>
                   )}
+                  <button
+                    onClick={() => onRegenerateCode(inst)}
+                    className="text-amber-600 hover:text-amber-800 text-sm mr-3"
+                    title="重新生成激活码 (如码泄露)"
+                  >
+                    🔄 换码
+                  </button>
                   <button
                     onClick={() => onDelete(inst)}
                     className="text-red-500 hover:text-red-700 text-sm"
@@ -467,10 +569,32 @@ function EditModal({
               className="w-full border rounded px-2 py-1"
             />
           </Field>
-          <div className="text-xs text-gray-500 pt-2 border-t">
+          <div className="text-xs text-gray-500 pt-2 border-t space-y-1">
             <div>model: <b>{instance.model_name}</b></div>
             <div>user: <b>{instance.user_nickname}</b></div>
             <div>yard: {instance.in_yard ? `pos#${instance.yard_position}` : '不在庭院'}</div>
+            <div className="flex items-center gap-2">
+              激活码:
+              {instance.activation_code ? (
+                <code
+                  className="bg-amber-50 text-amber-800 px-2 py-0.5 rounded font-mono cursor-pointer hover:bg-amber-100"
+                  onClick={() => navigator.clipboard.writeText(instance.activation_code!)}
+                  title="点击复制"
+                >
+                  {instance.activation_code}
+                </code>
+              ) : (
+                <span className="text-gray-400">无</span>
+              )}
+            </div>
+            <div>
+              状态:
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full ${
+                instance.status === 'claimed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {instance.status === 'claimed' ? '🟢 已认领' : '⚪ 未认领'}
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-4">

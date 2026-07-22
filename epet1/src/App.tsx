@@ -32,6 +32,7 @@ import {
   fetchCollectionSeries,
   fetchSeriesDetail,
   fetchUserSettings,
+  updateUserSettings,
 } from './api/epet1';
 import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture, PetSeries, SeriesDetail } from './api/epet1';
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
@@ -2109,10 +2110,11 @@ export default function App() {
         // 保存 user_id 到 localStorage 供 Game.ts 场景加载使用
         localStorage.setItem('epet_user_id', String(user.user_id));
 
-        // 加载用户设置（首页模式）
+        // 加载用户设置（首页模式） — 优先级: localStorage > 后端 > fallback
+        const localMode = localStorage.getItem('epet_home_mode') as 'yard' | 'live' | null;
         const settings = await fetchUserSettings(user.user_id);
         setUserSettings(settings);
-        setHomeMode(settings.home_mode);
+        setHomeMode(localMode || settings.home_mode);
 
         const [yardPets, allPets, travel, yardFurn] = await Promise.all([
           fetchYardPets(user.user_id),
@@ -2154,10 +2156,12 @@ export default function App() {
     setActiveModal(modal);
   }, [setActiveModal]);
 
-  // 切换到庭院画面
-  const handleSwitchToYard = useCallback(() => {
-    setHomeMode('yard');
-  }, [setHomeMode]);
+  // 切换首页模式 (同步 localStorage + 后端)
+  const handleSwitchHomeMode = useCallback((mode: 'yard' | 'live') => {
+    setHomeMode(mode);
+    localStorage.setItem('epet_home_mode', mode);
+    if (userId) updateUserSettings(userId, mode).catch(() => {});
+  }, [setHomeMode, userId]);
 
   // 等待初始化完成后再渲染主内容，避免先显示yard再切换到live的闪烁
   if (loading) {
@@ -2171,6 +2175,18 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* 首页模式切换栏 — 浮动在左上角, yard/live 共用 */}
+      <div className="mode-switch-bar">
+        <button
+          className={`mode-switch-btn${homeMode === 'yard' ? ' active' : ''}`}
+          onClick={() => handleSwitchHomeMode('yard')}
+        >🏡 庭院</button>
+        <button
+          className={`mode-switch-btn${homeMode === 'live' ? ' active' : ''}`}
+          onClick={() => handleSwitchHomeMode('live')}
+        >📺 Live</button>
+      </div>
+
       {homeMode === 'yard' ? (
         <>
           <div className="scene-bg" />
@@ -2179,9 +2195,8 @@ export default function App() {
           </div>
         </>
       ) : (
-        <LivePage 
+        <LivePage
           onOpenModal={handleOpenModal}
-          onSwitchToYard={handleSwitchToYard}
         />
       )}
 

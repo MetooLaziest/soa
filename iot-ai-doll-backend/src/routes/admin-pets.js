@@ -14,6 +14,7 @@
  *   GET  /:id/rags - 实体关联的 RAG 知识库列表 (预留, 待 epet1 schema 扩展)
  */
 import express from 'express';
+import crypto from 'crypto';
 import { poolEpet1 } from '../lib/db.js';
 
 const router = express.Router();
@@ -36,6 +37,7 @@ router.get('/', async (_req, res) => {
       `SELECT pi.id, pi.user_id, pi.pet_model_id, pi.nfc_id, pi.nickname,
               pi.growth_level, pi.growth_exp, pi.total_interactions,
               pi.total_travels, pi.total_postcards, pi.created_at, pi.updated_at,
+              pi.activation_code, pi.status,
               u.nickname as user_nickname,
               pm.name as model_name, pm.image_url as model_image,
               yp.position as yard_position, yp.is_active as in_yard,
@@ -76,7 +78,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const r = await poolEpet1.query(
-      `SELECT pi.*, pm.name as model_name, pm.image_url as model_image,
+      `SELECT pi.*, pi.activation_code, pi.status, pm.name as model_name, pm.image_url as model_image,
               pm.rarity, pm.mbti, pm.personality_template, pm.display_order,
               u.nickname as user_nickname,
               yp.position as yard_position
@@ -162,9 +164,9 @@ router.post('/', async (req, res) => {
     }
 
     const r = await client.query(
-      `INSERT INTO pet_instances (user_id, pet_model_id, nfc_id, nickname)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [user_id, pet_model_id, nfc_id, nickname || null]
+      `INSERT INTO pet_instances (user_id, pet_model_id, nfc_id, nickname, activation_code, status)
+       VALUES ($1, $2, $3, $4, $5, 'claimed') RETURNING *`,
+      [user_id, pet_model_id, nfc_id, nickname || null, crypto.randomBytes(14).toString('base64url')]
     );
     res.json({ success: true, pet: r.rows[0] });
   } catch (err) {
@@ -185,6 +187,79 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Pet instance not found' });
     }
     res.json({ success: true, deleted: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── 批量生成激活码 (为指定 model 创建 N 个未认领实体) ───
+router.post('/generate-codes', async (req, res) => {
+  const client = await poolEpet1.connect();
+  try {
+    const { pet_model_id, count } = req.body;
+    if (!pet_model_id || !count || count < 1 || count > 100) {
+      return res.status(400).json({ success: false, error: 'pet_model_id 必填, count 范围 1-100' });
+    }
+
+    // 检查 model 存在
+    const modelRow = await client.query('SELECT name, nfc_range_start, nfc_range_end FROM pet_models WHERE id = $1', [pet_model_id]);
+    if (modelRow.rowCount === 0) {
+      return res.status(400).json({ success: false, error: `pet_model_id=${pet_model_id} 不存在` });
+    }
+    const m = modelRow.rows[0];
+
+    // 生成 count 个实体
+    const results = [];
+    for (let i = 0; i < count; i++) {
+      const activationCode = crypto.randomBytes(14).toString('base64url');
+
+      // nfc_id: 如果有范围, 从范围内取下一个可用值; 否则用递增 ID
+      let nfcId;
+      if (m.nfc_range_start && m.nfc_range_end) {
+        const maxNfc = await client.query(
+          'SELECT COALESCE(MAX(nfc_id), $1 - 1) as max_nfc FROM pet_instances WHERE pet_model_id = $2 AND nfc_id BETWEEN $1 AND $3',
+          [Number(m.nfc_range_start), pet_model_id, Number(m.nfc_range_end)]
+        );
+        nfcId = Number(maxNfc.rows[0].max_nfc) + 1;
+        if (nfcId > Number(m.nfc_range_end)) {
+          return res.status(400).json({ success: false, error: `nfc_id 范围已满 (${m.nfc_range_start}-${m.nfc_range_end})`, generated: results });
+        }
+      } else {
+        // 无范围限制, 用序列
+        const seqRes = await client.query('SELECT nextval(\'pet_instances_id_seq\') as next_id');
+        nfcId = Number(seqRes.rows[0].next_id) + 100000; // 大数字避免冲突
+      }
+
+      const r = await client.query(
+        `INSERT INTO pet_instances (user_id, pet_model_id, nfc_id, nickname, activation_code, status)
+         VALUES (NULL, $1, $2, NULL, $3, 'unclaimed') RETURNING id, nfc_id, activation_code, status`,
+        [pet_model_id, nfcId, activationCode]
+      );
+      results.push(r.rows[0]);
+    }
+
+    res.json({ success: true, generated: results, count: results.length });
+  } catch (err) {
+    console.error('admin/pets generate-codes error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── 单个实体重新生成激活码 (如码泄露) ───
+router.post('/:id/regenerate-code', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const newCode = crypto.randomBytes(14).toString('base64url');
+    const r = await poolEpet1.query(
+      'UPDATE pet_instances SET activation_code = $1, updated_at = NOW() WHERE id = $2 RETURNING id, nfc_id, activation_code, status',
+      [newCode, id]
+    );
+    if (r.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Pet instance not found' });
+    }
+    res.json({ success: true, instance: r.rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

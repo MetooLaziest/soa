@@ -20,16 +20,14 @@ import { IconImg } from './IconImg';
 
 interface LivePageProps {
   onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'inventory' | 'collection' | 'fishing' | 'cooking') => void;
-  onSwitchToYard: () => void;
 }
 
-export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
+export function LivePage({ onOpenModal }: LivePageProps) {
   const { userId, yardPets } = useGameStore();
   const [videos, setVideos] = useState<IntroVideo[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [showModeSwitch, setShowModeSwitch] = useState(false);
   const [showPlayMenu, setShowPlayMenu] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -186,14 +184,6 @@ export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
           playsInline
           muted
         />
-
-        {/* 切换模式按钮 */}
-        <button
-          className="live-page-mode-switch-btn"
-          onClick={() => setShowModeSwitch(true)}
-        >
-          🔄
-        </button>
       </div>
 
       {/* 滑动提示 */}
@@ -216,21 +206,6 @@ export function LivePage({ onOpenModal, onSwitchToYard }: LivePageProps) {
 
       {/* 右上角商店 */}
       <TopRightMenu onOpenModal={onOpenModal} />
-
-      {/* 模式切换弹窗 */}
-      {showModeSwitch && (
-        <div className="live-page-mode-modal" onClick={() => setShowModeSwitch(false)}>
-          <div className="live-page-mode-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="live-page-mode-modal-title">切换展示模式</div>
-            <button className="live-page-mode-modal-btn" onClick={onSwitchToYard}>
-              🏡 切换到庭院画面
-            </button>
-            <button className="live-page-mode-modal-btn secondary" onClick={() => setShowModeSwitch(false)}>
-              取消
-            </button>
-          </div>
-        </div>
-      )}
 
       <BottomMenu onOpenModal={onOpenModal} onShowPlayMenu={() => setShowPlayMenu(true)} />
 
