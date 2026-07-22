@@ -23,9 +23,11 @@ module.exports = (pool) => {
         return res.status(400).json({ error: '手机号格式不正确' });
       }
 
-      // 开发环境固定验证码
+      // 开发环境固定验证码; 生产环境也支持 DEV_SMS_CODE 环境变量覆盖
       const isDev = process.env.NODE_ENV !== 'production';
-      const code = isDev ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
+      const code = (isDev || process.env.DEV_SMS_CODE)
+        ? (process.env.DEV_SMS_CODE || '123456')
+        : String(Math.floor(100000 + Math.random() * 900000));
 
       await pool.query(
         `INSERT INTO sms_codes (phone, code) VALUES ($1, $2)`,
@@ -39,7 +41,7 @@ module.exports = (pool) => {
         console.log(`[SMS] 发送验证码到 ${phone}（生产环境需接入 SMS SDK）`);
       }
 
-      res.json({ success: true, message: isDev ? `验证码: ${code}` : '验证码已发送' });
+      res.json({ ok: true, code: (isDev || process.env.DEV_SMS_CODE) ? code : undefined, message: (isDev || process.env.DEV_SMS_CODE) ? `验证码: ${code}` : '验证码已发送' });
     } catch (err) {
       console.error('send-code error:', err);
       res.status(500).json({ error: '发送验证码失败' });
@@ -103,7 +105,8 @@ module.exports = (pool) => {
       );
 
       res.json({
-        user: { id: user.id, phone: user.phone, nickname: user.nickname, role: user.role },
+        ok: true,
+        user: { userId: user.id, phone: user.phone, nickname: user.nickname, role: user.role },
         token
       });
     } catch (err) {
@@ -151,7 +154,8 @@ module.exports = (pool) => {
       );
 
       res.json({
-        user: { id: user.id, phone: user.phone, nickname: user.nickname, role: user.role },
+        ok: true,
+        user: { userId: user.id, phone: user.phone, nickname: user.nickname, role: user.role },
         token
       });
     } catch (err) {
@@ -176,7 +180,7 @@ module.exports = (pool) => {
       if (result.rows.length === 0) {
         return res.status(401).json({ error: '用户不存在' });
       }
-      res.json({ user: result.rows[0], valid: true });
+      res.json({ ok: true, user: { userId: result.rows[0].id, phone: result.rows[0].phone }, valid: true });
     } catch (err) {
       res.status(401).json({ error: 'Token 无效或已过期' });
     }
@@ -198,7 +202,8 @@ module.exports = (pool) => {
       if (result.rows.length === 0) {
         return res.status(404).json({ error: '用户不存在' });
       }
-      res.json({ user: result.rows[0] });
+      const u = result.rows[0];
+      res.json({ userId: u.id, phone: u.phone, isDemo: false });
     } catch (err) {
       res.status(401).json({ error: 'Token 无效或已过期' });
     }
