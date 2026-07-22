@@ -61,6 +61,8 @@ export class Game {
   private _callbacks: PetEventCallbacks = {};
   private _readyNotified = false;
   private _behaviorPollTimer: ReturnType<typeof setInterval> | null = null;
+  private _scenePollTimer: ReturnType<typeof setInterval> | null = null;
+  private _lastBgUrl: string | null = null;  // track current bg to detect changes
   private _lastBehaviorFrame = new Map<string, string>(); // petId → last texture URL
   private _emotionDropSprites = new Map<number, Container>(); // drop id → sprite container
   private _emotionDropIconUrl: string | null = null; // icon from epet_icons
@@ -121,6 +123,9 @@ export class Game {
 
       // Load scene config from API
       await this._loadSceneConfig();
+
+      // Poll scene for background changes (e.g. demo time switch)
+      this._startScenePoll();
 
       // Click-to-move: tap on empty yard area → pet walks there
       app.stage.eventMode = 'static';
@@ -221,12 +226,46 @@ export class Game {
 
       this.bgContainer.addChild(bg);
       this._bgLoaded = true;
+      this._lastBgUrl = bgUrl;
       console.log('✅ Background loaded:', bgUrl, { size: `${tex.width}x${tex.height}`, scale, viewport: `${W}x${H}` });
       this._notifyReady();
     } catch (e) {
       console.warn('Background load failed:', e);
       this._bgLoaded = true;
       this._notifyReady();
+    }
+  }
+
+  /** Poll scene API every 30s to detect background changes (e.g. demo time switch) */
+  private _startScenePoll(): void {
+    if (this._scenePollTimer) return;
+    this._scenePollTimer = setInterval(async () => {
+      try {
+        const userIdStr = localStorage.getItem('epet_user_id');
+        const userId = userIdStr ? parseInt(userIdStr) : '';
+        const url = userId ? `/api/epet1/yard/scene?user_id=${userId}` : '/api/epet1/yard/scene';
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (!data.success || !data.scene?.bg_image_url) return;
+
+        const newBgUrl = data.scene.bg_image_url.startsWith('/')
+          ? `${window.location.protocol}//${window.location.host}${data.scene.bg_image_url}`
+          : data.scene.bg_image_url;
+
+        if (newBgUrl !== this._lastBgUrl) {
+          console.log(`🌅 Background changed: ${this._lastBgUrl} → ${newBgUrl}`);
+          this._sceneBgUrl = newBgUrl;
+          await this._loadBackground();
+        }
+      } catch (_) { /* poll failure is non-critical */ }
+    }, 30_000);
+  }
+
+  /** Stop scene background polling */
+  stopScenePoll(): void {
+    if (this._scenePollTimer) {
+      clearInterval(this._scenePollTimer);
+      this._scenePollTimer = null;
     }
   }
 

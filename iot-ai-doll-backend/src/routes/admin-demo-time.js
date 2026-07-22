@@ -1,12 +1,7 @@
 /**
- * 演示时间 (Demo Time) 管理
+ * 演示时间 (Demo Time) 管理 — ESM 路由层
  *
- * 允许 admin 手动覆盖系统时间，用于演示场景：
- * - 庭院背景切换（dawn/day/night）
- * - 宠物行为匹配（pet_behaviors 按时间匹配）
- * - 直播视频选择（intro_videos 按时间匹配）
- *
- * 存储: 内存变量 (PM2 重启即恢复真实时间 — 天然回滚)
+ * 核心逻辑在 demo-time-core.cjs (CJS, 供 CJS/ESM 共用)
  *
  * 路由:
  *   GET  /api/admin/demo-time  — 获取当前状态
@@ -14,44 +9,18 @@
  *   GET  /api/epet1/demo-time  — 公开接口 (C端前端读取)
  */
 import express from 'express';
+import { createRequire } from 'module';
+
+// 用 createRequire 在 ESM 中加载 CJS 核心模块
+const require = createRequire(import.meta.url);
+const core = require('./demo-time-core.cjs');
+
+const { getDemoTime, getEffectiveHour, getEffectiveTimeStr, setDemoTime, clearDemoTime } = core;
+
+// 重新导出供其他 ESM 模块使用
+export { getDemoTime, getEffectiveHour, getEffectiveTimeStr };
 
 const router = express.Router();
-
-// ─── 内存存储 ───
-// null = 未设置 (使用真实时间)
-// "HH:MM" 格式的字符串 = 演示时间
-let demoTime = null;
-
-/**
- * 获取当前有效的演示时间 (供其他模块调用)
- * @returns {string|null} "HH:MM" 格式, 或 null 表示使用真实时间
- */
-export function getDemoTime() {
-  return demoTime;
-}
-
-/**
- * 获取当前有效的小时数 (供 yard-scene 等按小时判断的场景)
- * @returns {number} 0-23
- */
-export function getEffectiveHour() {
-  if (demoTime) {
-    return parseInt(demoTime.split(':')[0], 10);
-  }
-  return new Date().getHours();
-}
-
-/**
- * 获取当前有效的时间字符串 "HH:MM" (供 SQL 参数化使用)
- * @returns {string} "HH:MM" 格式
- */
-export function getEffectiveTimeStr() {
-  if (demoTime) {
-    return demoTime;
-  }
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-}
 
 // ─── Admin 路由 ───
 
@@ -61,10 +30,10 @@ router.get('/', (_req, res) => {
   const realTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   res.json({
     success: true,
-    active: demoTime !== null,
-    demo_time: demoTime,
+    active: getDemoTime() !== null,
+    demo_time: getDemoTime(),
     real_time: realTime,
-    effective_time: demoTime || realTime,
+    effective_time: getDemoTime() || realTime,
   });
 });
 
@@ -73,7 +42,7 @@ router.post('/', (req, res) => {
   const { time, clear } = req.body;
 
   if (clear) {
-    demoTime = null;
+    clearDemoTime();
     const now = new Date();
     const realTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     return res.json({
@@ -102,7 +71,8 @@ router.post('/', (req, res) => {
   }
 
   // 标准化为两位数
-  demoTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  const normalized = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  setDemoTime(normalized);
 
   // 计算对应时段
   let timeSlot = 'day';
@@ -116,11 +86,11 @@ router.post('/', (req, res) => {
 
   res.json({
     success: true,
-    message: `演示时间已设为 ${demoTime}`,
+    message: `演示时间已设为 ${normalized}`,
     active: true,
-    demo_time: demoTime,
+    demo_time: normalized,
     real_time: realTime,
-    effective_time: demoTime,
+    effective_time: normalized,
     time_slot: timeSlot,
   });
 });
@@ -133,10 +103,10 @@ publicRouter.get('/', (_req, res) => {
   const realTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   res.json({
     success: true,
-    active: demoTime !== null,
-    demo_time: demoTime,
+    active: getDemoTime() !== null,
+    demo_time: getDemoTime(),
     real_time: realTime,
-    effective_time: demoTime || realTime,
+    effective_time: getDemoTime() || realTime,
   });
 });
 

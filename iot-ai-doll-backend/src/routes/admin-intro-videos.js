@@ -19,7 +19,9 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { poolEpet1 } from '../lib/db.js';
-import { getEffectiveTimeStr } from './admin-demo-time.js';
+import { createRequire } from 'module';
+const _require = createRequire(import.meta.url);
+const { getEffectiveTimeStr } = _require('./demo-time-core.cjs');
 
 const router = express.Router();
 

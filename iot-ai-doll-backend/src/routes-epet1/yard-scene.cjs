@@ -115,13 +115,9 @@ module.exports = (pool) => {
       } catch (_) { /* icons table may not exist yet */ }
 
       // Determine time of day — respects demo_time override if active
-      let hour;
-      try {
-        const { getEffectiveHour } = require('../routes/admin-demo-time.js');
-        hour = getEffectiveHour();
-      } catch (_) {
-        hour = new Date().getHours();
-      }
+      // CJS→CJS: require() works reliably (no ESM interop issue)
+      const { getEffectiveHour } = require('../routes/demo-time-core.cjs');
+      const hour = getEffectiveHour();
       let timeSlot = 'day';
       if (hour >= 6 && hour < 9) timeSlot = 'dawn';
       else if (hour >= 9 && hour < 17) timeSlot = 'day';
