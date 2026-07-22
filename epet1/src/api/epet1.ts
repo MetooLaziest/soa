@@ -118,6 +118,15 @@ function authParams(): { headers: Record<string, string>; query: string } {
   return { headers: {}, query: '' };
 }
 
+/** 带认证的 fetch 封装 — 自动注入 Bearer token 或 demo 参数 */
+export function authFetch(url: string, options?: RequestInit): Promise<Response> {
+  const { headers, query } = authParams();
+  const sep = url.includes('?') ? '&' : '?';
+  const fullUrl = query ? `${url}${sep}${query.slice(1)}` : url;
+  const mergedHeaders = { ...headers, ...(options?.headers || {}) };
+  return fetch(fullUrl, { ...options, headers: mergedHeaders });
+}
+
 /** 处理 401：token 过期/无效 → 清除本地状态并刷新到登录页 */
 function handle401() {
   localStorage.removeItem('epet1_token');
@@ -604,7 +613,7 @@ export async function fetchIcons(): Promise<IconConfig[]> {
   console.log('[fetchIcons] Function called! BASE=', BASE);
   const url = `${BASE}/yard/icons`;
   console.log('[fetchIcons] URL:', url);
-  const res = await fetch(url);
+  const res = await authFetch(url);
   console.log('[fetchIcons] Status:', res.status, res.statusText);
   if (!res.ok) {
     const text = await res.text();

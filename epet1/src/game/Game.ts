@@ -2,6 +2,7 @@ import { Application, Container, Sprite, Assets, Text, Graphics, Texture } from 
 import { PetEntity, type ScheduledBehavior } from '../entities/Pet';
 import { collisionMap, type SceneObjectData, computeCollisionBounds, fillScanlineHoles } from './CollisionMap';
 import { useGameStore } from './GameState';
+import { authFetch } from '../api/epet1';
 
 /** Max texture dimension (px) — oversized textures are auto-downscaled to prevent GPU OOM crash */
 const MAX_TEX_DIM = 1024;
@@ -244,7 +245,7 @@ export class Game {
         const userIdStr = localStorage.getItem('epet_user_id');
         const userId = userIdStr ? parseInt(userIdStr) : '';
         const url = userId ? `/api/epet1/yard/scene?user_id=${userId}` : '/api/epet1/yard/scene';
-        const resp = await fetch(url);
+        const resp = await authFetch(url);
         const data = await resp.json();
         if (!data.success || !data.scene?.bg_image_url) return;
 
@@ -523,7 +524,7 @@ export class Game {
 
     try {
       const { W, H } = getViewport();
-      const res = await fetch(`/api/epet1/pet-behavior/match?pet_model_ids=${Array.from(modelIds).join(',')}`);
+      const res = await authFetch(`/api/epet1/pet-behavior/match?pet_model_ids=${Array.from(modelIds).join(',')}`);
       const data = await res.json();
       if (!data.success) return;
 

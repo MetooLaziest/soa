@@ -33,6 +33,7 @@ import {
   fetchSeriesDetail,
   fetchUserSettings,
   updateUserSettings,
+  authFetch,
 } from './api/epet1';
 import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture, PetSeries, SeriesDetail } from './api/epet1';
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
@@ -117,7 +118,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
     if (!userId) return;
     Promise.all([
       fetchCollectionSeries(userId),
-      fetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json())
+      authFetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json())
     ]).then(([list, yardRes]) => {
       setSeriesList(list);
       setYardPets(yardRes.pets || []);
@@ -200,7 +201,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
     if (petInstance) {
       try {
         await removeFromYard(userId, petInstance.id);
-        const yardRes = await fetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json());
+        const yardRes = await authFetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json());
         const updatedYardPets = yardRes.pets || [];
         setYardPets(updatedYardPets);
         setGlobalYardPets(updatedYardPets);
@@ -217,7 +218,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         return;
       }
       try {
-        const allPetsRes = await fetch(`/api/epet1/pet/instances/${userId}`).then(r => r.json());
+        const allPetsRes = await authFetch(`/api/epet1/pet/instances/${userId}`).then(r => r.json());
         if (!allPetsRes.success) {
           setCollectionToast({ type: 'error', message: '获取宠物列表失败' });
           setTimeout(() => setCollectionToast(null), 2000);
@@ -230,7 +231,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
           return;
         }
         await addToYard(userId, targetPet.id);
-        const yardRes = await fetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json());
+        const yardRes = await authFetch(`/api/epet1/pet/yard/${userId}`).then(r => r.json());
         const updatedYardPets = yardRes.pets || [];
         setYardPets(updatedYardPets);
         setGlobalYardPets(updatedYardPets);
@@ -742,7 +743,7 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
   // 加载背包中的料理
   useEffect(() => {
     if (!userId) return;
-    fetch(`/api/epet1/inventory/${userId}`)
+    authFetch(`/api/epet1/inventory/${userId}`)
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
@@ -955,7 +956,7 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
   // 加载背包数据
   useEffect(() => {
     if (!userId) return;
-    fetch(`/api/epet1/inventory/${userId}`)
+    authFetch(`/api/epet1/inventory/${userId}`)
       .then(r => r.json())
       .then(data => {
         if (data.ok) setInventory(data.categories);
@@ -1237,8 +1238,8 @@ function ShopModal({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/epet1/shop2/items').then(r => r.json()),
-      fetch('/api/epet1/shop2/config').then(r => r.json()),
+      authFetch('/api/epet1/shop2/items').then(r => r.json()),
+      authFetch('/api/epet1/shop2/config').then(r => r.json()),
     ]).then(([itemsData, configData]) => {
       if (itemsData.ok) setTabs(itemsData.tabs);
       if (configData.ok && configData.config?.background_image) {
@@ -1248,7 +1249,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
 
       // 加载用户已拥有的家具 ID
       if (userId) {
-        fetch(`/api/epet1/inventory/${userId}`)
+        authFetch(`/api/epet1/inventory/${userId}`)
           .then(r => r.json())
           .then(data => {
             if (data.ok) {
@@ -1266,7 +1267,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
         if (match3Items.length > 0) {
           Promise.all(
             match3Items.map((item: any) =>
-              fetch(`/api/epet1/match3/check/${userId}/${item.id}`)
+              authFetch(`/api/epet1/match3/check/${userId}/${item.id}`)
                 .then(r => r.json())
                 .then(data => ({ id: item.id, passed: data.passed || false }))
                 .catch(() => ({ id: item.id, passed: false }))
@@ -1642,7 +1643,7 @@ function HomePanel() {
         // 先检查是否有开场视频
         (async () => {
           try {
-            const res = await fetch(`/api/epet1/intro-video/match?pet_model_id=${pet.pet_model_id}&growth_level=${pet.growth_level}`);
+            const res = await authFetch(`/api/epet1/intro-video/match?pet_model_id=${pet.pet_model_id}&growth_level=${pet.growth_level}`);
             const data = await res.json();
             if (data.success && data.video) {
               setIntroVideoData(data.video);
@@ -1933,7 +1934,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/game-assets/config', { credentials: 'include' });
+        const res = await authFetch('/api/game-assets/config', { credentials: 'include' });
         const data = await res.json();
         if (!cancelled && data?.chatBg) setChatBgUrl(data.chatBg);
       } catch { /* fallback 用 CSS 背景色 */ }
@@ -2156,7 +2157,7 @@ export default function App() {
 
         // 加载图标到 Zustand store (yard/live 共用, 不管 homeMode)
         try {
-          const sceneRes = await fetch(`/api/epet1/yard/scene?user_id=${uid}`);
+          const sceneRes = await authFetch(`/api/epet1/yard/scene?user_id=${uid}`);
           const sceneData = await sceneRes.json();
           if (sceneData.icons?.length > 0) {
             const iconMap: Record<string, any> = {};
