@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
     );
 
     // 按 time_start + time_end 分组方便前端展示
-    const groups: Record<string, typeof rows> = {};
+    const groups = {};
     for (const row of rows) {
       const key = `${row.time_start}_${row.time_end}`;
       if (!groups[key]) groups[key] = [];
