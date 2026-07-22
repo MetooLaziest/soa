@@ -12,6 +12,9 @@ module.exports = (pool) => {
   // 获取用户庭院已布置的家具
   router.get('/yard/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const { userId } = req.params;
       const result = await pool.query(
         `SELECT yf.*, si.name, si.image_url, si.item_type, si.item_category
@@ -32,9 +35,10 @@ module.exports = (pool) => {
   router.post('/place', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { user_id, shop_item_id, pos_x, pos_y, width, height } = req.body;
-      if (!user_id || !shop_item_id) {
-        return res.status(400).json({ success: false, error: '缺少参数' });
+      const user_id = req.user.userId;
+      const { shop_item_id, pos_x, pos_y, width, height } = req.body;
+      if (!shop_item_id) {
+        return res.status(400).json({ success: false, error: '缺少 shop_item_id' });
       }
 
       await client.query('BEGIN');
@@ -129,9 +133,10 @@ module.exports = (pool) => {
   router.post('/remove', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { user_id, furniture_id } = req.body;
-      if (!user_id || !furniture_id) {
-        return res.status(400).json({ success: false, error: '缺少参数' });
+      const user_id = req.user.userId;
+      const { furniture_id } = req.body;
+      if (!furniture_id) {
+        return res.status(400).json({ success: false, error: '缺少 furniture_id' });
       }
 
       await client.query('BEGIN');
@@ -176,8 +181,9 @@ module.exports = (pool) => {
   // 移动已放置家具的位置
   router.post('/move', async (req, res) => {
     try {
-      const { user_id, furniture_id, pos_x, pos_y } = req.body;
-      if (!user_id || !furniture_id || pos_x == null || pos_y == null) {
+      const user_id = req.user.userId;
+      const { furniture_id, pos_x, pos_y } = req.body;
+      if (!furniture_id || pos_x == null || pos_y == null) {
         return res.status(400).json({ success: false, error: '缺少参数' });
       }
 

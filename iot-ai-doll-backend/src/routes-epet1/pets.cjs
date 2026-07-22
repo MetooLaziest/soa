@@ -31,9 +31,10 @@ module.exports = (pool) => {
   router.post('/nfc/activate', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { nfc_id, user_id } = req.body;
-      if (!nfc_id || !user_id) {
-        return res.status(400).json({ success: false, error: 'nfc_id 和 user_id 必填' });
+      const user_id = req.user.userId;
+      const { nfc_id } = req.body;
+      if (!nfc_id) {
+        return res.status(400).json({ success: false, error: 'nfc_id 必填' });
       }
 
       await client.query('BEGIN');
@@ -101,6 +102,9 @@ module.exports = (pool) => {
   // 获取用户所有宠物实例（含出游状态）
   router.get('/instances/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity, pm.animations, pm.size_mult, pm.anim_config, pm.nfc_range_start, pm.nfc_range_end,
                 yp.position as yard_position, yp.is_active as yard_active,
@@ -122,6 +126,9 @@ module.exports = (pool) => {
   // 获取庭院宠物（防御性过滤出游中的宠物）
   router.get('/yard/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity, pm.animations, pm.size_mult, pm.anim_config,
                 pm.personality_template, pm.mbti, pm.nfc_range_start, pm.nfc_range_end,
@@ -147,10 +154,11 @@ module.exports = (pool) => {
   router.post('/yard/add', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { user_id, pet_instance_id } = req.body;
+      const user_id = req.user.userId;
+      const { pet_instance_id } = req.body;
 
-      if (!user_id || !pet_instance_id) {
-        return res.status(400).json({ success: false, error: '缺少 user_id 或 pet_instance_id' });
+      if (!pet_instance_id) {
+        return res.status(400).json({ success: false, error: '缺少 pet_instance_id' });
       }
 
       await client.query('BEGIN');
@@ -225,7 +233,8 @@ module.exports = (pool) => {
   // 移出庭院
   router.post('/yard/remove', async (req, res) => {
     try {
-      const { user_id, pet_instance_id } = req.body;
+      const user_id = req.user.userId;
+      const { pet_instance_id } = req.body;
       await pool.query(
         'UPDATE yard_pets SET is_active = false WHERE user_id = $1 AND pet_instance_id = $2',
         [user_id, pet_instance_id]
@@ -240,10 +249,11 @@ module.exports = (pool) => {
   router.post('/interact/:action', async (req, res) => {
     try {
       const { action } = req.params;
-      const { pet_instance_id, user_id, item_id } = req.body;
+      const user_id = req.user.userId;
+      const { pet_instance_id, item_id } = req.body;
 
-      if (!pet_instance_id || !user_id) {
-        return res.status(400).json({ success: false, error: '缺少参数' });
+      if (!pet_instance_id) {
+        return res.status(400).json({ success: false, error: '缺少 pet_instance_id' });
       }
 
       // 检查宠物是否正在出游

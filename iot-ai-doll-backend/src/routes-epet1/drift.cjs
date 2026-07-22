@@ -12,7 +12,8 @@ module.exports = (pool) => {
   router.post('/send', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { sender_id, content } = req.body;
+      const sender_id = req.user.userId;
+      const { content } = req.body;
       if (!content || content.trim().length === 0) {
         return res.status(400).json({ success: false, error: '内容不能为空' });
       }
@@ -23,20 +24,18 @@ module.exports = (pool) => {
       await client.query('BEGIN');
 
       // 消耗情绪值（投放费用 5 点）
-      if (sender_id) {
-        const user = await client.query(
-          'SELECT emotion_points FROM users WHERE id = $1 FOR UPDATE',
-          [sender_id]
-        );
-        if (user.rows[0].emotion_points < 5) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ success: false, error: '情绪值不足（需要5点发送漂流瓶）' });
-        }
-        await client.query(
-          'UPDATE users SET emotion_points = emotion_points - 5 WHERE id = $1',
-          [sender_id]
-        );
+      const user = await client.query(
+        'SELECT emotion_points FROM users WHERE id = $1 FOR UPDATE',
+        [sender_id]
+      );
+      if (user.rows[0].emotion_points < 5) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: '情绪值不足（需要5点发送漂流瓶）' });
       }
+      await client.query(
+        'UPDATE users SET emotion_points = emotion_points - 5 WHERE id = $1',
+        [sender_id]
+      );
 
       // 随机决定是否有奖励
       const hasReward = Math.random() < 0.3; // 30%概率附带碎片或情绪值
@@ -80,6 +79,9 @@ module.exports = (pool) => {
   // 获取收件箱
   router.get('/inbox/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT db.*,
                 sender.nickname as sender_nickname,
@@ -100,7 +102,8 @@ module.exports = (pool) => {
   // 回复漂流瓶
   router.post('/reply', async (req, res) => {
     try {
-      const { sender_id, reply_to_id, content } = req.body;
+      const sender_id = req.user.userId;
+      const { reply_to_id, content } = req.body;
       if (!content || content.length > 200) {
         return res.status(400).json({ success: false, error: '内容无效' });
       }
@@ -121,6 +124,9 @@ module.exports = (pool) => {
   router.get('/pickup/:userId', async (req, res) => {
     const client = await pool.connect();
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const userId = parseInt(req.params.userId);
 
       await client.query('BEGIN');

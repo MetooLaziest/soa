@@ -55,8 +55,9 @@ module.exports = (pool) => {
   // 上报游戏成绩
   router.post('/record', async (req, res) => {
     try {
-      const { user_id, level_id, score, passed, moves_used } = req.body;
-      if (!user_id || !level_id || score === undefined || passed === undefined) {
+      const user_id = req.user.userId;
+      const { level_id, score, passed, moves_used } = req.body;
+      if (!level_id || score === undefined || passed === undefined) {
         return res.status(400).json({ success: false, error: '缺少参数' });
       }
       const result = await pool.query(
@@ -73,6 +74,9 @@ module.exports = (pool) => {
   // 获取用户已通关的关卡列表
   router.get('/passed/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT DISTINCT level_id FROM match3_records
          WHERE user_id = $1 AND passed = true`,
@@ -87,6 +91,9 @@ module.exports = (pool) => {
   // 检查用户是否满足购买条件（消消乐通关 + 情绪值够不够由 shop/buy 判断）
   router.get('/check/:userId/:shopItemId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const { userId, shopItemId } = req.params;
       // 查商品所需关卡
       const itemRes = await pool.query(

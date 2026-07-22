@@ -6,6 +6,9 @@ const router = express.Router();
 // GET /api/epet1/inventory/:userId - 获取用户背包
 router.get('/:userId', async (req, res) => {
   try {
+    if (parseInt(req.params.userId) !== req.user.userId) {
+      return res.status(403).json({ error: '无权访问' });
+    }
     const { userId } = req.params;
     const { rows: rows } = await poolEpet1.query(
       `SELECT ui.id, ui.quantity, ui.item_category, ui.source, ui.dish_rating,

@@ -110,9 +110,10 @@ module.exports = (pool) => {
 
   router.post('/', async (req, res) => {
     try {
-      const { user_id, pet_instance_id, message, touch_area } = req.body;
-      if (!user_id || !pet_instance_id) {
-        return res.status(400).json({ success: false, error: '缺少必要参数' });
+      const user_id = req.user.userId;
+      const { pet_instance_id, message, touch_area } = req.body;
+      if (!pet_instance_id) {
+        return res.status(400).json({ success: false, error: '缺少 pet_instance_id' });
       }
       if (!message && !touch_area) {
         return res.status(400).json({ success: false, error: '缺少 message 或 touch_area' });
@@ -236,7 +237,8 @@ module.exports = (pool) => {
   });
 
   router.delete('/history', async (req, res) => {
-    const { user_id, pet_instance_id } = req.query;
+    const user_id = req.user.userId;
+    const { pet_instance_id } = req.query;
     if (user_id && pet_instance_id) {
       chatHistory.delete(getHistoryKey(user_id, pet_instance_id));
     }

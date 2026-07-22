@@ -24,8 +24,9 @@ module.exports = (pool) => {
   router.post('/record', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { user_id, pet_instance_id, game_type, score } = req.body;
-      if (!user_id || !game_type || score === undefined) {
+      const user_id = req.user.userId;
+      const { pet_instance_id, game_type, score } = req.body;
+      if (!game_type || score === undefined) {
         return res.status(400).json({ success: false, error: '缺少必要参数' });
       }
 
@@ -65,6 +66,9 @@ module.exports = (pool) => {
   // 获取用户游戏记录
   router.get('/records/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT mgr.*, pm.name as pet_name
          FROM mini_game_records mgr

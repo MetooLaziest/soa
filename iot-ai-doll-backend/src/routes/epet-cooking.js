@@ -27,8 +27,9 @@ router.get('/methods', async (_req, res) => {
 router.post('/cook', async (req, res) => {
   const client = await poolEpet1.connect();
   try {
-    const { user_id, method_id, ingredients, rating } = req.body;
-    if (!user_id || !method_id || !Array.isArray(ingredients) || ingredients.length < 2) {
+    const user_id = req.user.userId;
+    const { method_id, ingredients, rating } = req.body;
+    if (!method_id || !Array.isArray(ingredients) || ingredients.length < 2) {
       return res.status(400).json({ error: '参数不完整（至少2种食材）' });
     }
     if (ingredients.length > 3) {

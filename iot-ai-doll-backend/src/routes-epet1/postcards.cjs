@@ -9,6 +9,9 @@ module.exports = (pool) => {
   // 获取用户明信片收藏
   router.get('/collection/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT up.*, p.name, p.image_url, p.animation_url, p.video_url, p.rarity,
                 p.rarity_weight, p.description, p.display_scene,
@@ -35,7 +38,8 @@ module.exports = (pool) => {
   // 抽明信片（出游返回时调用）
   router.post('/draw', async (req, res) => {
     try {
-      const { user_id, postcard_id } = req.body;
+      const user_id = req.user.userId;
+      const { postcard_id } = req.body;
 
       // 先检查用户是否已有这张明信片
       const existing = await pool.query(

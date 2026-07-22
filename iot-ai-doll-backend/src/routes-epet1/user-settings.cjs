@@ -10,6 +10,9 @@ module.exports = (pool) => {
   // 获取用户设置
   router.get('/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const { userId } = req.params;
       const result = await pool.query(
         `SELECT home_mode, updated_at FROM user_settings WHERE user_id = $1`,
@@ -32,6 +35,9 @@ module.exports = (pool) => {
   // 更新用户设置
   router.post('/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const { userId } = req.params;
       const { home_mode } = req.body;
       

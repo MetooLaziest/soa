@@ -65,6 +65,9 @@ module.exports = (pool) => {
   // 获取用户信息
   router.get('/:id', async (req, res) => {
     try {
+      if (parseInt(req.params.id) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         'SELECT id, openid, nickname, avatar_url, emotion_points, created_at FROM users WHERE id = $1',
         [req.params.id]

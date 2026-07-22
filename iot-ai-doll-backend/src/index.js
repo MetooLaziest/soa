@@ -41,6 +41,7 @@ import adminDemoTimeRoutes, { publicRouter as demoTimePublicRouter } from './rou
 import { createRequire } from 'module';
 const requireCjs = createRequire(import.meta.url);
 import { poolEpet1 } from './lib/db.js';
+import { jwtAuth } from './middleware/auth.js';
 
 
 dotenv.config();
@@ -97,31 +98,34 @@ app.use('/api/epet1/demo-time', demoTimePublicRouter);
 // ========== 着陆页 + 站点配置 (Plan C) ==========
 app.use('/api', landingPageRoutes);  // GET /api/landing, GET /api/site-config, POST /api/admin/site-config
 
-// ========== EPET1 公开接口（无需admin权限）==========
-app.use('/api/epet1/yard', requireCjs('./routes-epet1/yard-scene.cjs')(poolEpet1));
-app.use('/api/epet1/furniture', requireCjs('./routes-epet1/furniture.cjs')(poolEpet1));
-app.use('/api/epet1/emotion-drops', requireCjs('./routes-epet1/emotion-drops.cjs')(poolEpet1));
+// ========== EPET1 认证路由（无需 Token）==========
+app.use('/api/epet1/auth',       requireCjs('./routes-epet1/auth.cjs')(poolEpet1));
 
-// ========== EPET1 路由注册（与原 epet1-backend 3001 端口完全等价）==========
-app.use('/api/epet1/user',      requireCjs('./routes-epet1/users.cjs')(poolEpet1));
-app.use('/api/epet1/pet',        requireCjs('./routes-epet1/pets.cjs')(poolEpet1));
-app.use('/api/epet1/postcard',   requireCjs('./routes-epet1/postcards.cjs')(poolEpet1));
-app.use('/api/epet1/shop',       requireCjs('./routes-epet1/shop.cjs')(poolEpet1));
-app.use('/api/epet1/travel',     requireCjs('./routes-epet1/travel.cjs')(poolEpet1));
-app.use('/api/epet1/travel/admin', requireCjs('./routes-epet1/travel-admin.cjs')(poolEpet1));
-app.use('/api/epet1/drift',      requireCjs('./routes-epet1/drift.cjs')(poolEpet1));
-app.use('/api/epet1/game',       requireCjs('./routes-epet1/games.cjs')(poolEpet1));
-app.use('/api/epet1/chat',       requireCjs('./routes-epet1/chat.cjs')(poolEpet1));
-app.use('/api/epet1/emotion',    requireCjs('./routes-epet1/emotion.cjs')(poolEpet1));
-app.use('/api/epet1/admin',      requireCjs('./routes-epet1/admin.cjs')(poolEpet1));
-app.use('/api/epet1/fishing',    epetFishingRoutes);
-app.use('/api/epet1/inventory',  epetInventoryRoutes);
-app.use('/api/epet1/shop2',     epetShop2Routes);
-app.use('/api/epet1/spotdiff',  epetSpotdiffRoutes);
-app.use('/api/epet1/match3',    requireCjs('./routes-epet1/match3.cjs')(poolEpet1));
-app.use('/api/epet1/cooking',   epetCookingRoutes);
-app.use('/api/epet1/collection', requireCjs('./routes-epet1/collection.cjs')(poolEpet1));
-app.use('/api/epet1/user/settings', requireCjs('./routes-epet1/user-settings.cjs')(poolEpet1));
+// ========== EPET1 公开接口（无需admin权限，但需登录）==========
+app.use('/api/epet1/yard',        jwtAuth, requireCjs('./routes-epet1/yard-scene.cjs')(poolEpet1));
+app.use('/api/epet1/furniture',   jwtAuth, requireCjs('./routes-epet1/furniture.cjs')(poolEpet1));
+app.use('/api/epet1/emotion-drops', jwtAuth, requireCjs('./routes-epet1/emotion-drops.cjs')(poolEpet1));
+
+// ========== EPET1 路由注册（需 jwtAuth 鉴权）==========
+app.use('/api/epet1/user',        jwtAuth, requireCjs('./routes-epet1/users.cjs')(poolEpet1));
+app.use('/api/epet1/pet',         jwtAuth, requireCjs('./routes-epet1/pets.cjs')(poolEpet1));
+app.use('/api/epet1/postcard',    jwtAuth, requireCjs('./routes-epet1/postcards.cjs')(poolEpet1));
+app.use('/api/epet1/shop',        jwtAuth, requireCjs('./routes-epet1/shop.cjs')(poolEpet1));
+app.use('/api/epet1/travel',      jwtAuth, requireCjs('./routes-epet1/travel.cjs')(poolEpet1));
+app.use('/api/epet1/travel/admin', jwtAuth, requireCjs('./routes-epet1/travel-admin.cjs')(poolEpet1));
+app.use('/api/epet1/drift',       jwtAuth, requireCjs('./routes-epet1/drift.cjs')(poolEpet1));
+app.use('/api/epet1/game',        jwtAuth, requireCjs('./routes-epet1/games.cjs')(poolEpet1));
+app.use('/api/epet1/chat',        jwtAuth, requireCjs('./routes-epet1/chat.cjs')(poolEpet1));
+app.use('/api/epet1/emotion',     jwtAuth, requireCjs('./routes-epet1/emotion.cjs')(poolEpet1));
+app.use('/api/epet1/admin',       jwtAuth, requireCjs('./routes-epet1/admin.cjs')(poolEpet1));
+app.use('/api/epet1/fishing',     jwtAuth, epetFishingRoutes);
+app.use('/api/epet1/inventory',   jwtAuth, epetInventoryRoutes);
+app.use('/api/epet1/shop2',       jwtAuth, epetShop2Routes);
+app.use('/api/epet1/spotdiff',    jwtAuth, epetSpotdiffRoutes);
+app.use('/api/epet1/match3',      jwtAuth, requireCjs('./routes-epet1/match3.cjs')(poolEpet1));
+app.use('/api/epet1/cooking',     jwtAuth, epetCookingRoutes);
+app.use('/api/epet1/collection',  jwtAuth, requireCjs('./routes-epet1/collection.cjs')(poolEpet1));
+app.use('/api/epet1/user/settings', jwtAuth, requireCjs('./routes-epet1/user-settings.cjs')(poolEpet1));
 
 // 静态文件服务（前端构建产物）
 app.use(express.static(join(__dirname, '../frontend')));

@@ -171,8 +171,9 @@ module.exports = (pool) => {
   router.post('/force-start', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { pet_instance_id, user_id, dish_rating, duration_minutes } = req.body;
-      if (!pet_instance_id || !user_id) return res.status(400).json({ error: '缺少 pet_instance_id, user_id' });
+      const user_id = req.user.userId;
+      const { pet_instance_id, dish_rating, duration_minutes } = req.body;
+      if (!pet_instance_id) return res.status(400).json({ error: '缺少 pet_instance_id' });
 
       const rating = dish_rating || 3;
       const durationMs = (duration_minutes || 1) * 60_000; // 默认1分钟

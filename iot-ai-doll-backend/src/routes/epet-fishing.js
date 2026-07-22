@@ -31,8 +31,7 @@ router.get('/maps', async (req, res) => {
 // GET /api/epet1/fishing/daily-status - 获取今日钓鱼次数
 router.get('/daily-status', async (req, res) => {
   try {
-    const userId = req.query.user_id;
-    if (!userId) return res.status(400).json({ error: '缺少 user_id' });
+    const userId = req.user.userId;
 
     const today = new Date().toISOString().slice(0, 10);
     const { rows: rows } = await poolEpet1.query(
@@ -51,8 +50,9 @@ router.get('/daily-status', async (req, res) => {
 // POST /api/epet1/fishing/cast - 钓鱼（投竿）
 router.post('/cast', async (req, res) => {
   try {
-    const { user_id, pet_instance_id, fishing_map_id } = req.body;
-    if (!user_id || !fishing_map_id) return res.status(400).json({ error: '缺少参数' });
+    const user_id = req.user.userId;
+    const { pet_instance_id, fishing_map_id } = req.body;
+    if (!fishing_map_id) return res.status(400).json({ error: '缺少参数' });
 
     // 检查今日次数
     const today = new Date().toISOString().slice(0, 10);
@@ -162,8 +162,7 @@ router.post('/cast', async (req, res) => {
 // GET /api/epet1/fishing/history - 钓鱼历史
 router.get('/history', async (req, res) => {
   try {
-    const userId = req.query.user_id;
-    if (!userId) return res.status(400).json({ error: '缺少 user_id' });
+    const userId = req.user.userId;
     const limit = parseInt(req.query.limit) || 20;
 
     const { rows: rows } = await poolEpet1.query(

@@ -27,9 +27,10 @@ module.exports = (pool) => {
   router.post('/buy', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { user_id, shop_item_id, payment = 'emotion' } = req.body;
-      if (!user_id || !shop_item_id) {
-        return res.status(400).json({ success: false, error: '缺少参数' });
+      const user_id = req.user.userId;
+      const { shop_item_id, payment = 'emotion' } = req.body;
+      if (!shop_item_id) {
+        return res.status(400).json({ success: false, error: '缺少 shop_item_id' });
       }
 
       await client.query('BEGIN');
@@ -138,6 +139,9 @@ module.exports = (pool) => {
   // 获取用户背包
   router.get('/inventory/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT ui.*, si.name, si.image_url, si.description, si.item_type, si.item_category,
                 si.yard_width, si.yard_height

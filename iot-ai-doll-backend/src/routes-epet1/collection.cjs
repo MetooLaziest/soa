@@ -6,8 +6,7 @@
 
 function getSeriesList(pool) {
   return async function(req, res) {
-    const userId = req.query.userId || req.headers['x-user-id'];
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    const userId = req.user.userId;
 
     const client = await pool.connect();
     try {
@@ -55,9 +54,8 @@ function getSeriesList(pool) {
 
 function getSeriesDetail(pool) {
   return async function(req, res) {
-    const userId = req.query.userId || req.headers['x-user-id'];
+    const userId = req.user.userId;
     const seriesId = req.params.id;
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
 
     const client = await pool.connect();
     try {

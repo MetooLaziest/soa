@@ -7,7 +7,6 @@ import Fishing from './games/Fishing';
 import Cooking from './games/Cooking';
 import Match3Game from './games/Match3Game';
 import {
-  getOrCreateUser,
   fetchYardPets,
   fetchUserPets,
   fetchTravelStatus,
@@ -39,6 +38,8 @@ import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
 import IntroVideoPlayer from './components/IntroVideoPlayer';
 import { LivePage } from './components/LivePage';
 import { IconImg } from './components/IconImg';
+import LoginOverlay from './components/LoginOverlay';
+import { useAuthStore } from './store/authStore';
 import './App.css';
 import './components/LivePage.css';
 
@@ -2098,29 +2099,43 @@ export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, loading, activeModal, setActiveModal,
           setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId,
           fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings } = useGameStore();
+  const { isAuthenticated, userId: authUserId, loading: authLoading, initAuth } = useAuthStore();
 
   const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
 
+  // ① 认证初始化 — 检测 ?id=9527 演示免登录 / 恢复已存 token
   useEffect(() => {
-    const init = async () => {
-      try {
-        const user = await getOrCreateUser();
-        setUser(user.user_id, user.emotion_points);
+    const params = new URLSearchParams(window.location.search);
+    const isDemo = params.get('id') === '9527';
+    initAuth(isDemo ? 'demo' : undefined);
+  }, []);
 
-        // 保存 user_id 到 localStorage 供 Game.ts 场景加载使用
-        localStorage.setItem('epet_user_id', String(user.user_id));
+  // ② 认证通过后加载数据
+  useEffect(() => {
+    if (!isAuthenticated || !authUserId) return;
+    const uid = authUserId;
+
+    const loadData = async () => {
+      try {
+        // 设置 user 到 gameStore（demo 用户没有 emotion_points 接口, 给默认值 0）
+        setUser(uid, 0);
+        localStorage.setItem('epet_user_id', String(uid));
 
         // 加载用户设置（首页模式） — 优先级: localStorage > 后端 > fallback
         const localMode = localStorage.getItem('epet_home_mode') as 'yard' | 'live' | null;
-        const settings = await fetchUserSettings(user.user_id);
-        setUserSettings(settings);
-        setHomeMode(localMode || settings.home_mode);
+        try {
+          const settings = await fetchUserSettings(uid);
+          setUserSettings(settings);
+          setHomeMode(localMode || settings.home_mode);
+        } catch {
+          setHomeMode(localMode || 'yard');
+        }
 
         const [yardPets, allPets, travel, yardFurn] = await Promise.all([
-          fetchYardPets(user.user_id),
-          fetchUserPets(user.user_id),
-          fetchTravelStatus(user.user_id),
-          fetchYardFurniture(user.user_id),
+          fetchYardPets(uid),
+          fetchUserPets(uid),
+          fetchTravelStatus(uid),
+          fetchYardFurniture(uid),
         ]);
         setYardPets(yardPets);
         setAllPets(allPets);
@@ -2129,7 +2144,7 @@ export default function App() {
 
         // 加载图标到 Zustand store (yard/live 共用, 不管 homeMode)
         try {
-          const sceneRes = await fetch(`/api/epet1/yard/scene?user_id=${user.user_id}`);
+          const sceneRes = await fetch(`/api/epet1/yard/scene?user_id=${uid}`);
           const sceneData = await sceneRes.json();
           if (sceneData.icons?.length > 0) {
             const iconMap: Record<string, any> = {};
@@ -2143,13 +2158,13 @@ export default function App() {
           console.warn('Icons load failed, will retry in Game.ts if yard mode:', e);
         }
       } catch (e) {
-        console.error('init failed', e);
+        console.error('data load failed', e);
       } finally {
         setLoading(false);
       }
     };
-    init();
-  }, []);
+    loadData();
+  }, [isAuthenticated, authUserId]);
 
   // 处理打开模态框
   const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'fishing' | 'cooking') => {
@@ -2162,6 +2177,21 @@ export default function App() {
     localStorage.setItem('epet_home_mode', mode);
     if (userId) updateUserSettings(userId, mode).catch(() => {});
   }, [setHomeMode, userId]);
+
+  // 等待认证完成
+  if (authLoading) {
+    return (
+      <div className="app-loading">
+        <div className="app-loading-spinner">🌀</div>
+        <div>认证中...</div>
+      </div>
+    );
+  }
+
+  // 未认证 → 显示登录遮罩
+  if (!isAuthenticated) {
+    return <LoginOverlay />;
+  }
 
   // 等待初始化完成后再渲染主内容，避免先显示yard再切换到live的闪烁
   if (loading) {

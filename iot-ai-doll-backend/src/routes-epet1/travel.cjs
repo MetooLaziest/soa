@@ -26,9 +26,10 @@ module.exports = (pool) => {
   router.post('/start', async (req, res) => {
     const client = await pool.connect();
     try {
-      const { pet_instance_id, user_id, dish_inventory_id } = req.body;
-      if (!pet_instance_id || !user_id || !dish_inventory_id) {
-        return res.status(400).json({ success: false, error: '缺少参数 (pet_instance_id, user_id, dish_inventory_id)' });
+      const user_id = req.user.userId;
+      const { pet_instance_id, dish_inventory_id } = req.body;
+      if (!pet_instance_id || !dish_inventory_id) {
+        return res.status(400).json({ success: false, error: '缺少参数 (pet_instance_id, dish_inventory_id)' });
       }
 
       await client.query('BEGIN');
@@ -132,6 +133,9 @@ module.exports = (pool) => {
   // ========== GET /:userId ==========
   router.get('/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT tr.*, pi.pet_model_id, pm.name as pet_name, pm.image_url
          FROM travel_records tr
@@ -149,6 +153,9 @@ module.exports = (pool) => {
   // ========== GET /status/:userId ==========
   router.get('/status/:userId', async (req, res) => {
     try {
+      if (parseInt(req.params.userId) !== req.user.userId) {
+        return res.status(403).json({ error: '无权访问' });
+      }
       const result = await pool.query(
         `SELECT tr.*, pi.pet_model_id, pm.name as pet_name, pm.image_url
          FROM travel_records tr
@@ -167,7 +174,8 @@ module.exports = (pool) => {
   // ========== POST /return ==========
   router.post('/return', async (req, res) => {
     try {
-      const { travel_record_id, user_id } = req.body;
+      const user_id = req.user.userId;
+      const { travel_record_id } = req.body;
       if (!travel_record_id) {
         return res.status(400).json({ success: false, error: '缺少 travel_record_id' });
       }

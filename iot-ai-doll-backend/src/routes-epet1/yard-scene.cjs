@@ -10,7 +10,7 @@ module.exports = (pool) => {
 
   router.get('/scene', async (req, res) => {
     try {
-      const userId = req.query.user_id;
+      const userId = req.user.userId;
       let zones = [];
       let useLegacy = false;
 

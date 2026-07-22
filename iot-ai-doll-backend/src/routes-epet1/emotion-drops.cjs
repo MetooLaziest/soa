@@ -114,8 +114,7 @@ module.exports = (pool) => {
   // GET /api/epet1/emotion-drops?user_id=X
   router.get('/', async (req, res) => {
     try {
-      const userId = req.query.user_id;
-      if (!userId) return res.status(400).json({ ok: false, error: '缺少 user_id' });
+      const userId = req.user.userId;
 
       // 懒生成
       await lazyGenerate(userId);
@@ -137,8 +136,7 @@ module.exports = (pool) => {
     const client = await pool.connect();
     try {
       const { id } = req.params;
-      const { user_id } = req.body;
-      if (!user_id) return res.status(400).json({ ok: false, error: '缺少 user_id' });
+      const user_id = req.user.userId;
 
       await client.query('BEGIN');
 

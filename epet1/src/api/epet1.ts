@@ -105,32 +105,52 @@ export interface GameType {
 
 // ─── API 请求函数 ────────────────────────────────────────────
 
+/** 构造认证相关请求参数（Bearer token 或 demo bypass） */
+function authParams(): { headers: Record<string, string>; query: string } {
+  // Demo 模式：后端 jwtAuth 中间件检查 ?demo=9527
+  if (localStorage.getItem('epet1_demo')) {
+    return { headers: {}, query: '?demo=9527' };
+  }
+  const token = localStorage.getItem('epet1_token');
+  if (token) {
+    return { headers: { Authorization: `Bearer ${token}` }, query: '' };
+  }
+  return { headers: {}, query: '' };
+}
+
+/** 处理 401：token 过期/无效 → 清除本地状态并刷新到登录页 */
+function handle401() {
+  localStorage.removeItem('epet1_token');
+  localStorage.removeItem('epet1_demo');
+  window.location.reload();
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+  const { headers, query } = authParams();
+  const sep = path.includes('?') ? '&' : '?';
+  const url = `${BASE}${path}${query ? sep + query.slice(1) : ''}`;
+  const res = await fetch(url, { headers });
+  if (res.status === 401) handle401();
   if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
   return res.json();
 }
 
 async function post<T>(path: string, body: object): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const { headers, query } = authParams();
+  const sep = path.includes('?') ? '&' : '?';
+  const url = `${BASE}${path}${query ? sep + query.slice(1) : ''}`;
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) handle401();
   if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
   return res.json();
 }
 
 // ─── 用户 ────────────────────────────────────────────────────
-
-/** 获取当前用户（演示阶段固定 user_id=2，正式版本改为手机号登录） */
-const DEMO_USER_ID = 2;
-
-export async function getOrCreateUser(): Promise<{ user_id: number; emotion_points: number }> {
-  // TODO: 正式版本替换为手机号登录逻辑
-  const res = await get<any>(`/user/${DEMO_USER_ID}`);
-  return { user_id: DEMO_USER_ID, emotion_points: res.user?.emotion_points || 0 };
-}
+// user_id 由 JWT 认证提供，不再需要 getOrCreateUser / DEMO_USER_ID
 
 // ─── 宠物 ────────────────────────────────────────────────────
 
