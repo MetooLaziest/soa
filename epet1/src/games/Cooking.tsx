@@ -3,6 +3,7 @@ import {
   fetchCookingMethods,
   fetchCookingIngredients,
   cookDish,
+  authFetch,
   type CookingMethod,
   type CookingIngredient,
   type CookingDish,
@@ -93,7 +94,7 @@ export default function Cooking({ onClose, onPageBgChange }: { onClose: () => vo
     try {
       const [allIngredients, invRes] = await Promise.all([
         fetchCookingIngredients(),
-        fetch(`/api/epet1/inventory/${userId}`).then(r => r.json()),
+        authFetch(`/api/epet1/inventory/${userId}`).then(r => r.json()),
       ]);
       const foodItems = invRes?.categories?.food || [];
       const merged = allIngredients

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import GameFullscreen from './GameFullscreen';
+import { authFetch } from '../api/epet1';
 
 /**
  * 找不同 - 全屏 + 上下对比
@@ -120,7 +121,7 @@ export default function SpotDifference({ onScore }: { onScore: (s: number) => vo
 
   // 加载关卡
   useEffect(() => {
-    fetch('/api/epet1/spotdiff/levels?count=3')
+    authFetch('/api/epet1/spotdiff/levels?count=3')
       .then(r => r.json())
       .then(data => {
         if (data.ok && data.levels?.length > 0) {

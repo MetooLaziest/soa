@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import GameFullscreen from './GameFullscreen';
+import { authFetch } from '../api/epet1';
 
 // ═══════════════════════════════════════════════════════════
 // 类型定义
@@ -203,7 +204,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
     const load = async () => {
       try {
         // 加载关卡配置
-        const levelRes = await fetch(`/api/epet1/match3/levels/${levelId}`);
+        const levelRes = await authFetch(`/api/epet1/match3/levels/${levelId}`);
         const levelData = await levelRes.json();
         if (!levelData.success || !levelData.level) {
           throw new Error(levelData.error || '加载关卡失败');
@@ -223,7 +224,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
         console.log('✅ Match3 level loaded:', level);
 
         // 加载图标列表
-        const iconRes = await fetch('/api/epet1/match3/icons');
+        const iconRes = await authFetch('/api/epet1/match3/icons');
         const iconData = await iconRes.json();
         const iconMap = new Map<number, IconInfo>();
         if (iconData.icons) {
@@ -818,7 +819,7 @@ export default function Match3Game({ levelId, userId, onPass, onFail, onQuit }: 
   // ─── 上报成绩 ────────────────────────────────────
   const reportResult = async (passed: boolean, finalScore: number, movesUsed: number) => {
     try {
-      await fetch('/api/epet1/match3/record', {
+      await authFetch('/api/epet1/match3/record', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

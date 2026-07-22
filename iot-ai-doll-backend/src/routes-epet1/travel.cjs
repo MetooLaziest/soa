@@ -133,7 +133,7 @@ module.exports = (pool) => {
   // ========== GET /:userId ==========
   router.get('/:userId', async (req, res) => {
     try {
-      if (parseInt(req.params.userId) !== req.user.userId) {
+      if (parseInt(req.params.userId) !== parseInt(req.user.userId)) {
         return res.status(403).json({ error: '无权访问' });
       }
       const result = await pool.query(
@@ -153,7 +153,7 @@ module.exports = (pool) => {
   // ========== GET /status/:userId ==========
   router.get('/status/:userId', async (req, res) => {
     try {
-      if (parseInt(req.params.userId) !== req.user.userId) {
+      if (parseInt(req.params.userId) !== parseInt(req.user.userId)) {
         return res.status(403).json({ error: '无权访问' });
       }
       const result = await pool.query(

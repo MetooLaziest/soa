@@ -66,7 +66,7 @@ module.exports = (pool) => {
   // 获取用户游戏记录
   router.get('/records/:userId', async (req, res) => {
     try {
-      if (parseInt(req.params.userId) !== req.user.userId) {
+      if (parseInt(req.params.userId) !== parseInt(req.user.userId)) {
         return res.status(403).json({ error: '无权访问' });
       }
       const result = await pool.query(

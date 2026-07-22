@@ -74,7 +74,7 @@ module.exports = (pool) => {
   // 获取用户已通关的关卡列表
   router.get('/passed/:userId', async (req, res) => {
     try {
-      if (parseInt(req.params.userId) !== req.user.userId) {
+      if (parseInt(req.params.userId) !== parseInt(req.user.userId)) {
         return res.status(403).json({ error: '无权访问' });
       }
       const result = await pool.query(
@@ -91,7 +91,7 @@ module.exports = (pool) => {
   // 检查用户是否满足购买条件（消消乐通关 + 情绪值够不够由 shop/buy 判断）
   router.get('/check/:userId/:shopItemId', async (req, res) => {
     try {
-      if (parseInt(req.params.userId) !== req.user.userId) {
+      if (parseInt(req.params.userId) !== parseInt(req.user.userId)) {
         return res.status(403).json({ error: '无权访问' });
       }
       const { userId, shopItemId } = req.params;

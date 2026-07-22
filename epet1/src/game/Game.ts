@@ -633,7 +633,7 @@ export class Game {
       const userIdStr = localStorage.getItem('epet_user_id');
       const userId = userIdStr ? parseInt(userIdStr) : '';
       const url = userId ? `/api/epet1/yard/scene?user_id=${userId}` : '/api/epet1/yard/scene';
-      const resp = await fetch(url);
+      const resp = await authFetch(url);
       const data = await resp.json();
       if (!data.success || !data.scene) {
         console.log('ℹ️ No scene config from API, using defaults');

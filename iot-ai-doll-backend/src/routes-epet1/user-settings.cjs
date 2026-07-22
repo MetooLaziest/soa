@@ -10,7 +10,7 @@ module.exports = (pool) => {
   // 获取用户设置
   router.get('/:userId', async (req, res) => {
     try {
-      if (parseInt(req.params.userId) !== req.user.userId) {
+      if (parseInt(req.params.userId) !== parseInt(req.user.userId)) {
         return res.status(403).json({ error: '无权访问' });
       }
       const { userId } = req.params;
@@ -35,7 +35,7 @@ module.exports = (pool) => {
   // 更新用户设置
   router.post('/:userId', async (req, res) => {
     try {
-      if (parseInt(req.params.userId) !== req.user.userId) {
+      if (parseInt(req.params.userId) !== parseInt(req.user.userId)) {
         return res.status(403).json({ error: '无权访问' });
       }
       const { userId } = req.params;
