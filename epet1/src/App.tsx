@@ -2097,7 +2097,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, loading, activeModal, setActiveModal,
           setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId,
-          fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings } = useGameStore();
+          fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings, emotionPoints } = useGameStore();
   const { isAuthenticated, userId: authUserId, loading: authLoading, initAuth } = useAuthStore();
 
   const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
