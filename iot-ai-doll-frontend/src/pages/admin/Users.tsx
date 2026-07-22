@@ -1,6 +1,6 @@
 /**
  * 绒绒庭院 - 用户管理
- * 用户列表 + 背包管理 + 情绪值修改 + 消消乐记录清理
+ * 用户列表 + 背包管理 + 情绪值修改 + 手机号/密码管理 + 消消乐记录清理
  */
 import { useState, useEffect } from 'react';
 import client from '../../api/client';
@@ -8,6 +8,9 @@ import client from '../../api/client';
 interface EpetUser {
   id: number;
   nickname: string;
+  phone: string | null;
+  role: string;
+  is_guest: boolean;
   emotion_points: number;
   created_at: string;
   updated_at: string;
@@ -36,6 +39,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   hidden: '🔒 系统',
 };
 
+/** 手机号脱敏: 138****1234 */
+function maskPhone(phone: string): string {
+  if (phone.length === 11) return phone.slice(0, 3) + '****' + phone.slice(7);
+  return phone.slice(0, 2) + '****' + phone.slice(-2);
+}
+
 export default function Users() {
   const [users, setUsers] = useState<EpetUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +61,14 @@ export default function Users() {
   // 删除确认
   const [clearingMatch3, setClearingMatch3] = useState(false);
   const [resettingFishing, setResettingFishing] = useState(false);
+
+  // 手机号/密码管理
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [showFullPhone, setShowFullPhone] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [hasPassword, setHasPassword] = useState(false);
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -82,6 +99,14 @@ export default function Users() {
   const openUserDetail = (user: EpetUser) => {
     setSelectedUser(user);
     setEmotionInput(String(user.emotion_points));
+    setPhoneInput('');
+    setPasswordInput('');
+    setShowFullPhone(false);
+    setHasPassword(false);
+    // 检查是否有密码
+    client.get(`/admin/epet-users/${user.id}/has-password`).then(res => {
+      setHasPassword(res.data.hasPassword ?? false);
+    }).catch(() => {});
     loadInventory(user.id);
   };
 
@@ -89,6 +114,9 @@ export default function Users() {
     setSelectedUser(null);
     setInventory([]);
     setEmotionInput('');
+    setPhoneInput('');
+    setPasswordInput('');
+    setShowFullPhone(false);
   };
 
   // 修改情绪值
@@ -153,6 +181,7 @@ export default function Users() {
             <tr className="border-b border-white/10 text-left text-xs text-gray-500 uppercase">
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">昵称</th>
+              <th className="px-4 py-3">📱 手机号</th>
               <th className="px-4 py-3">💛 情绪值</th>
               <th className="px-4 py-3">🐾 宠物</th>
               <th className="px-4 py-3">🎒 背包</th>
@@ -166,6 +195,13 @@ export default function Users() {
               <tr key={user.id} className="border-b border-white/5 transition hover:bg-white/5">
                 <td className="px-4 py-3 font-mono text-xs text-gray-400">{user.id}</td>
                 <td className="px-4 py-3 font-medium text-white">{user.nickname}</td>
+                <td className="px-4 py-3 text-xs">
+                  {user.phone ? (
+                    <span className="text-gray-300">{maskPhone(user.phone)}</span>
+                  ) : (
+                    <span className="text-gray-600">未绑定</span>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-yellow-500/15 px-2.5 py-0.5 text-xs font-semibold text-yellow-300">
                     {user.emotion_points}
@@ -241,6 +277,122 @@ export default function Users() {
                       </button>
                     ))}
                   </div>
+                </div>
+              </div>
+
+              {/* 手机号管理 */}
+              <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-4 space-y-3">
+                <div className="text-xs font-semibold text-green-300">📱 手机号</div>
+                {selectedUser.phone ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-white">
+                      <span>已绑定: {showFullPhone ? selectedUser.phone : maskPhone(selectedUser.phone)}</span>
+                      <button
+                        onClick={() => setShowFullPhone(!showFullPhone)}
+                        className="text-xs text-gray-400 hover:text-white"
+                        title={showFullPhone ? '脱敏显示' : '查看完整'}
+                      >
+                        {showFullPhone ? '🙈' : '👁'}
+                      </button>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!confirm('确认解绑该用户手机号？解绑后该用户将无法用手机号登录。')) return;
+                        setPhoneSaving(true);
+                        try {
+                          const res = await client.patch(`/admin/epet-users/${selectedUser.id}/unphone`);
+                          const updated = res.data.user;
+                          setSelectedUser({ ...selectedUser, phone: null, role: updated.role, is_guest: updated.is_guest });
+                          setUsers(users.map(u => u.id === selectedUser.id ? { ...u, phone: null, role: updated.role, is_guest: updated.is_guest } : u));
+                        } catch (err: any) {
+                          alert('解绑失败: ' + (err.response?.data?.error || err.message));
+                        } finally {
+                          setPhoneSaving(false);
+                        }
+                      }}
+                      disabled={phoneSaving}
+                      className="rounded-lg bg-red-600/60 px-4 py-2 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+                    >
+                      {phoneSaving ? '处理中...' : '🔓 解绑手机号'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-500">该用户未绑定手机号，管理员可手动绑定</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="tel"
+                        placeholder="输入11位手机号"
+                        value={phoneInput}
+                        onChange={e => setPhoneInput(e.target.value)}
+                        maxLength={11}
+                        className="w-36 rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                      <button
+                        onClick={async () => {
+                          if (!phoneInput || !/^1\d{10}$/.test(phoneInput)) {
+                            alert('请输入正确的11位手机号'); return;
+                          }
+                          setPhoneSaving(true);
+                          try {
+                            const res = await client.patch(`/admin/epet-users/${selectedUser.id}/phone`, { phone: phoneInput });
+                            const updated = res.data.user;
+                            setSelectedUser({ ...selectedUser, phone: phoneInput, role: updated.role, is_guest: updated.is_guest });
+                            setUsers(users.map(u => u.id === selectedUser.id ? { ...u, phone: phoneInput, role: updated.role, is_guest: updated.is_guest } : u));
+                            setPhoneInput('');
+                          } catch (err: any) {
+                            alert('绑定失败: ' + (err.response?.data?.error || err.message));
+                          } finally {
+                            setPhoneSaving(false);
+                          }
+                        }}
+                        disabled={phoneSaving}
+                        className="rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {phoneSaving ? '绑定中...' : '绑定'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 密码管理 */}
+              <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4 space-y-3">
+                <div className="text-xs font-semibold text-orange-300">🔑 密码</div>
+                <p className="text-xs text-gray-500">
+                  {hasPassword ? '该用户已设置密码，可重置为新密码' : '该用户未设置密码，设置后可用手机号+密码登录'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    placeholder="输入新密码（≥6位）"
+                    value={passwordInput}
+                    onChange={e => setPasswordInput(e.target.value)}
+                    className="w-36 rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!passwordInput || passwordInput.length < 6) {
+                        alert('密码长度至少6位'); return;
+                      }
+                      if (!confirm(`确认${hasPassword ? '重置' : '设置'}该用户密码？`)) return;
+                      setPasswordSaving(true);
+                      try {
+                        await client.patch(`/admin/epet-users/${selectedUser.id}/password`, { password: passwordInput });
+                        setHasPassword(true);
+                        setPasswordInput('');
+                        alert('密码设置成功');
+                      } catch (err: any) {
+                        alert('设置失败: ' + (err.response?.data?.error || err.message));
+                      } finally {
+                        setPasswordSaving(false);
+                      }
+                    }}
+                    disabled={passwordSaving}
+                    className="rounded-lg bg-orange-600 px-4 py-2 text-xs font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
+                  >
+                    {passwordSaving ? '保存中...' : (hasPassword ? '重置密码' : '设置密码')}
+                  </button>
                 </div>
               </div>
 
