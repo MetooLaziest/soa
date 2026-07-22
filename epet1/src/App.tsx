@@ -1813,9 +1813,6 @@ function HomePanel() {
         <TravelBanner travel={activeTravel} onClick={() => setActiveModal('travel')} />
       )}
 
-      {/* 左上角情绪值 */}
-      <div className="emotion-badge">💛 {emotionPoints}</div>
-
       {/* 空庭院提示 */}
       {yardPets.length === 0 && (
         <div className="yard-empty-overlay">
@@ -2280,6 +2277,9 @@ export default function App() {
           className={`mode-switch-btn${homeMode === 'live' ? ' active' : ''}`}
           onClick={() => handleSwitchHomeMode('live')}
         >📺 Live</button>
+        {homeMode === 'yard' && (
+          <span className="mode-switch-emotion">💛 {emotionPoints}</span>
+        )}
       </div>
 
       {homeMode === 'yard' ? (

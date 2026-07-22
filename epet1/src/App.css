@@ -1151,10 +1151,11 @@ body {
 /* ========== 首页模式切换栏 ========== */
 .mode-switch-bar {
   position: fixed;
-  top: 12px;
+  top: calc(12px + env(safe-area-inset-top));
   left: 12px;
   z-index: 500;
   display: flex;
+  align-items: center;
   gap: 0;
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(12px);
@@ -1162,6 +1163,17 @@ body {
   border-radius: 20px;
   padding: 3px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.mode-switch-emotion {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFD700;
+  padding: 6px 12px;
+  white-space: nowrap;
+  line-height: 1.2;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  margin-left: 4px;
+  padding-left: 10px;
 }
 
 .mode-switch-btn {
