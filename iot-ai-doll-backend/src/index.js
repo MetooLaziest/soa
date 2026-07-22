@@ -35,6 +35,7 @@ import adminEpetUsersRoutes from './routes/admin-epet-users.js';
 import adminEpetAssetsRoutes from './routes/admin-epet-assets.js';
 import adminPetSeriesRoutes from './routes/admin-pet-series.js';
 import landingPageRoutes from './routes/landing-page.js';
+import adminDemoTimeRoutes, { publicRouter as demoTimePublicRouter } from './routes/admin-demo-time.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -90,6 +91,8 @@ app.use('/api/epet1/pet-behavior', adminPetBehaviorsRoutes);
 app.use('/api/admin/exec', adminExecRoutes);
 app.use('/api/admin/match3', match3AdminRoutes);
 app.use('/api/admin/epet-users', adminEpetUsersRoutes);
+app.use('/api/admin/demo-time', adminDemoTimeRoutes);
+app.use('/api/epet1/demo-time', demoTimePublicRouter);
 
 // ========== 着陆页 + 站点配置 (Plan C) ==========
 app.use('/api', landingPageRoutes);  // GET /api/landing, GET /api/site-config, POST /api/admin/site-config

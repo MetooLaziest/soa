@@ -30,6 +30,7 @@ const navItems = [
   { key: 'icons', label: '图标素材', icon: '🎨', path: '/admin/icons' },
   { key: 'pet-series', label: '机伴系列', icon: '🏠', path: '/admin/pet-series' },
   { key: 'site-config', label: '首页配置', icon: '🏠', path: '/admin/site-config' },
+  { key: 'demo-time', label: '演示时间', icon: '🕐', path: '/admin/demo-time' },
 ];
 
 export default function AdminLayout() {

@@ -19,6 +19,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { poolEpet1 } from '../lib/db.js';
+import { getEffectiveTimeStr } from './admin-demo-time.js';
 
 const router = express.Router();
 
@@ -217,14 +218,17 @@ router.get('/match', async (req, res) => {
       return res.status(400).json({ success: false, error: 'growth_level 范围 0~5' });
     }
 
+    // Use demo_time if active, otherwise real LOCALTIME
+    const effectiveTime = getEffectiveTimeStr();
+
     // 1) 精确匹配: 当前时刻 + 指定 level
     const exact = await poolEpet1.query(
       `SELECT * FROM intro_videos
        WHERE pet_model_id = $1 AND is_active = true
-         AND time_start <= LOCALTIME AND LOCALTIME < time_end
+         AND time_start <= $3::time AND $3::time < time_end
          AND growth_level = $2
        ORDER BY id ASC LIMIT 1`,
-      [pet_model_id, level]
+      [pet_model_id, level, effectiveTime]
     );
 
     if (exact.rowCount > 0) {
@@ -235,10 +239,10 @@ router.get('/match', async (req, res) => {
     const fallback = await poolEpet1.query(
       `SELECT * FROM intro_videos
        WHERE pet_model_id = $1 AND is_active = true
-         AND time_start <= LOCALTIME AND LOCALTIME < time_end
+         AND time_start <= $2::time AND $2::time < time_end
          AND growth_level = 0
        ORDER BY id ASC LIMIT 1`,
-      [pet_model_id]
+      [pet_model_id, effectiveTime]
     );
 
     if (fallback.rowCount > 0) {

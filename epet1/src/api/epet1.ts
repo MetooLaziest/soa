@@ -730,3 +730,14 @@ export async function fetchFishingMapAssets(mapId: number): Promise<{ assets: Fi
   const res = await get<any>(`/fishing/maps/${mapId}/assets`);
   return { assets: res.assets || {}, config: res.config };
 }
+
+/** 获取当前演示时间状态 (demo_time override) */
+export async function fetchDemoTime(): Promise<{ active: boolean; demo_time: string | null; real_time: string; effective_time: string }> {
+  const res = await get<any>('/demo-time');
+  return {
+    active: res.active ?? false,
+    demo_time: res.demo_time ?? null,
+    real_time: res.real_time ?? '',
+    effective_time: res.effective_time ?? '',
+  };
+}

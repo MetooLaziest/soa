@@ -1,5 +1,6 @@
 import express from 'express';
 import { poolEpet1 } from '../lib/db.js';
+import { getEffectiveTimeStr } from './admin-demo-time.js';
 
 const router = express.Router();
 
@@ -93,17 +94,20 @@ router.get('/match', async (req, res) => {
     const ids = String(pet_model_ids).split(',').map(Number).filter(n => n > 0);
     if (ids.length === 0) return res.status(400).json({ success: false, error: 'invalid pet_model_ids' });
 
+    // Use demo_time if active, otherwise real LOCALTIME
+    const effectiveTime = getEffectiveTimeStr();
+
     const { rows } = await poolEpet1.query(
       `SELECT * FROM pet_behaviors
        WHERE pet_model_id = ANY($1)
          AND is_active = true
          AND (
-           (time_start <= time_end AND time_start <= LOCALTIME AND LOCALTIME < time_end)
+           (time_start <= time_end AND time_start <= $2::time AND $2::time < time_end)
            OR
-           (time_start > time_end AND (time_start <= LOCALTIME OR LOCALTIME < time_end))
+           (time_start > time_end AND (time_start <= $2::time OR $2::time < time_end))
          )
        ORDER BY sort_order, id`,
-      [ids]
+      [ids, effectiveTime]
     );
 
     // 每个宠物只取优先级最高的一条

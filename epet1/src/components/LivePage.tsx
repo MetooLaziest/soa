@@ -13,7 +13,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { fetchPetVideos, type IntroVideo } from '../api/epet1';
+import { fetchPetVideos, fetchDemoTime, type IntroVideo } from '../api/epet1';
 import { IconImg } from './IconImg';
 
 // ─── 主组件 ───
@@ -44,9 +44,16 @@ export function LivePage({ onOpenModal }: LivePageProps) {
         const petVideos = await fetchPetVideos(firstPet.pet_model_id, firstPet.growth_level);
         setVideos(petVideos);
 
-        // 根据当前时间计算默认视频索引
-        const now = new Date();
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        // 根据当前时间计算默认视频索引 (优先使用演示时间)
+        let currentMinutes: number;
+        try {
+          const demoState = await fetchDemoTime();
+          const [h, m] = demoState.effective_time.split(':').map(Number);
+          currentMinutes = h * 60 + m;
+        } catch {
+          const now = new Date();
+          currentMinutes = now.getHours() * 60 + now.getMinutes();
+        }
 
         let closestIndex = 0;
         let minDiff = Infinity;
