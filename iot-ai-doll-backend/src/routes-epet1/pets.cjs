@@ -3,6 +3,7 @@
  * 宠物路由
  * GET  /api/epet1/pet/models            - 获取所有宠物型号
  * POST /api/epet1/pet/nfc/activate      - NFC扫描激活宠物
+ * POST /api/epet1/pet/claim             - 激活码认领宠物
  * GET  /api/epet1/pet/instances/:userId - 获取用户所有宠物实例
  * GET  /api/epet1/pet/yard/:userId      - 获取庭院宠物
  * POST /api/epet1/pet/yard/add          - 放入庭院
@@ -93,6 +94,77 @@ module.exports = (pool) => {
     } catch (err) {
       await client.query('ROLLBACK');
       console.error('activate error:', err);
+      res.status(500).json({ success: false, error: err.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  // 激活码认领宠物
+  router.post('/claim', async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const user_id = req.user.userId;
+      const { activation_code } = req.body;
+      if (!activation_code) {
+        return res.status(400).json({ success: false, error: 'activation_code 必填' });
+      }
+
+      await client.query('BEGIN');
+
+      // 查找未认领的宠物实例（行锁防并发）
+      const instanceRow = await client.query(
+        `SELECT id, pet_model_id FROM pet_instances
+         WHERE activation_code = $1 AND status = 'unclaimed'
+         FOR UPDATE`,
+        [activation_code]
+      );
+
+      if (!instanceRow.rows[0]) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, error: '激活码无效或已被使用' });
+      }
+
+      const pet_instance_id = instanceRow.rows[0].id;
+      const pet_model_id = instanceRow.rows[0].pet_model_id;
+
+      // 检查用户是否已有同型号宠物
+      const dupCheck = await client.query(
+        `SELECT id FROM pet_instances WHERE user_id = $1 AND pet_model_id = $2`,
+        [user_id, pet_model_id]
+      );
+      if (dupCheck.rows[0]) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success: false, error: '你已拥有该型号宠物' });
+      }
+
+      // 认领：更新 user_id + status
+      await client.query(
+        `UPDATE pet_instances SET user_id = $1, status = 'claimed', updated_at = NOW() WHERE id = $2`,
+        [user_id, pet_instance_id]
+      );
+
+      // 自动放入庭院（位置1）
+      await client.query(
+        `INSERT INTO yard_pets (user_id, pet_instance_id, position)
+         VALUES ($1, $2, 1) ON CONFLICT DO NOTHING`,
+        [user_id, pet_instance_id]
+      );
+
+      // 获取宠物详情
+      const detail = await client.query(
+        `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity
+         FROM pet_instances pi
+         JOIN pet_models pm ON pm.id = pi.pet_model_id
+         WHERE pi.id = $1`,
+        [pet_instance_id]
+      );
+
+      await client.query('COMMIT');
+      res.json({ success: true, pet: detail.rows[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('claim error:', err);
       res.status(500).json({ success: false, error: err.message });
     } finally {
       client.release();

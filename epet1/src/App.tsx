@@ -21,6 +21,7 @@ import {
   fetchShopItems,
   buyItem,
   activatePet,
+  claimPet,
   recordGameScore,
   sendChatMessage,
   placeFurniture,
@@ -2102,12 +2103,23 @@ export default function App() {
   const { isAuthenticated, userId: authUserId, loading: authLoading, initAuth } = useAuthStore();
 
   const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
+  const [claimResult, setClaimResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  // ① 认证初始化 — 检测 ?id=9527 演示免登录 / 恢复已存 token
+  // ① 认证初始化 — 检测 ?id=9527 演示免登录 / ?id=<激活码> / 恢复已存 token
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const isDemo = params.get('id') === '9527';
-    initAuth(isDemo ? 'demo' : undefined);
+    const idParam = params.get('id');
+    if (idParam === '9527') {
+      initAuth('demo');
+    } else {
+      // 非 9527 的 ?id= 值视为激活码，暂存 localStorage 等认证后认领
+      if (idParam) {
+        localStorage.setItem('epet_pending_activation_code', idParam);
+        // 清理 URL，避免刷新重复触发
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      initAuth();
+    }
   }, []);
 
   // ② 认证通过后加载数据
@@ -2166,6 +2178,46 @@ export default function App() {
     loadData();
   }, [isAuthenticated, authUserId]);
 
+  // ③ 数据加载完成后：检测待认领激活码，自动认领
+  useEffect(() => {
+    if (!isAuthenticated || !authUserId || loading) return;
+    const pendingCode = localStorage.getItem('epet_pending_activation_code');
+    if (!pendingCode) return;
+
+    // demo 模式不认领真实宠物
+    const isDemo = localStorage.getItem('epet1_demo') === 'true';
+    if (isDemo) {
+      localStorage.removeItem('epet_pending_activation_code');
+      return;
+    }
+
+    // 一次性：立即清除，防止重试循环
+    localStorage.removeItem('epet_pending_activation_code');
+
+    const doClaim = async () => {
+      try {
+        const pet = await claimPet(pendingCode);
+        setClaimResult({ ok: true, msg: `🎉 成功认领 ${pet.model_name || '宠物'}！` });
+        // 刷新宠物列表
+        const uid = authUserId;
+        const [yardPets, allPets] = await Promise.all([fetchYardPets(uid), fetchUserPets(uid)]);
+        setYardPets(yardPets);
+        setAllPets(allPets);
+      } catch (err: any) {
+        const msg = err?.response?.data?.error || err?.message || '认领失败';
+        setClaimResult({ ok: false, msg });
+      }
+    };
+    doClaim();
+  }, [isAuthenticated, authUserId, loading]);
+
+  // 认领结果 3 秒后自动消失
+  useEffect(() => {
+    if (!claimResult) return;
+    const t = setTimeout(() => setClaimResult(null), 3000);
+    return () => clearTimeout(t);
+  }, [claimResult]);
+
   // 处理打开模态框
   const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'fishing' | 'cooking') => {
     setActiveModal(modal);
@@ -2205,6 +2257,18 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* 认领结果提示 */}
+      {claimResult && (
+        <div style={{
+          position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
+          background: claimResult.ok ? '#4caf50' : '#f44336', color: '#fff',
+          padding: '10px 24px', borderRadius: 8, fontSize: 16, fontWeight: 600,
+          zIndex: 9999, boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+          transition: 'opacity 0.3s',
+        }}>
+          {claimResult.msg}
+        </div>
+      )}
       {/* 首页模式切换栏 — 浮动在左上角, yard/live 共用 */}
       <div className="mode-switch-bar">
         <button

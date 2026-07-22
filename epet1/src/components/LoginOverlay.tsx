@@ -109,6 +109,11 @@ export default function LoginOverlay() {
         <div style={{ fontSize: 56, marginBottom: 8 }}>🏡</div>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#8B6914' }}>绒绒庭院</div>
         <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>E-Pet H5</div>
+        {localStorage.getItem('epet_pending_activation_code') && (
+          <div style={{ marginTop: 12, fontSize: 14, color: '#8B6914', fontWeight: 600 }}>
+            🧸 登录后即可领取你的专属宠物
+          </div>
+        )}
       </div>
 
       {/* 表单卡片 */}

@@ -174,8 +174,14 @@ export async function fetchUserPets(userId: number): Promise<PetInstance[]> {
 
 /** NFC 激活宠物 */
 export async function activatePet(userId: number, nfcId: string): Promise<PetInstance> {
-  const res = await post<any>('/pet/activate', { user_id: userId, nfc_id: nfcId });
-  return res.pet_instance;
+  const res = await post<any>('/pet/nfc/activate', { user_id: userId, nfc_id: nfcId });
+  return res.pet;
+}
+
+/** 激活码认领宠物 */
+export async function claimPet(activationCode: string): Promise<PetInstance> {
+  const res = await post<any>('/pet/claim', { activation_code: activationCode });
+  return res.pet;
 }
 
 /** 添加宠物到庭院 */
