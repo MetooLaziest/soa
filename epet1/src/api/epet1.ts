@@ -192,6 +192,12 @@ export async function fetchUserPets(userId: number): Promise<PetInstance[]> {
   return res.pets || [];
 }
 
+/** 获取用户情绪值 */
+export async function fetchEmotionPoints(userId: number): Promise<number> {
+  const res = await get<any>(`/emotion/${userId}`);
+  return res.emotion_points ?? 0;
+}
+
 /** NFC 激活宠物 — 返回 pet + 合并/升级信息 */
 export async function activatePet(userId: number, nfcId: string): Promise<{ pet: PetInstance; merged?: boolean; growth?: any }> {
   const res = await post<any>('/pet/nfc/activate', { user_id: userId, nfc_id: nfcId });

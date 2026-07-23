@@ -35,6 +35,7 @@ import {
   updateUserSettings,
   authFetch,
   fetchPetModels,
+  fetchEmotionPoints,
 } from './api/epet1';
 import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture, PetSeries, SeriesDetail, UnlockConfig } from './api/epet1';
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
@@ -1369,13 +1370,12 @@ function ShopModal({ onClose }: { onClose: () => void }) {
           .catch(() => {});
 
         // 加载用户宠物成长等级数据 (用于装扮锁检查)
-        authFetch(`/api/epet1/pets?userId=${userId}`)
-          .then(r => r.json())
-          .then(data => {
-            if (data.pets) {
-              const levels = data.pets.map((p: any) => p.growth_level || 1);
+        fetchUserPets(userId)
+          .then(pets => {
+            if (pets && pets.length > 0) {
+              const levels = pets.map((p: any) => p.growth_level || 1);
               setMaxGrowthLevel(Math.max(1, ...levels));
-              setOwnedPetModelIds(new Set(data.pets.map((p: any) => Number(p.pet_model_id))));
+              setOwnedPetModelIds(new Set(pets.map((p: any) => Number(p.pet_model_id))));
             }
           })
           .catch(() => {});
@@ -2304,32 +2304,37 @@ export default function App() {
 
     const loadData = async () => {
       try {
-        // 设置 user 到 gameStore（demo 用户没有 emotion_points 接口, 给默认值 0）
+        // 先设默认值，稍后从后端获取真实情绪值
         setUser(uid, 0);
         localStorage.setItem('epet_user_id', String(uid));
 
         // 加载用户设置（首页模式） — 优先级: localStorage > 后端 > fallback
         const localMode = localStorage.getItem('epet_home_mode') as 'yard' | 'live' | null;
+        let userSettings: any = null;
         try {
-          const settings = await fetchUserSettings(uid);
-          setUserSettings(settings);
-          setHomeMode(localMode || settings.home_mode);
+          userSettings = await fetchUserSettings(uid);
+          setUserSettings(userSettings);
+          setHomeMode(localMode || userSettings.home_mode);
         } catch {
           setHomeMode(localMode || 'yard');
         }
 
-        const [yardPets, allPets, travel, yardFurn, models] = await Promise.all([
+        // 并行加载所有数据（含情绪值）
+        const [yardPets, allPets, travel, yardFurn, models, emotionPts] = await Promise.all([
           fetchYardPets(uid),
           fetchUserPets(uid),
           fetchTravelStatus(uid),
           fetchYardFurniture(uid),
           fetchPetModels(),
+          fetchEmotionPoints(uid).catch(() => 0),
         ]);
         setYardPets(yardPets);
         setAllPets(allPets);
         setActiveTravel(travel);
         setYardFurniture(yardFurn);
         setPetModels(models);
+        // 用后端真实情绪值替换默认 0
+        setEmotionPoints(emotionPts);
 
         // 加载图标到 Zustand store (yard/live 共用, 不管 homeMode)
         try {
