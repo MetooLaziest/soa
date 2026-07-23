@@ -219,6 +219,16 @@ export class PetEntity {
     }
   }
 
+  /** 获取当前动画状态 key（供装扮帧同步使用） */
+  getAnimStateKey(): string {
+    return this._getStateAnimationKey();
+  }
+
+  /** 获取当前动画帧索引（供装扮帧同步使用） */
+  getAnimFrameIndex(): number {
+    return this._animFrameIndex;
+  }
+
   /** Find a walkable position near (x,y) using spiral search */
   private _findNearbyWalkable(x: number, y: number, vpW: number, vpH: number): { x: number; y: number } | null {
     const step = Math.min(vpW, vpH) * 0.03;

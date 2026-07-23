@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import type { PetInstance, TravelRecord, YardFurniture, UserSettings } from '../api/epet1';
+import type { PetInstance, TravelRecord, YardFurniture, UserSettings, UnlockConfig, PetModel } from '../api/epet1';
 
-type ModalType = 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | 'match3' | 'collection' | 'fishing' | 'cooking' | null;
+type ModalType = 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'nfc' | 'inventory' | 'intro-video' | 'match3' | 'collection' | 'fishing' | 'cooking' | 'outfit' | 'pet-action' | null;
 type PageType = 'home' | 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'inventory' | 'game' | 'chat';
 type HomeMode = 'yard' | 'live';
 
@@ -41,6 +41,13 @@ interface GameStore {
   homeMode: HomeMode;
   // 用户设置
   userSettings: UserSettings | null;
+  // 升级解锁提示
+  unlockPromptData: { level: number; config: UnlockConfig; petName: string } | null;
+  // 宠物型号缓存 (含 growth_unlock_config, 供升级/装扮等使用)
+  petModels: PetModel[];
+  // 庭院点击机伴浮层
+  tappedPetPos: { x: number; y: number } | null;
+  showPetActionOverlay: boolean;
 
   setUser: (userId: number, emotionPoints: number) => void;
   setYardPets: (pets: PetInstance[]) => void;
@@ -65,6 +72,10 @@ interface GameStore {
   setFullscreenVideoUrl: (url: string | null) => void;
   setHomeMode: (mode: HomeMode) => void;
   setUserSettings: (settings: UserSettings | null) => void;
+  setUnlockPromptData: (data: { level: number; config: UnlockConfig; petName: string } | null) => void;
+  setPetModels: (models: PetModel[]) => void;
+  setTappedPetPos: (pos: { x: number; y: number } | null) => void;
+  setShowPetActionOverlay: (v: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -87,6 +98,10 @@ export const useGameStore = create<GameStore>((set) => ({
   fullscreenVideoUrl: null,
   homeMode: 'yard',
   userSettings: null,
+  unlockPromptData: null,
+  petModels: [],
+  tappedPetPos: null,
+  showPetActionOverlay: false,
 
   setUser: (userId, emotionPoints) => set({ userId, emotionPoints }),
   setYardPets: (yardPets) => set({ yardPets }),
@@ -121,4 +136,8 @@ export const useGameStore = create<GameStore>((set) => ({
   setFullscreenVideoUrl: (fullscreenVideoUrl) => set({ fullscreenVideoUrl }),
   setHomeMode: (homeMode) => set({ homeMode }),
   setUserSettings: (userSettings) => set({ userSettings }),
+  setUnlockPromptData: (unlockPromptData) => set({ unlockPromptData }),
+  setPetModels: (petModels) => set({ petModels }),
+  setTappedPetPos: (tappedPetPos) => set({ tappedPetPos }),
+  setShowPetActionOverlay: (showPetActionOverlay) => set({ showPetActionOverlay }),
 }));

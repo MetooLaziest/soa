@@ -35,6 +35,7 @@ import adminEpetUsersRoutes from './routes/admin-epet-users.js';
 import adminEpetAssetsRoutes from './routes/admin-epet-assets.js';
 import adminEpetStatsRoutes from './routes/admin-epet-stats.js';
 import adminPetSeriesRoutes from './routes/admin-pet-series.js';
+import adminOutfitsRoutes from './routes/admin-outfits.js';
 import landingPageRoutes from './routes/landing-page.js';
 import adminDemoTimeRoutes, { publicRouter as demoTimePublicRouter } from './routes/admin-demo-time.js';
 
@@ -83,6 +84,7 @@ app.use('/api/admin/rag-kbs', adminRagRoutes);
 app.use('/api/admin/models', adminModelsRoutes);
 app.use('/api/admin/epet-assets', adminEpetAssetsRoutes);
 app.use('/api/admin/pet-series', adminPetSeriesRoutes);
+app.use('/api/admin/outfits', adminOutfitsRoutes);
 app.use('/api/admin/yard-scenes', adminYardScenesRoutes);
 app.use('/api/admin/zones', adminZonesRoutes);
 app.use('/api/admin/icons', adminIconsRoutes);
@@ -126,6 +128,7 @@ app.use('/api/epet1/shop2',       jwtAuth, epetShop2Routes);
 app.use('/api/epet1/spotdiff',    jwtAuth, epetSpotdiffRoutes);
 app.use('/api/epet1/match3',      jwtAuth, requireCjs('./routes-epet1/match3.cjs')(poolEpet1));
 app.use('/api/epet1/cooking',     jwtAuth, epetCookingRoutes);
+app.use('/api/epet1/outfit',      jwtAuth, requireCjs('./routes-epet1/outfits.cjs')(poolEpet1));
 app.use('/api/epet1/collection',  jwtAuth, requireCjs('./routes-epet1/collection.cjs')(poolEpet1));
 app.use('/api/epet1/user/settings', jwtAuth, requireCjs('./routes-epet1/user-settings.cjs')(poolEpet1));
 

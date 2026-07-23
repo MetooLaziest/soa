@@ -150,6 +150,8 @@ router.post('/init-defaults', async (_req, res) => {
       { icon_key: 'icon-miniprogram', label: '小程序', emoji: '📱' },
       { icon_key: 'icon-smarthome', label: '智能家居', emoji: '🏠' },
       { icon_key: 'icon-buy', label: '购买新产品', emoji: '🛍️' },
+      { icon_key: 'icon-outfit', label: '装扮', emoji: '👔' },
+      { icon_key: 'icon-travel-send', label: '派出旅行', emoji: '✈️' },
     ];
 
     let created = 0;

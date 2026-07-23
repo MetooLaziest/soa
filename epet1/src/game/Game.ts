@@ -30,6 +30,14 @@ export interface PlacingFurnitureInfo {
   height: number;
 }
 
+/** Outfit slot data for rendering (set from App.tsx after equip/unequip) */
+export interface PetOutfitSlot {
+  shopItemId: number;
+  equipSlot: string;       // 'hat' | 'accessory' | 'back' | 'body'
+  animations: Record<string, string[]>;  // {"idle":[url,...], "walk":[...]}
+  anchorOverride?: Record<string, number[]>;  // {"hat":[0.5,0.3]}
+}
+
 export interface PetEventCallbacks {
   onPetTap?: (petId: string, pet: PetEntity) => void;
   onReady?: () => void;
@@ -46,8 +54,9 @@ export class Game {
   canopyContainer: Container | null = null;     // Layer 2: always-on-top (tree canopies)
   petContainer: Container | null = null;        // sub-container inside sortedContainer
   furnitureContainer: Container | null = null;  // furniture sprites inside sortedContainer
-  petSprites = new Map<string, Sprite>();
+  petContainers = new Map<string, Container>();  // Each Container: shadow + back + body + hat + accessory
   petEntities = new Map<string, PetEntity>();
+  private _petOutfits = new Map<string, Record<string, PetOutfitSlot>>(); // petId → {slot → outfit data}
   private _sceneObjects: SceneObjectData[] = [];  // from API
   private _sceneSprites: Sprite[] = [];           // rendered scene object sprites
   private _furnitureSprites = new Map<number, Container>(); // furniture id → container (sprite + remove btn)
@@ -67,7 +76,6 @@ export class Game {
   private _lastBehaviorFrame = new Map<string, string>(); // petId → last texture URL
   private _emotionDropSprites = new Map<number, Container>(); // drop id → sprite container
   private _emotionDropIconUrl: string | null = null; // icon from epet_icons
-  private _petShadows = new Map<string, Graphics>(); // petId → shadow ellipse
   // Light config: will be set from API scene.current_light
   private _lightAngle = 315 * Math.PI / 180;
   private _shadowOffset = 0.4;
@@ -158,9 +166,9 @@ export class Game {
       return;
     }
 
-    // Check if click hit a pet sprite — if so, ignore (pet tap handled separately)
-    for (const [petId, sprite] of this.petSprites) {
-      const b = sprite.getBounds();
+    // Check if click hit a pet container — if so, ignore (pet tap handled separately)
+    for (const [petId, container] of this.petContainers) {
+      const b = container.getBounds();
       if (cx >= b.x && cx <= b.x + b.width && cy >= b.y && cy <= b.y + b.height) {
         return; // clicked on a pet, don't move
       }
@@ -351,48 +359,115 @@ export class Game {
     try {
       const tex = await this._loadTextureSafe(url);
       if (!tex) return;
-      const sprite = new Sprite(tex);
-      sprite.anchor.set(0.5, 0.85); // anchor near feet
-      sprite.label = petId;
-      sprite.eventMode = 'static';
-      sprite.cursor = 'pointer';
 
-      // Tap handler
-      sprite.on('pointerdown', (e: any) => {
+      // Create Container for multi-layer rendering (shadow + back + body + hat + accessory)
+      const container = new Container();
+      container.label = `pet-${petId}`;
+      container.x = entity.x;
+      container.y = entity.y;
+
+      // [0] Shadow ellipse (drawn at local origin)
+      const shadow = new Graphics();
+      shadow.label = 'shadow';
+      container.addChild(shadow);
+
+      // [1] Back outfit slot
+      const backSprite = new Sprite(Texture.EMPTY);
+      backSprite.label = 'outfit-back';
+      backSprite.anchor.set(0.5, 0.85);
+      backSprite.visible = false;
+      container.addChild(backSprite);
+
+      // [2] Body (the main pet sprite)
+      const bodySprite = new Sprite(tex);
+      bodySprite.anchor.set(0.5, 0.85); // anchor near feet
+      bodySprite.label = 'body';
+      bodySprite.eventMode = 'static';
+      bodySprite.cursor = 'pointer';
+
+      // Tap handler — on body sprite (outfit sprites pass through)
+      bodySprite.on('pointerdown', (e: any) => {
         e.stopPropagation?.(); // prevent stage click
         console.log('[Game] Pet tapped:', petId);
         this._callbacks.onPetTap?.(petId, entity);
       });
+      container.addChild(bodySprite);
 
-      this.petSprites.set(petId, sprite);
-      this.petContainer.addChild(sprite);
+      // [3] Hat outfit slot
+      const hatSprite = new Sprite(Texture.EMPTY);
+      hatSprite.label = 'outfit-hat';
+      hatSprite.anchor.set(0.5, 0.85);
+      hatSprite.visible = false;
+      container.addChild(hatSprite);
 
-      // Create shadow ellipse
-      const shadow = new Graphics();
-      shadow.label = `shadow-${petId}`;
-      this._petShadows.set(petId, shadow);
-      this.petContainer.addChild(shadow);
-      // Ensure shadow is below the sprite
-      this.petContainer.addChild(sprite); // re-add sprite so it's on top of shadow
+      // [4] Accessory outfit slot
+      const accessorySprite = new Sprite(Texture.EMPTY);
+      accessorySprite.label = 'outfit-accessory';
+      accessorySprite.anchor.set(0.5, 0.85);
+      accessorySprite.visible = false;
+      container.addChild(accessorySprite);
+
+      this.petContainers.set(petId, container);
+      this.petContainer.addChild(container);
     } catch (e) {
       console.warn(`Failed to load pet texture: ${imgPath}`, e);
     }
   }
 
   removePet(petId: string): void {
-    const sprite = this.petSprites.get(petId);
-    if (sprite && this.petContainer) {
-      this.petContainer.removeChild(sprite);
-      sprite.destroy();
-      this.petSprites.delete(petId);
-    }
-    const shadow = this._petShadows.get(petId);
-    if (shadow && this.petContainer) {
-      this.petContainer.removeChild(shadow);
-      shadow.destroy();
-      this._petShadows.delete(petId);
+    const container = this.petContainers.get(petId);
+    if (container && this.petContainer) {
+      this.petContainer.removeChild(container);
+      container.destroy({ children: true }); // cascading: shadow + all slot sprites
+      this.petContainers.delete(petId);
     }
     this.petEntities.delete(petId);
+    this._petOutfits.delete(petId);
+  }
+
+  /** 设置宠物装扮数据（由 App.tsx 在装备/卸装后调用） */
+  setPetOutfits(petId: string, outfits: Record<string, PetOutfitSlot>): void {
+    this._petOutfits.set(petId, outfits);
+
+    // Preload outfit textures
+    const allFrames: string[] = [];
+    for (const slot of Object.values(outfits)) {
+      for (const frames of Object.values(slot.animations)) {
+        allFrames.push(...frames);
+      }
+    }
+    if (allFrames.length > 0) {
+      this._preloadAnimationTextures(
+        Object.fromEntries(allFrames.map((url, i) => [`outfit-${petId}-${i}`, [url]]))
+      );
+    }
+
+    // Toggle slot sprite visibility
+    const container = this.petContainers.get(petId);
+    if (container) {
+      const activeSlots = new Set(Object.keys(outfits));
+      for (const label of ['outfit-hat', 'outfit-accessory', 'outfit-back']) {
+        const sprite = container.getChildByLabel(label) as Sprite | undefined;
+        if (sprite) {
+          const slot = label.replace('outfit-', '');
+          sprite.visible = activeSlots.has(slot);
+        }
+      }
+    }
+  }
+
+  /** 从已装备装扮列表更新 (convenience: accepts EquippedOutfit[] from API) */
+  async updatePetOutfits(petId: string, equippedOutfits: { equipSlot: string; shopItemId: number; animations: Record<string, string[]>; anchorOverride?: Record<string, number[]> }[]): Promise<void> {
+    const outfits: Record<string, PetOutfitSlot> = {};
+    for (const eq of equippedOutfits) {
+      outfits[eq.equipSlot] = {
+        shopItemId: eq.shopItemId,
+        equipSlot: eq.equipSlot,
+        animations: eq.animations,
+        anchorOverride: eq.anchorOverride,
+      };
+    }
+    this.setPetOutfits(petId, outfits);
   }
 
   triggerShake(petId: string): void {
@@ -468,8 +543,15 @@ export class Game {
     }
   }
 
-  /** 更新宠物 sprite 的纹理（动画帧切换 — uses pre-loaded cache）*/
-  private _updatePetTexture(petId: string, sprite: Sprite, imgPath: string): void {
+  /** 更新指定槽位 sprite 的纹理（动画帧切换 — uses pre-loaded cache）*/
+  private _updateSlotTexture(petId: string, slot: string, imgPath: string): void {
+    const container = this.petContainers.get(petId);
+    if (!container) return;
+    const sprite = (slot === 'body')
+      ? container.getChildByLabel('body') as Sprite
+      : container.getChildByLabel(`outfit-${slot}`) as Sprite;
+    if (!sprite) return;
+
     const base = `${window.location.protocol}//${window.location.host}`;
     const url = imgPath.startsWith('/') ? `${base}${imgPath}` : imgPath;
     const tex = _texCache.get(url);
@@ -545,9 +627,9 @@ export class Game {
 
   /** Get pet center coordinates in viewport space (for UI overlays) */
   getPetScreenPos(petId: string): { x: number; y: number } | null {
-    const sprite = this.petSprites.get(petId);
-    if (!sprite || !this.app) return null;
-    const g = sprite.getGlobalPosition();
+    const container = this.petContainers.get(petId);
+    if (!container || !this.app) return null;
+    const g = container.getGlobalPosition();
     return { x: g.x, y: g.y - 40 };
   }
 
@@ -558,61 +640,98 @@ export class Game {
 
     this.petEntities.forEach((entity, petId) => {
       entity.update(now, W, H);
-      const sprite = this.petSprites.get(petId);
-      if (!sprite) return;
+      const container = this.petContainers.get(petId);
+      if (!container) return;
+
+      // Get body sprite (always [2])
+      const bodySprite = container.getChildByLabel('body') as Sprite | undefined;
+      if (!bodySprite) return;
 
       const baseSize = Math.min(80, W * 0.12) * (entity.sizeMult || 1.0);
-      const s = (baseSize * entity.scale) / (sprite.texture.width || 1);
-      sprite.scale.set(
+      const s = (baseSize * entity.scale) / (bodySprite.texture.width || 1);
+
+      // Scale and position the whole container
+      container.x = entity.x;
+      container.y = entity.y + entity.bobY;
+
+      // Body sprite scale (handles facing)
+      bodySprite.scale.set(
         entity.facingRight ? Math.abs(s) : -Math.abs(s),
         Math.abs(s),
       );
-      sprite.x = entity.x;
-      sprite.y = entity.y + entity.bobY;
 
-      // Update shadow position
-      const shadow = this._petShadows.get(petId);
+      // Update shadow (child [0])
+      const shadow = container.getChildByLabel('shadow') as Graphics | undefined;
       if (shadow) {
         const petH = baseSize * entity.scale;
-        const sw = petH * 0.55; // shadow ellipse width
-        const sh = petH * 0.18; // shadow ellipse height (flat)
-        // Light direction offset
+        const sw = petH * 0.55;
+        const sh = petH * 0.18;
         const sdx = Math.cos(this._lightAngle) * petH * this._shadowOffset;
         const sdy = Math.sin(this._lightAngle) * petH * this._shadowOffset * 0.5;
         shadow.clear();
         shadow.ellipse(
-          entity.x + sdx,
-          entity.y + sdy + petH * 0.02, // slightly below feet
+          sdx,
+          sdy + petH * 0.02, // relative to container position
           sw, sh
         );
         shadow.fill({ color: 0x000000, alpha: 0.15 });
       }
 
-      // Animations
+      // Animations (rotation on body only)
       if (entity.state === 'shaking') {
         const age = now - (entity as any)._shakeStart;
-        sprite.rotation = Math.sin(age * 0.06) * 0.09 * Math.max(0, 1 - age / 600);
+        bodySprite.rotation = Math.sin(age * 0.06) * 0.09 * Math.max(0, 1 - age / 600);
       } else if (entity.state === 'eating') {
-        sprite.rotation = Math.sin(now * 0.015) * 0.12;
+        bodySprite.rotation = Math.sin(now * 0.015) * 0.12;
       } else {
-        sprite.rotation = 0;
+        bodySprite.rotation = 0;
       }
 
-      // ── 动画帧切换 ──
+      // ── 动画帧切换 (body) ──
       const animFrame = entity.getCurrentAnimationFrame();
       if (animFrame) {
         const lastFrame = this._lastBehaviorFrame.get(petId);
         if (animFrame !== lastFrame) {
           this._lastBehaviorFrame.set(petId, animFrame);
-          this._updatePetTexture(petId, sprite, animFrame);
+          this._updateSlotTexture(petId, 'body', animFrame);
         }
       } else {
-        // 无动画帧 → 用 getImageName fallback
         const imgPath = entity.getImageName();
         const lastFrame = this._lastBehaviorFrame.get(petId);
         if (imgPath !== lastFrame) {
           this._lastBehaviorFrame.set(petId, imgPath);
-          this._updatePetTexture(petId, sprite, imgPath);
+          this._updateSlotTexture(petId, 'body', imgPath);
+        }
+      }
+
+      // ── 装扮帧同步 ──
+      const outfits = this._petOutfits.get(petId);
+      if (outfits) {
+        const stateKey = entity.getAnimStateKey();
+        const frameIdx = entity.getAnimFrameIndex();
+        for (const [slot, outfitData] of Object.entries(outfits)) {
+          const slotSprite = container.getChildByLabel(`outfit-${slot}`) as Sprite | undefined;
+          if (!slotSprite) continue;
+          const frames = outfitData.animations[stateKey];
+          if (frames && frames.length > 0) {
+            slotSprite.visible = true;
+            const outfitFrame = frames[frameIdx % frames.length];
+            // Apply anchor override if specified
+            if (outfitData.anchorOverride && outfitData.anchorOverride[slot]) {
+              const [ax, ay] = outfitData.anchorOverride[slot];
+              slotSprite.anchor.set(ax, ay);
+            }
+            // Scale outfit to match body
+            const bodyW = bodySprite.texture.width || 1;
+            const outfitS = (baseSize * entity.scale) / (slotSprite.texture.width || bodyW);
+            slotSprite.scale.set(
+              entity.facingRight ? Math.abs(outfitS) : -Math.abs(outfitS),
+              Math.abs(outfitS),
+            );
+            this._updateSlotTexture(petId, slot, outfitFrame);
+          } else {
+            slotSprite.visible = false;
+          }
         }
       }
     });
@@ -1174,9 +1293,9 @@ export class Game {
     this._bgLoaded = false;
     this._readyNotified = false;
     this.petEntities.clear();
-    this.petSprites.clear();
+    this.petContainers.clear();
     this._emotionDropSprites.clear();
-    this._petShadows.clear();
+    this._petOutfits.clear();
   }
 
   // ─── Emotion Drops ─────────────────────────────────────

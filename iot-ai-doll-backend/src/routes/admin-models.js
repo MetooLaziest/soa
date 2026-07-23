@@ -127,7 +127,7 @@ router.put('/:id', async (req, res) => {
       'nfc_range_start', 'nfc_range_end', 'display_order', 'is_active',
       'identity_anchor', 'core_personality', 'behavior_rules',
       'skill_layer', 'context_memory_template', 'personality_template',
-      'size_mult', 'anim_config',
+      'size_mult', 'anim_config', 'growth_unlock_config',
     ];
     const sets = [];
     const vals = [];

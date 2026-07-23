@@ -7,6 +7,13 @@ const BASE = '/api/epet1';
 
 // ─── 基础类型 ───────────────────────────────────────────────
 
+export interface UnlockConfig {
+  shop_items?: number[];
+  dialog_topics?: string[];
+  videos?: number[];
+  level_label?: string;
+}
+
 export interface PetModel {
   id: number;
   name: string;
@@ -19,6 +26,7 @@ export interface PetModel {
   personality_template: string;
   is_active: boolean;
   display_order: number;
+  growth_unlock_config?: Record<string, UnlockConfig>;
 }
 
 export interface PetInstance {
@@ -779,4 +787,75 @@ export async function fetchDemoTime(): Promise<{ active: boolean; demo_time: str
     real_time: res.real_time ?? '',
     effective_time: res.effective_time ?? '',
   };
+}
+
+// ─── 装扮系统 ───────────────────────────────────────────────
+
+export interface OutfitItem {
+  inventory_id?: number;
+  shop_item_id: number;
+  name: string;
+  image_url: string;
+  description: string;
+  equip_slot: string;
+  item_category: string;
+  quantity?: number;
+  price?: number;
+  emotion_price?: number;
+}
+
+export interface EquippedOutfit {
+  id: number;
+  outfit_shop_item_id: number;
+  equip_slot: string;
+  equipped_at: string;
+  name: string;
+  image_url: string;
+  description: string;
+  animations?: Record<string, string[]>;
+  anchor_override?: Record<string, number[]>;
+}
+
+/** 获取用户拥有的装扮列表 */
+export async function fetchOutfitInventory(userId: number): Promise<OutfitItem[]> {
+  const res = await get<any>(`/outfit/inventory?user_id=${userId}`);
+  return res.outfits || [];
+}
+
+/** 获取宠物当前装备列表 */
+export async function fetchEquippedOutfits(petInstanceId: number): Promise<EquippedOutfit[]> {
+  const res = await get<any>(`/outfit/equipped/${petInstanceId}`);
+  return res.equipped || [];
+}
+
+/** 装备装扮 */
+export async function equipOutfit(
+  petInstanceId: number,
+  outfitShopItemId: number,
+  equipSlot: string
+): Promise<EquippedOutfit> {
+  const res = await post<any>('/outfit/equip', {
+    pet_instance_id: petInstanceId,
+    outfit_shop_item_id: outfitShopItemId,
+    equip_slot: equipSlot,
+  });
+  return res.equipped;
+}
+
+/** 卸下装扮 */
+export async function unequipOutfit(
+  petInstanceId: number,
+  equipSlot: string
+): Promise<{ success: boolean }> {
+  const res = await post<any>('/outfit/unequip', {
+    pet_instance_id: petInstanceId,
+    equip_slot: equipSlot,
+  });
+  return res;
+}
+
+/** 获取兼容某机伴的装扮列表 */
+export async function fetchCompatibleOutfits(petModelId: number): Promise<OutfitItem[]> {
+  const res = await get<any>(`/outfit/compatible/${petModelId}`);
+  return res.outfits || [];
 }

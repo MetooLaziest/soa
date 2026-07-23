@@ -30,6 +30,7 @@ import IconAssets from './pages/admin/IconAssets';
 import FishingAdmin from './pages/admin/FishingAdmin';
 import AssetManager from './pages/admin/AssetManager';
 import ShopAdmin from './pages/admin/ShopAdmin';
+import OutfitAdmin from './pages/admin/OutfitAdmin';
 import SpotDiffAdmin from './pages/admin/SpotDiffAdmin';
 import Match3Admin from './pages/admin/Match3Admin';
 import CookingAdmin from './pages/admin/CookingAdmin';
@@ -108,6 +109,7 @@ export default function App() {
           <Route path="fishing" element={<FishingAdmin />} />
           <Route path="assets" element={<AssetManager />} />
           <Route path="shop" element={<ShopAdmin />} />
+          <Route path="outfits" element={<OutfitAdmin />} />
           <Route path="spotdiff" element={<SpotDiffAdmin />} />
           <Route path="match3" element={<Match3Admin />} />
           <Route path="cooking" element={<CookingAdmin />} />
