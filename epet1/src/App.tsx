@@ -2229,7 +2229,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, loading, activeModal, setActiveModal,
           setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId, setChatPetId,
-          fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings, emotionPoints,
+          fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings, emotionPoints, setEmotionPoints,
           emotionFloats, removeEmotionFloat, activeTravel, petModels, setPetModels,
           unlockPromptData, setUnlockPromptData,
           tappedPetPos, setTappedPetPos, showPetActionOverlay, setShowPetActionOverlay,
