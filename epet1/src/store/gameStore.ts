@@ -5,10 +5,14 @@ type ModalType = 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'chat' | 'n
 type PageType = 'home' | 'collection' | 'postcard' | 'travel' | 'drift' | 'shop' | 'inventory' | 'game' | 'chat';
 type HomeMode = 'yard' | 'live';
 
+export interface EmotionFloatItem { id: number; text: string; positive: boolean }
+
 interface GameStore {
   // User
   userId: number | null;
   emotionPoints: number;
+  // Emotion float feedback
+  emotionFloats: EmotionFloatItem[];
   // Pets
   yardPets: PetInstance[];
   allPets: PetInstance[];
@@ -43,6 +47,8 @@ interface GameStore {
   setAllPets: (pets: PetInstance[]) => void;
   setEmotionPoints: (pts: number) => void;
   addEmotionPoints: (pts: number) => void;
+  showEmotionFloat: (pts: number) => void;
+  removeEmotionFloat: (id: number) => void;
   setActiveTravel: (t: TravelRecord | null) => void;
   setActiveModal: (m: ModalType) => void;
   setCurrentPage: (p: PageType) => void;
@@ -64,6 +70,7 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set) => ({
   userId: null,
   emotionPoints: 0,
+  emotionFloats: [],
   yardPets: [],
   allPets: [],
   activeTravel: null,
@@ -86,6 +93,12 @@ export const useGameStore = create<GameStore>((set) => ({
   setAllPets: (allPets) => set({ allPets }),
   setEmotionPoints: (emotionPoints) => set({ emotionPoints }),
   addEmotionPoints: (pts) => set((s) => ({ emotionPoints: s.emotionPoints + pts })),
+  showEmotionFloat: (pts) => set((s) => {
+    const id = Date.now() + Math.random();
+    const text = pts > 0 ? `💛 +${pts}` : `💛 ${pts}`;
+    return { emotionFloats: [...s.emotionFloats, { id, text, positive: pts > 0 }] };
+  }),
+  removeEmotionFloat: (id) => set((s) => ({ emotionFloats: s.emotionFloats.filter((f) => f.id !== id) })),
   setActiveTravel: (activeTravel) => set({ activeTravel }),
   setActiveModal: (activeModal) => set({ activeModal }),
   setCurrentPage: (currentPage) => set({ currentPage }),

@@ -20,7 +20,7 @@ router.get('/', async (_req, res) => {
     const { rows } = await poolEpet1.query(
       `SELECT u.id, u.nickname, u.phone, u.role, u.is_guest,
               u.emotion_points, u.created_at, u.updated_at,
-              (SELECT count(*) FROM pet_instances WHERE user_id = u.id) AS pet_count,
+              (SELECT count(*) FROM pet_instances WHERE user_id = u.id AND status != 'merged') AS pet_count,
               (SELECT count(*) FROM yard_furniture WHERE user_id = u.id) AS furniture_count
        FROM users u ORDER BY u.id`
     );

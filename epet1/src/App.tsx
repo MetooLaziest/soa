@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, type ReactNode, type MouseEvent, type KeyboardEvent, type ChangeEvent, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { useGameStore } from './store/gameStore';
+import { useGameStore, type EmotionFloatItem } from './store/gameStore';
 import { useGameStore as usePixiGameStore } from './game/GameState';
 import SpotDifference from './games/SpotDifference';
 import Fishing from './games/Fishing';
@@ -72,6 +72,106 @@ function getPetPortrait(pet: any): string {
   return pet?.image_url || getPetImage(pet?.pet_model_id);
 }
 
+// ─── 成长等级经验阈值 (与后端 growth.cjs 一致) ────────────────
+const LEVEL_THRESHOLDS = [0, 100, 300, 800, 2800];
+const MAX_LEVEL = 5;
+
+/** 计算经验条百分比与下级所需经验 */
+function calcExpProgress(level: number, exp: number): { pct: number; current: number; needed: number } {
+  if (level >= MAX_LEVEL) return { pct: 100, current: exp, needed: 0 };
+  const prev = LEVEL_THRESHOLDS[level - 1] ?? 0;
+  const next = LEVEL_THRESHOLDS[level] ?? LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1];
+  const range = next - prev;
+  const progress = exp - prev;
+  return { pct: range > 0 ? Math.min(100, Math.round((progress / range) * 100)) : 0, current: progress, needed: range };
+}
+
+// ─── ExpBar 组件 ──────────────────────────────────────────────
+function ExpBar({ level, exp, compact = false }: { level: number; exp: number; compact?: boolean }) {
+  const { pct, current, needed } = calcExpProgress(level, exp);
+  const isMax = level >= MAX_LEVEL;
+
+  if (compact) {
+    // 紧凑模式：用于旅行选择等小卡片
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#FFD700' }}>Lv.{level}</span>
+        {!isMax && (
+          <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)', overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', borderRadius: 2, background: 'linear-gradient(90deg, #FFD700, #FFA500)' }} />
+          </div>
+        )}
+        {!isMax && <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>{current}/{needed}</span>}
+        {isMax && <span style={{ fontSize: 9, color: '#FFD700' }}>MAX</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#FFD700' }}>Lv.{level}</span>
+        {isMax ? (
+          <span style={{ fontSize: 10, color: '#FFD700', fontWeight: 600 }}>✨ 已满级</span>
+        ) : (
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>{current}/{needed}</span>
+        )}
+      </div>
+      <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.15)', overflow: 'hidden' }}>
+        <div style={{
+          width: `${pct}%`, height: '100%', borderRadius: 3,
+          background: isMax ? 'linear-gradient(90deg, #FFD700, #FF69B4)' : 'linear-gradient(90deg, #FFD700, #FFA500)',
+          transition: 'width 0.4s ease',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── 升级动画组件 ──────────────────────────────────────────────
+function LevelUpAnimation({ oldLevel, newLevel, petName, onDone }: { oldLevel: number; newLevel: number; petName: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2500);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9500,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.6)', animation: 'fadeIn 0.3s ease',
+    }} onClick={onDone}>
+      <div style={{
+        textAlign: 'center', animation: 'scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+      }}>
+        {/* 光芒放射 */}
+        <div style={{
+          position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+          width: 240, height: 240, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,215,0,0.4) 0%, rgba(255,165,0,0.1) 50%, transparent 70%)',
+          animation: 'pulse 1s ease-in-out infinite',
+        }} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>⬆️</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#FFD700', textShadow: '0 0 20px rgba(255,215,0,0.6)' }}>
+            LEVEL UP!
+          </div>
+          <div style={{ fontSize: 16, color: '#fff', marginTop: 8, fontWeight: 600 }}>
+            {petName}
+          </div>
+          <div style={{ fontSize: 22, color: '#FFA500', marginTop: 4, fontWeight: 700 }}>
+            Lv.{oldLevel} → Lv.{newLevel}
+          </div>
+        </div>
+      </div>
+      <style>{`
+        @keyframes scaleIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes pulse { 0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; } 50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } }
+      `}</style>
+    </div>
+  );
+}
+
 // ─── Emoji 映射 ──────────────────────────────────────────────
 const RARITY_EMOJI: Record<string, string> = { N: '📭', R: '💌', SR: '🎀', SSR: '🌟', UR: '🏅' };
 
@@ -82,6 +182,23 @@ function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
     return () => clearTimeout(t);
   }, [onDone]);
   return <div className="toast-popup">{msg}</div>;
+}
+
+// ─── 情绪值浮动动画 (+N / -N) ───────────────────────────────
+function EmotionFloatLayer({ items, onDone }: { items: EmotionFloatItem[]; onDone: (id: number) => void }) {
+  return (
+    <>
+      {items.map((f) => (
+        <div
+          key={f.id}
+          className={`emotion-float ${f.positive ? 'positive' : 'negative'}`}
+          onAnimationEnd={() => onDone(f.id)}
+        >
+          {f.text}
+        </div>
+      ))}
+    </>
+  );
 }
 
 // ─── Modal 基类 ──────────────────────────────────────────────
@@ -97,13 +214,12 @@ function ModalOverlay({ children, onClose }: { children: ReactNode; onClose: () 
 
 // ─── 藏品库 2.0 全页面（系列滑动）───────────────────────────────
 function CollectionPage({ onBack }: { onBack: () => void }) {
-  const { userId, setYardPets: setGlobalYardPets } = useGameStore();
+  const { userId, setYardPets: setGlobalYardPets, setActiveModal } = useGameStore();
   const [seriesList, setSeriesList] = useState<PetSeries[]>([]);
   const [currentSeriesIndex, setCurrentSeriesIndex] = useState(0);
   const [seriesDetail, setSeriesDetail] = useState<SeriesDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [showNFCModal, setShowNFCModal] = useState(false);
   const [collectionToast, setCollectionToast] = useState<{ type: 'success' | 'error'; message: string; petName?: string; petImage?: string } | null>(null);
   
   // 本地庭院宠物状态（藏品库独立管理）
@@ -244,17 +360,6 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const handleNFCActivate = async (nfcId: string) => {
-    if (!nfcId || !userId) return;
-    try {
-      const pet = await activatePet(userId, nfcId.trim());
-      alert(`🎉 激活成功！${pet.nickname} 加入藏品库！`);
-      const list = await fetchCollectionSeries(userId);
-      setSeriesList(list);
-    } catch (e: any) {
-      alert(e.message || '激活失败');
-    }
-  };
 
   if (loading) {
     return (
@@ -286,7 +391,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         <span style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 600, color: '#333' }}>
           藏品库
         </span>
-        <button onClick={() => setShowNFCModal(true)} style={{
+        <button onClick={() => setActiveModal('nfc')} style={{
           width: 36, height: 36, borderRadius: '50%', border: 'none',
           background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff',
           fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -416,10 +521,12 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
                     fontSize: 42, color: pet.isCollected ? '#fff' : '#999', whiteSpace: 'nowrap',
                   }}>
                     {pet.isCollected ? pet.modelName : '???'}
-                    {pet.isCollected && pet.growthLevel > 0 && (
-                      <span style={{ marginLeft: 4, color: '#FFD700' }}>Lv.{pet.growthLevel}</span>
-                    )}
                   </div>
+                  {pet.isCollected && pet.growthLevel > 0 && (
+                    <div style={{ padding: '0 8px', marginTop: 4 }}>
+                      <ExpBar level={pet.growthLevel} exp={pet.growthExp ?? 0} compact />
+                    </div>
+                  )}
                   {pet.isCollected && pet.isTraveling && (
                     <div style={{
                       position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
@@ -451,11 +558,6 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
           </div>
         )}
       </div>
-
-      {/* NFC弹窗 */}
-      {showNFCModal && (
-        <NFCDialog onClose={() => setShowNFCModal(false)} onConfirm={handleNFCActivate} />
-      )}
 
       {/* Toast 弹窗 */}
       {collectionToast && (
@@ -824,7 +926,7 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
                       <img src={getPetPortrait(pet)} alt={pet.nickname} />
                       <div className="travel-pet-info">
                         <div className="travel-pet-name">{pet.nickname}</div>
-                        <div className="travel-pet-level">Lv.{pet.growth_level}</div>
+                        <ExpBar level={pet.growth_level ?? 1} exp={pet.growth_exp ?? 0} compact />
                       </div>
                       <span style={{ fontSize: 18 }}>→</span>
                     </div>
@@ -1137,7 +1239,7 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
 
 // ─── 漂流瓶 Modal ───────────────────────────────────────────
 function DriftModal({ onClose }: { onClose: () => void }) {
-  const { userId, emotionPoints, setEmotionPoints, addEmotionPoints } = useGameStore();
+  const { userId, emotionPoints, setEmotionPoints, addEmotionPoints, showEmotionFloat } = useGameStore();
   const [bottles, setBottles] = useState<DriftBottle[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -1159,6 +1261,7 @@ function DriftModal({ onClose }: { onClose: () => void }) {
     try {
       await sendDriftBottle(userId, msg);
       setEmotionPoints(emotionPoints - 5);
+      showEmotionFloat(-5);
       alert('漂流瓶已投入大海 🌊');
     } catch (e: any) {
       alert(e.message || '发送失败');
@@ -1174,6 +1277,7 @@ function DriftModal({ onClose }: { onClose: () => void }) {
       const bottle = await pickupDriftBottle(userId);
       if (bottle) {
         addEmotionPoints(bottle.reward_amount);
+        showEmotionFloat(bottle.reward_amount);
         alert(`🎁 捡到漂流瓶！来自 ${bottle.sender_nickname}：${bottle.message}\n获得 ${bottle.reward_name} ×${bottle.reward_amount}！`);
         load();
       } else {
@@ -1227,6 +1331,8 @@ function ShopModal({ onClose }: { onClose: () => void }) {
   const [match3Passed, setMatch3Passed] = useState<Record<number, boolean>>({});
   const [ownedFurnitureIds, setOwnedFurnitureIds] = useState<Set<number>>(new Set());
   const [successToast, setSuccessToast] = useState<any>(null); // 购买成功弹窗
+  const [maxGrowthLevel, setMaxGrowthLevel] = useState(1); // 用户所有宠物的最高成长等级
+  const [ownedPetModelIds, setOwnedPetModelIds] = useState<Set<number>>(new Set()); // 用户拥有的宠物模型ID
 
   const SHOP_TABS = [
     { id: 'food', name: '🥘 食材' },
@@ -1255,6 +1361,18 @@ function ShopModal({ onClose }: { onClose: () => void }) {
             if (data.ok) {
               const furn = (data.categories?.furniture || []) as any[];
               setOwnedFurnitureIds(new Set(furn.map(f => f.shop_item_id || f.id)));
+            }
+          })
+          .catch(() => {});
+
+        // 加载用户宠物成长等级数据 (用于装扮锁检查)
+        authFetch(`/api/epet1/pets?userId=${userId}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.pets) {
+              const levels = data.pets.map((p: any) => p.growth_level || 1);
+              setMaxGrowthLevel(Math.max(1, ...levels));
+              setOwnedPetModelIds(new Set(data.pets.map((p: any) => Number(p.pet_model_id))));
             }
           })
           .catch(() => {});
@@ -1301,6 +1419,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
     try {
       const res = await buyItem(userId, item.id);
       setEmotionPoints(res.remaining_emotion);
+      showEmotionFloat(-item.price_emotion);
       if (item.item_category === 'furniture') {
         setOwnedFurnitureIds(prev => new Set([...prev, item.id]));
       }
@@ -1400,24 +1519,44 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                       消消乐
                     </span>
                   )}
+                  {item.growth_level_required && item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required && (
+                    <span style={{
+                      display: 'inline-block', marginLeft: 4, padding: '0 4px',
+                      borderRadius: 4, fontSize: 9, verticalAlign: 'middle',
+                      background: 'linear-gradient(135deg, #9C27B0, #7B1FA2)',
+                      color: '#fff', fontWeight: 700,
+                    }}>
+                      🔒Lv.{item.growth_level_required}
+                    </span>
+                  )}
+                  {item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required)) && (
+                    <span style={{
+                      display: 'inline-block', marginLeft: 4, padding: '0 4px',
+                      borderRadius: 4, fontSize: 9, verticalAlign: 'middle',
+                      background: 'linear-gradient(135deg, #E91E63, #C2185B)',
+                      color: '#fff', fontWeight: 700,
+                    }}>
+                      🔒限定
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, color: '#8B6914', fontWeight: 600, marginBottom: 6 }}>
                   💛 {item.price_emotion}
                 </div>
                 <button
                   onClick={() => handleBuy(item)}
-                  disabled={buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) || (emotionPoints < item.price_emotion && (!item.match3_level_id || match3Passed[item.id]))}
+                  disabled={buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) || (emotionPoints < item.price_emotion && (!item.match3_level_id || match3Passed[item.id])) || (item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required) || (item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required)))}
                   style={{
                     width: '100%', padding: '5px 0', border: 'none', borderRadius: 6,
                     fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                    background: (buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)))
+                    background: (buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) || (item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required) || (item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required))))
                       ? '#ddd' : item.match3_level_id && !match3Passed[item.id]
                       ? 'linear-gradient(135deg, #FF6B35, #FF4500)'
                       : 'linear-gradient(135deg, #FFD700, #FFA500)',
-                    color: (buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id))) ? '#999' : '#fff',
+                    color: (buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) || (item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required) || (item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required)))) ? '#999' : '#fff',
                   }}
                 >
-                  {item.stock === 0 ? '售罄' : (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) ? '已购买' : buying === item.id ? '...' : item.match3_level_id && !match3Passed[item.id] ? '🎮 挑战解锁' : '购买'}
+                  {item.stock === 0 ? '售罄' : (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) ? '已购买' : buying === item.id ? '...' : item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required ? '🔒 等级不足' : item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required)) ? '🔒 限定' : item.match3_level_id && !match3Passed[item.id] ? '🎮 挑战解锁' : '购买'}
                 </button>
               </div>
             ))}
@@ -1730,7 +1869,7 @@ function HomePanel() {
           .then((res) => {
             gameRef.current?.removeEmotionDrop(dropId);
             addEmotionPoints(res.amount);
-            setToast(`💛 +${res.amount} 情绪值！`);
+            useGameStore.getState().showEmotionFloat(res.amount);
           })
           .catch((e: any) => {
             console.error('[App] collectEmotionDrop error:', e);
@@ -1967,6 +2106,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
       const cleanReply = (reply || '').replace(/\[系统\][^\n]*\n?/g, '').trim() || '...';
       setMessages((m) => [...m, { role: 'assistant', content: cleanReply }]);
       addEmotionPoints(1);
+      showEmotionFloat(1);
     } catch (e: any) {
       setMessages((m) => [...m, {
         role: 'assistant',
@@ -2097,11 +2237,53 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, loading, activeModal, setActiveModal,
           setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId,
-          fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings, emotionPoints } = useGameStore();
+          fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings, emotionPoints,
+          emotionFloats, removeEmotionFloat, activeTravel } = useGameStore();
   const { isAuthenticated, userId: authUserId, loading: authLoading, initAuth } = useAuthStore();
 
   const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [levelUpAnim, setLevelUpAnim] = useState<{ oldLevel: number; newLevel: number; petName: string } | null>(null);
+
+  /** 触发升级动画的全局方法 */
+  const showLevelUp = (oldLevel: number, newLevel: number, petName: string) => {
+    setLevelUpAnim({ oldLevel, newLevel, petName });
+  };
+
+  // 旅行归来检测：当 activeTravel 存在且接近到期时轮询，归来时刷新数据并检测升级
+  const prevTravelRef = useRef<any>(null);
+  useEffect(() => {
+    if (!isAuthenticated || !authUserId) return;
+    // 如果有旅行中的宠物，每 15 秒轮询一次状态
+    if (!activeTravel) {
+      prevTravelRef.current = null;
+      return;
+    }
+    prevTravelRef.current = activeTravel;
+    const iv = setInterval(async () => {
+      try {
+        const travel = await fetchTravelStatus(authUserId);
+        if (!travel && prevTravelRef.current) {
+          // 旅行归来！刷新数据
+          setActiveTravel(null);
+          const [yardPets, allPets] = await Promise.all([fetchYardPets(authUserId), fetchUserPets(authUserId)]);
+          setYardPets(yardPets);
+          setAllPets(allPets);
+          // 对比归来宠物的等级变化
+          const returnedPetId = prevTravelRef.current.pet_instance_id;
+          const oldLevel = prevTravelRef.current.growth_level || 1;
+          const returnedPet = allPets.find((p: any) => p.id === returnedPetId);
+          if (returnedPet && returnedPet.growth_level > oldLevel) {
+            showLevelUp(oldLevel, returnedPet.growth_level, returnedPet.nickname || '宠物');
+          }
+          prevTravelRef.current = null;
+        }
+      } catch (e) {
+        console.warn('travel return poll error:', e);
+      }
+    }, 15000);
+    return () => clearInterval(iv);
+  }, [isAuthenticated, authUserId, activeTravel]);
 
   // ① 认证初始化 — 检测 ?id=9527 演示免登录 / ?id=<激活码> / 恢复已存 token
   useEffect(() => {
@@ -2194,8 +2376,16 @@ export default function App() {
 
     const doClaim = async () => {
       try {
-        const pet = await claimPet(pendingCode);
-        setClaimResult({ ok: true, msg: `🎉 成功认领 ${pet.model_name || '宠物'}！` });
+        const result = await claimPet(pendingCode);
+        const pet = result.pet;
+        if (result.merged && result.growth?.leveled_up) {
+          showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || '宠物');
+          setClaimResult({ ok: true, msg: `🔄 重复宠物，已合并喂经验 +100！升级了！` });
+        } else if (result.merged) {
+          setClaimResult({ ok: true, msg: `🔄 重复宠物，已合并喂经验 +100` });
+        } else {
+          setClaimResult({ ok: true, msg: `🎉 成功认领 ${pet.nickname || '宠物'}！` });
+        }
         // 刷新宠物列表
         const uid = authUserId;
         const [yardPets, allPets] = await Promise.all([fetchYardPets(uid), fetchUserPets(uid)]);
@@ -2267,6 +2457,8 @@ export default function App() {
           {claimResult.msg}
         </div>
       )}
+      {/* 情绪值浮动反馈 */}
+      <EmotionFloatLayer items={emotionFloats} onDone={removeEmotionFloat} />
       {/* 首页模式切换栏 — 浮动在左上角, yard/live 共用 */}
       <div className="mode-switch-bar">
         <button
@@ -2296,6 +2488,25 @@ export default function App() {
       )}
 
       {/* Modals */}
+      {activeModal === 'nfc' && (
+        <NFCDialog
+          onClose={() => setActiveModal('collection')}
+          onConfirm={async (nfcId: string) => {
+            if (!nfcId || !userId) return;
+            try {
+              const result = await activatePet(userId, nfcId.trim());
+              const pet = result.pet;
+              if (result.merged && result.growth?.leveled_up) {
+                showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || '宠物');
+              }
+              alert(result.merged ? `🔄 重复宠物，已合并喂经验！` : `🎉 激活成功！${pet.nickname} 加入藏品库！`);
+              setActiveModal('collection');
+            } catch (e: any) {
+              alert(e.message || '激活失败');
+            }
+          }}
+        />
+      )}
       {activeModal === 'collection' && <CollectionPage onBack={() => setActiveModal(null)} />}
       {activeModal === 'postcard' && <PostcardModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'travel' && <TravelModal onClose={() => setActiveModal(null)} preselectedPetId={chatPetId ?? undefined} />}
@@ -2385,6 +2596,15 @@ export default function App() {
           >✕</button>
         </div>,
         document.body
+      )}
+      {/* 升级动画 */}
+      {levelUpAnim && (
+        <LevelUpAnimation
+          oldLevel={levelUpAnim.oldLevel}
+          newLevel={levelUpAnim.newLevel}
+          petName={levelUpAnim.petName}
+          onDone={() => setLevelUpAnim(null)}
+        />
       )}
     </div>
   );

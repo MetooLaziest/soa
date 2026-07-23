@@ -9,6 +9,8 @@
  * - 归来获得情绪值 10~100 (按料理评级 + 明信片稀有度)
  * - 取消旅行时归还料理到背包
  */
+const { addExp, calcPostcardExp } = require('./growth.cjs');
+
 module.exports = (pool) => {
   const router = require('express').Router();
 
@@ -157,7 +159,7 @@ module.exports = (pool) => {
         return res.status(403).json({ error: '无权访问' });
       }
       const result = await pool.query(
-        `SELECT tr.*, pi.pet_model_id, pm.name as pet_name, pm.image_url
+        `SELECT tr.*, pi.pet_model_id, pi.growth_level, pm.name as pet_name, pm.image_url
          FROM travel_records tr
          JOIN pet_instances pi ON pi.id = tr.pet_instance_id
          JOIN pet_models pm ON pm.id = pi.pet_model_id
@@ -374,6 +376,14 @@ async function processReturn(pool, travel_record_id) {
       );
     }
 
+    // 成长经验: 按明信片稀有度/是否新卡计算
+    let growthResult = null;
+    if (postcardData) {
+      const expAmount = calcPostcardExp(postcardData.rarity, is_new);
+      growthResult = await addExp(null, client, record.pet_instance_id, expAmount, record.user_id);
+      console.log(`📈 [Growth] 旅行归来 宠物#${record.pet_instance_id} +${expAmount}exp (${is_new ? '新卡' : postcardData.rarity})`);
+    }
+
     await client.query('COMMIT');
 
     return {
@@ -383,6 +393,7 @@ async function processReturn(pool, travel_record_id) {
       emotion_reward: emotionReward,
       got_postcard: !!selectedPostcard,
       travel_record_id,
+      growth: growthResult,
     };
   } catch (err) {
     await client.query('ROLLBACK');

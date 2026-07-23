@@ -33,6 +33,7 @@ import adminZonesRoutes from './routes/admin-zones.js';
 import adminIconsRoutes from './routes/admin-icons.js';
 import adminEpetUsersRoutes from './routes/admin-epet-users.js';
 import adminEpetAssetsRoutes from './routes/admin-epet-assets.js';
+import adminEpetStatsRoutes from './routes/admin-epet-stats.js';
 import adminPetSeriesRoutes from './routes/admin-pet-series.js';
 import landingPageRoutes from './routes/landing-page.js';
 import adminDemoTimeRoutes, { publicRouter as demoTimePublicRouter } from './routes/admin-demo-time.js';
@@ -92,6 +93,7 @@ app.use('/api/epet1/pet-behavior', adminPetBehaviorsRoutes);
 app.use('/api/admin/exec', adminExecRoutes);
 app.use('/api/admin/match3', match3AdminRoutes);
 app.use('/api/admin/epet-users', adminEpetUsersRoutes);
+app.use('/api/admin/epet-stats', adminEpetStatsRoutes);
 app.use('/api/admin/demo-time', adminDemoTimeRoutes);
 app.use('/api/epet1/demo-time', demoTimePublicRouter);
 

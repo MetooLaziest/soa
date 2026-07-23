@@ -27,6 +27,7 @@ export interface PetInstance {
   pet_model_id: number;
   nickname: string;
   growth_level: number;
+  growth_exp: number;
   total_interactions: number;
   total_travels: number;
   total_postcards: number;
@@ -73,6 +74,8 @@ export interface ShopItem {
   price_emotion: number;
   stock: number;
   icon: string;
+  growth_level_required?: number;
+  pet_model_id_required?: number;
 }
 
 export interface TravelRecord {
@@ -181,16 +184,16 @@ export async function fetchUserPets(userId: number): Promise<PetInstance[]> {
   return res.pets || [];
 }
 
-/** NFC 激活宠物 */
-export async function activatePet(userId: number, nfcId: string): Promise<PetInstance> {
+/** NFC 激活宠物 — 返回 pet + 合并/升级信息 */
+export async function activatePet(userId: number, nfcId: string): Promise<{ pet: PetInstance; merged?: boolean; growth?: any }> {
   const res = await post<any>('/pet/nfc/activate', { user_id: userId, nfc_id: nfcId });
-  return res.pet;
+  return { pet: res.pet, merged: res.merged, growth: res.growth };
 }
 
-/** 激活码认领宠物 */
-export async function claimPet(activationCode: string): Promise<PetInstance> {
+/** 激活码认领宠物 — 返回 pet + 合并/升级信息 */
+export async function claimPet(activationCode: string): Promise<{ pet: PetInstance; merged?: boolean; growth?: any }> {
   const res = await post<any>('/pet/claim', { activation_code: activationCode });
-  return res.pet;
+  return { pet: res.pet, merged: res.merged, growth: res.growth };
 }
 
 /** 添加宠物到庭院 */
@@ -682,6 +685,7 @@ export interface SeriesPet {
   rarity: string;
   isCollected: boolean;
   growthLevel?: number;
+  growthExp?: number;
   isTraveling?: boolean;
 }
 

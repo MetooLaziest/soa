@@ -11,6 +11,8 @@
  * POST /api/epet1/pet/interact/:action   - 互动（feed/pet/clean）
  * GET  /api/epet1/pet/instance/:id       - 获取单只宠物详情
  */
+const { mergePet, MERGE_EXP } = require('./growth.cjs');
+
 module.exports = (pool) => {
   const router = require('express').Router();
 
@@ -57,7 +59,7 @@ module.exports = (pool) => {
 
       // 检查是否已被激活
       const existing = await client.query(
-        'SELECT id FROM pet_instances WHERE nfc_id = $1',
+        'SELECT id, user_id, status FROM pet_instances WHERE nfc_id = $1',
         [nfc_id]
       );
 
@@ -66,7 +68,42 @@ module.exports = (pool) => {
         return res.status(409).json({ success: false, error: '该NFC已被激活' });
       }
 
-      // 创建宠物实例
+      // 检查用户是否已有同型号宠物（非 merged）
+      const dupCheck = await client.query(
+        `SELECT id FROM pet_instances WHERE user_id = $1 AND pet_model_id = $2 AND status != 'merged'`,
+        [user_id, pet_model_id]
+      );
+
+      if (dupCheck.rows[0]) {
+        // 重复宠物 → 创建后立即合并喂经验
+        const newInstance = await client.query(
+          `INSERT INTO pet_instances (user_id, pet_model_id, nfc_id)
+           VALUES ($1, $2, $3) RETURNING id`,
+          [user_id, pet_model_id, nfc_id]
+        );
+        const mergeResult = await mergePet(client, newInstance.rows[0].id, dupCheck.rows[0].id, user_id);
+
+        // 获取目标宠物详情
+        const detail = await client.query(
+          `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity
+           FROM pet_instances pi
+           JOIN pet_models pm ON pm.id = pi.pet_model_id
+           WHERE pi.id = $1`,
+          [dupCheck.rows[0].id]
+        );
+
+        await client.query('COMMIT');
+        return res.json({
+          success: true,
+          merged: true,
+          pet: detail.rows[0],
+          model: modelRow.rows[0],
+          growth: mergeResult,
+          message: `重复宠物，已合并喂经验 +${MERGE_EXP}`,
+        });
+      }
+
+      // 首次获得该型号 → 正常创建
       const instance = await client.query(
         `INSERT INTO pet_instances (user_id, pet_model_id, nfc_id)
          VALUES ($1, $2, $3) RETURNING *`,
@@ -128,17 +165,40 @@ module.exports = (pool) => {
       const pet_instance_id = instanceRow.rows[0].id;
       const pet_model_id = instanceRow.rows[0].pet_model_id;
 
-      // 检查用户是否已有同型号宠物
+      // 检查用户是否已有同型号宠物（非 merged）
       const dupCheck = await client.query(
-        `SELECT id FROM pet_instances WHERE user_id = $1 AND pet_model_id = $2`,
+        `SELECT id FROM pet_instances WHERE user_id = $1 AND pet_model_id = $2 AND status != 'merged'`,
         [user_id, pet_model_id]
       );
+
       if (dupCheck.rows[0]) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ success: false, error: '你已拥有该型号宠物' });
+        // 重复宠物 → 认领后合并喂经验
+        await client.query(
+          `UPDATE pet_instances SET user_id = $1, status = 'claimed', updated_at = NOW() WHERE id = $2`,
+          [user_id, pet_instance_id]
+        );
+        const mergeResult = await mergePet(client, pet_instance_id, dupCheck.rows[0].id, user_id);
+
+        // 获取目标宠物详情
+        const detail = await client.query(
+          `SELECT pi.*, pm.name as model_name, pm.image_url, pm.rarity
+           FROM pet_instances pi
+           JOIN pet_models pm ON pm.id = pi.pet_model_id
+           WHERE pi.id = $1`,
+          [dupCheck.rows[0].id]
+        );
+
+        await client.query('COMMIT');
+        return res.json({
+          success: true,
+          merged: true,
+          pet: detail.rows[0],
+          growth: mergeResult,
+          message: `重复宠物，已合并喂经验 +${MERGE_EXP}`,
+        });
       }
 
-      // 认领：更新 user_id + status
+      // 首次获得该型号 → 正常认领
       await client.query(
         `UPDATE pet_instances SET user_id = $1, status = 'claimed', updated_at = NOW() WHERE id = $2`,
         [user_id, pet_instance_id]
@@ -185,7 +245,7 @@ module.exports = (pool) => {
          JOIN pet_models pm ON pm.id = pi.pet_model_id
          LEFT JOIN yard_pets yp ON yp.pet_instance_id = pi.id AND yp.is_active = true
          LEFT JOIN travel_records tr ON tr.pet_instance_id = pi.id AND tr.status = 'traveling'
-         WHERE pi.user_id = $1
+         WHERE pi.user_id = $1 AND pi.status != 'merged'
          ORDER BY pi.created_at`,
         [req.params.userId]
       );
@@ -208,7 +268,7 @@ module.exports = (pool) => {
          FROM yard_pets yp
          JOIN pet_instances pi ON pi.id = yp.pet_instance_id
          JOIN pet_models pm ON pm.id = pi.pet_model_id
-         WHERE yp.user_id = $1 AND yp.is_active = true
+         WHERE yp.user_id = $1 AND yp.is_active = true AND pi.status != 'merged'
            AND NOT EXISTS (
              SELECT 1 FROM travel_records tr
              WHERE tr.pet_instance_id = yp.pet_instance_id AND tr.status = 'traveling'

@@ -13,6 +13,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import client from '../../api/client';
 
 interface PetInstance {
@@ -66,6 +67,7 @@ export default function PetEntities() {
   const [editingInstance, setEditingInstance] = useState<PetInstance | null>(null);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<string>(''); // 按用户筛选
+  const [qrCodes, setQrCodes] = useState<{ code: string; nfcId: string; modelName: string }[] | null>(null);
 
   useEffect(() => {
     loadData();
@@ -171,8 +173,12 @@ export default function PetEntities() {
         count: n,
       });
       if (res.data.success) {
-        const codes = res.data.generated;
-        alert(`✅ 已生成 ${codes.length} 个激活码:\n\n${codes.map((c: any) => `id=${c.id} nfc=${c.nfc_id}\n🔑 ${c.activation_code}`).join('\n\n')}`);
+        const codes: { code: string; nfcId: string; modelName: string }[] = res.data.generated.map((c: any) => ({
+          code: c.activation_code,
+          nfcId: String(c.nfc_id),
+          modelName,
+        }));
+        setQrCodes(codes);
         await loadData();
       } else {
         alert('生成失败: ' + (res.data.error || '未知错误'));
@@ -276,6 +282,7 @@ export default function PetEntities() {
             onGenerateCodes={handleGenerateCodes}
             onRegenerateCode={handleRegenerateCode}
             onCopy={copyToClipboard}
+            onShowQr={(code, nfcId, modelName) => setQrCodes([{ code, nfcId, modelName }])}
           />
         ))}
         {filteredModels.length === 0 && (
@@ -293,6 +300,11 @@ export default function PetEntities() {
           saving={saving}
         />
       )}
+
+      {/* QR Codes Modal */}
+      {qrCodes && (
+        <QRCodesModal codes={qrCodes} onClose={() => setQrCodes(null)} />
+      )}
     </div>
   );
 }
@@ -307,6 +319,7 @@ function ModelCard({
   onGenerateCodes,
   onRegenerateCode,
   onCopy,
+  onShowQr,
 }: {
   group: ModelGroup;
   onEdit: (i: PetInstance) => void;
@@ -317,6 +330,7 @@ function ModelCard({
   onGenerateCodes: (petModelId: number, modelName: string) => void;
   onRegenerateCode: (i: PetInstance) => void;
   onCopy: (text: string) => void;
+  onShowQr: (code: string, nfcId: string, modelName: string) => void;
 }) {
   const m = group.model;
   const rarityColor = {
@@ -498,6 +512,15 @@ function ModelCard({
                   >
                     🔄 换码
                   </button>
+                  {inst.activation_code && inst.status === 'unclaimed' && (
+                    <button
+                      onClick={() => onShowQr(inst.activation_code!, inst.nfc_id, inst.model_name)}
+                      className="text-indigo-600 hover:text-indigo-800 text-sm mr-3"
+                      title="显示 QR 码"
+                    >
+                      📱 QR
+                    </button>
+                  )}
                   <button
                     onClick={() => onDelete(inst)}
                     className="text-red-500 hover:text-red-700 text-sm"
@@ -622,6 +645,86 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <label className="text-xs text-gray-500 mb-1 block">{label}</label>
       {children}
+    </div>
+  );
+}
+
+const CLAIM_URL_BASE = 'https://soa.laziestlife.com/epet/?id=';
+
+function QRCodesModal({
+  codes,
+  onClose,
+}: {
+  codes: { code: string; nfcId: string; modelName: string }[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">📱 激活码 QR 码</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        </div>
+
+        {codes.length === 1 ? (
+          /* 单个 QR 码：大图展示 */
+          <div className="flex flex-col items-center gap-4">
+            <div className="bg-white p-4 border-2 border-gray-200 rounded-xl">
+              <QRCodeSVG
+                value={`${CLAIM_URL_BASE}${codes[0].code}`}
+                size={256}
+                level="M"
+                includeMargin
+              />
+            </div>
+            <div className="text-center">
+              <div className="font-medium text-gray-800">{codes[0].modelName}</div>
+              <div className="text-xs text-gray-400 mb-1">nfc={codes[0].nfcId}</div>
+              <code
+                className="text-xs bg-amber-50 text-amber-800 px-3 py-1 rounded font-mono cursor-pointer hover:bg-amber-100"
+                onClick={() => navigator.clipboard.writeText(codes[0].code)}
+                title="点击复制"
+              >
+                🔑 {codes[0].code}
+              </code>
+            </div>
+          </div>
+        ) : (
+          /* 批量 QR 码：网格展示 */
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {codes.map((c, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                <QRCodeSVG
+                  value={`${CLAIM_URL_BASE}${c.code}`}
+                  size={140}
+                  level="M"
+                  includeMargin
+                />
+                <div className="text-center">
+                  <div className="text-xs font-medium text-gray-700">{c.modelName}</div>
+                  <div className="text-[10px] text-gray-400">nfc={c.nfcId}</div>
+                  <code
+                    className="text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded font-mono cursor-pointer hover:bg-amber-100 block mt-1 max-w-[140px] truncate"
+                    onClick={() => navigator.clipboard.writeText(c.code)}
+                    title={`点击复制: ${c.code}`}
+                  >
+                    {c.code}
+                  </code>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 pt-3 border-t text-center">
+          <p className="text-xs text-gray-400">
+            扫码跳转认领页面: {CLAIM_URL_BASE}&lt;激活码&gt;
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

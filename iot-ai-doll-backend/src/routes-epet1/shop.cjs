@@ -77,6 +77,32 @@ module.exports = (pool) => {
         }
       }
 
+      // 成长等级检查：用户拥有的任意宠物中，是否有达到要求的等级
+      if (shopItem.growth_level_required && shopItem.growth_level_required > 1) {
+        const petLevelRes = await client.query(
+          `SELECT 1 FROM pet_instances WHERE user_id = $1 AND growth_level >= $2 AND status != 'merged' LIMIT 1`,
+          [user_id, shopItem.growth_level_required]
+        );
+        if (petLevelRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ success: false, error: `需要宠物成长达到 Lv.${shopItem.growth_level_required} 才能购买` });
+        }
+      }
+
+      // 特定宠物模型检查：用户需要拥有指定宠物模型
+      if (shopItem.pet_model_id_required) {
+        const petModelRes = await client.query(
+          `SELECT 1 FROM pet_instances WHERE user_id = $1 AND pet_model_id = $2 AND status != 'merged' LIMIT 1`,
+          [user_id, shopItem.pet_model_id_required]
+        );
+        if (petModelRes.rows.length === 0) {
+          const modelRes = await client.query('SELECT name FROM pet_models WHERE id = $1', [shopItem.pet_model_id_required]);
+          const modelName = modelRes.rows[0]?.name || `#${shopItem.pet_model_id_required}`;
+          await client.query('ROLLBACK');
+          return res.status(400).json({ success: false, error: `需要拥有「${modelName}」才能购买` });
+        }
+      }
+
       // 检查库存
       if (shopItem.stock === 0) {
         await client.query('ROLLBACK');

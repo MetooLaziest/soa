@@ -23,7 +23,7 @@ function getSeriesList(pool) {
           COUNT(CASE WHEN pi.id IS NOT NULL THEN 1 END) as collected_count
         FROM pet_series s
         LEFT JOIN series_pets sp ON s.id = sp.series_id
-        LEFT JOIN pet_instances pi ON sp.model_id = pi.pet_model_id AND pi.user_id = $1
+        LEFT JOIN pet_instances pi ON sp.model_id = pi.pet_model_id AND pi.user_id = $1 AND pi.status != 'merged'
         WHERE s.is_visible = true
         GROUP BY s.id, s.name, s.banner_image_url, s.theme_color, s.display_order,
                  s.silhouette_image_url, s.background_style
@@ -80,10 +80,11 @@ function getSeriesDetail(pool) {
           pm.rarity,
           pi.id IS NOT NULL as is_collected,
           pi.growth_level,
+          pi.growth_exp,
           (tr.id IS NOT NULL) as is_traveling
         FROM series_pets sp
         JOIN pet_models pm ON sp.model_id = pm.id
-        LEFT JOIN pet_instances pi ON pm.id = pi.pet_model_id AND pi.user_id = $1
+        LEFT JOIN pet_instances pi ON pm.id = pi.pet_model_id AND pi.user_id = $1 AND pi.status != 'merged'
         LEFT JOIN travel_records tr ON tr.pet_instance_id = pi.id AND tr.status = 'traveling'
         WHERE sp.series_id = $2
         ORDER BY sp.display_order ASC, sp.model_id ASC
@@ -109,6 +110,7 @@ function getSeriesDetail(pool) {
           rarity: row.rarity,
           isCollected: row.is_collected,
           growthLevel: row.growth_level,
+          growthExp: row.growth_exp,
           isTraveling: row.is_traveling,
         })),
         progress: {

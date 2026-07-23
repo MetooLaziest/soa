@@ -35,6 +35,51 @@
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.9); }
   to { opacity: 1; transform: scale(1); }
+@keyframes emotionFloat {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  60%  { opacity: 1; transform: translateY(-28px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-48px) scale(0.9); }
+}
+@keyframes toastFade {
+  0%   { opacity: 0; transform: translate(-50%, 10px); }
+  15%  { opacity: 1; transform: translate(-50%, 0); }
+  85%  { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+
+/* ─── Toast ──────────────────────────── */
+.toast-popup {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  background: rgba(0,0,0,0.78);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 9999;
+  pointer-events: none;
+  animation: toastFade 2s ease forwards;
+  white-space: nowrap;
+}
+
+/* ─── Emotion Float (+N / -N) ──────────────────── */
+.emotion-float {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  font-weight: 800;
+  pointer-events: none;
+  z-index: 10000;
+  animation: emotionFloat 1.2s ease-out forwards;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.emotion-float.positive { color: #FFD700; }
+.emotion-float.negative { color: #FF6B6B; }
 }
 
 body {

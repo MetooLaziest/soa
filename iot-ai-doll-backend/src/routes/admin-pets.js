@@ -37,7 +37,7 @@ router.get('/', async (_req, res) => {
       `SELECT pi.id, pi.user_id, pi.pet_model_id, pi.nfc_id, pi.nickname,
               pi.growth_level, pi.growth_exp, pi.total_interactions,
               pi.total_travels, pi.total_postcards, pi.created_at, pi.updated_at,
-              pi.activation_code, pi.status,
+              pi.activation_code, pi.status, pi.merged_into_id,
               u.nickname as user_nickname,
               pm.name as model_name, pm.image_url as model_image,
               yp.position as yard_position, yp.is_active as in_yard,
@@ -78,7 +78,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const r = await poolEpet1.query(
-      `SELECT pi.*, pi.activation_code, pi.status, pm.name as model_name, pm.image_url as model_image,
+      `SELECT pi.*, pi.activation_code, pi.status, pi.merged_into_id, pm.name as model_name, pm.image_url as model_image,
               pm.rarity, pm.mbti, pm.personality_template, pm.display_order,
               u.nickname as user_nickname,
               yp.position as yard_position
@@ -154,9 +154,9 @@ router.post('/', async (req, res) => {
         error: `nfc_id ${nfc_id} 不在 model "${m.name}" 的范围 [${m.nfc_range_start}, ${m.nfc_range_end}]`
       });
     }
-    // 每个用户每个 model 最多 1 只
+    // 每个用户每个 model 最多 1 只（排除已合并的）
     const dup = await client.query(
-      'SELECT id FROM pet_instances WHERE user_id = $1 AND pet_model_id = $2',
+      'SELECT id FROM pet_instances WHERE user_id = $1 AND pet_model_id = $2 AND status != \'merged\'',
       [user_id, pet_model_id]
     );
     if (dup.rowCount > 0) {
