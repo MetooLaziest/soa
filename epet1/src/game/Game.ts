@@ -1,4 +1,4 @@
-import { Application, Container, Sprite, Assets, Text, Graphics, Texture } from 'pixi.js';
+import { Application, Container, Sprite, Assets, Text, Graphics, Texture, Rectangle } from 'pixi.js';
 import { PetEntity, type ScheduledBehavior } from '../entities/Pet';
 import { collisionMap, type SceneObjectData, computeCollisionBounds, fillScanlineHoles } from './CollisionMap';
 import { useGameStore } from './GameState';
@@ -152,6 +152,31 @@ export class Game {
     }
   }
 
+  /**
+   * 逐像素命中检测：检查屏幕坐标 (cx,cy) 是否命中 sprite 的不透明像素
+   * 1) AABB 预检测（快速排除）
+   * 2) extract.pixels() 读取 1×1 像素区域
+   * 3) alpha > 30 视为命中
+   */
+  private _hitTestPixel(sprite: Sprite, cx: number, cy: number): boolean {
+    const bounds = sprite.getBounds();
+    // AABB 快速排除
+    if (cx < bounds.x || cx > bounds.x + bounds.width ||
+        cy < bounds.y || cy > bounds.y + bounds.height) {
+      return false;
+    }
+    if (!this.app?.renderer) return true; // fallback to AABB
+    try {
+      const result = this.app.renderer.extract.pixels({
+        target: sprite,
+        frame: new Rectangle(cx - bounds.x, cy - bounds.y, 1, 1),
+      });
+      return result.pixels[3] > 30;
+    } catch {
+      return true; // extract 失败时 fallback 到 AABB
+    }
+  }
+
   /** Handle click on empty yard area — move the nearest pet to click position, or place furniture */
   private _handleStageClick(cx: number, cy: number): void {
     // If in furniture placement mode and preview is showing (confirm/cancel)
@@ -165,11 +190,11 @@ export class Game {
       return;
     }
 
-    // Check if click hit a pet container — if so, ignore (pet tap handled separately)
+    // Check if click hit a pet's opaque pixel — if so, ignore (pet tap handled separately)
     for (const [petId, container] of this.petContainers) {
-      const b = container.getBounds();
-      if (cx >= b.x && cx <= b.x + b.width && cy >= b.y && cy <= b.y + b.height) {
-        return; // clicked on a pet, don't move
+      const bodySprite = container.getChildByLabel('body') as Sprite | null;
+      if (bodySprite && this._hitTestPixel(bodySprite, cx, cy)) {
+        return; // clicked on a pet's opaque pixel, don't move
       }
     }
 
@@ -377,8 +402,11 @@ export class Game {
       bodySprite.eventMode = 'static';
       bodySprite.cursor = 'pointer';
 
-      // Tap handler
+      // Tap handler — only trigger on opaque pixels (transparent → let event bubble to stage for click-to-move)
       bodySprite.on('pointerdown', (e: any) => {
+        if (!this._hitTestPixel(bodySprite, e.globalX, e.globalY)) {
+          return; // transparent pixel → don't intercept, let stage handle click-to-move
+        }
         e.stopPropagation?.(); // prevent stage click
         console.log('[Game] Pet tapped:', petId);
         this._callbacks.onPetTap?.(petId, entity);
