@@ -127,6 +127,11 @@ app.use('/api/epet1/cooking',     jwtAuth, epetCookingRoutes);
 app.use('/api/epet1/collection',  jwtAuth, requireCjs('./routes-epet1/collection.cjs')(poolEpet1));
 app.use('/api/epet1/user/settings', jwtAuth, requireCjs('./routes-epet1/user-settings.cjs')(poolEpet1));
 
+// ========== API 404 拦截：未匹配的 /api/* 路由返回 JSON，而非 SPA fallback ==========
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
+});
+
 // 静态文件服务（前端构建产物）
 app.use(express.static(join(__dirname, '../frontend')));
 app.get('*', (req, res) => {
