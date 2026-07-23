@@ -425,8 +425,6 @@ export class Game {
   async updatePetOutfits(petId: string, equipped: { shopItemId: number; animations: Record<string, string[]>; anchorOffset?: [number, number] } | null): Promise<void> {
     this.setPetOutfits(petId, equipped);
   }
-    this.setPetOutfits(petId, outfits);
-  }
 
   triggerShake(petId: string): void {
     this.petEntities.get(petId)?.triggerShake(Date.now());
