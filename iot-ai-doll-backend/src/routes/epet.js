@@ -586,7 +586,10 @@ router.post('/:id/chat', async (req, res) => {
     }
 
     // 6. 调用千问 API（带 temperature 参数）
-    const apiKey = 'sk-88531931fa2149028a52329c50c2d49e';
+    const apiKey = process.env.DASHSCOPE_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ success: false, error: 'DASHSCOPE_API_KEY 未配置' });
+    }
     const temperature = parseFloat(pet.temperature) || 0.3;  // 默认 0.3
     
     const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {

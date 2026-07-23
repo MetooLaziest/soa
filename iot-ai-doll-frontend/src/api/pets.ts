@@ -4,14 +4,6 @@
  */
 import client from './client';
 
-export interface PetSystemPrompt {
-  identity_anchor?: string;
-  core_personality?: string;
-  behavior_rules?: string;
-  skill_layer?: string;
-  [key: string]: any;
-}
-
 export interface Pet {
   nfc: string;
   display_name: string;
@@ -53,10 +45,10 @@ export async function getPet(nfc: string): Promise<{ pet: Pet }> {
   return res.data;
 }
 
-/** 更新宠物 system_prompt */
-export async function updatePetSystemPrompt(nfc: string, layers: PetSystemPrompt): Promise<void> {
-  await client.put(`/admin/pets/${nfc}`, { system_prompt_layers: layers });
-}
+/**
+ * updatePetSystemPrompt 已移除 — 后端 admin-pets.js 不处理 system_prompt_layers 字段
+ * 5层提示词编辑请使用 Companions.tsx 的 LayerEditModal → PUT /epet1/admin/pet-models/:id/layers
+ */
 
 /** 获取宠物 RAG 关联 */
 export async function getPetRAGs(nfc: string): Promise<{ data: Array<{ id: number; name: string }> }> {

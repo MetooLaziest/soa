@@ -105,7 +105,7 @@ export default function AIModels() {
       name: '阿里Qwen',
       provider: '阿里Qwen',
       model_id: '3487187',
-      api_key: 'sk-88531931fa2149028a52329c50c2d49e',
+      api_key: '',
       api_endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       max_tokens: 4096,
       temperature: 0.7,

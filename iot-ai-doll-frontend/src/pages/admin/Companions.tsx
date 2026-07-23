@@ -96,8 +96,8 @@ function LayerEditModal({ pet, onSave, onCancel }: {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch(`/api/epet1/admin/pet-models/${pet.modelId}/layers`);
-        const d = await r.json();
+        const r = await client.get(`/epet1/admin/pet-models/${pet.modelId}/layers`);
+        const d = r.data;
         if (d.success && d.data) {
           setLayers({
             identity_anchor: d.data.identity_anchor || '',
@@ -135,12 +135,8 @@ function LayerEditModal({ pet, onSave, onCancel }: {
     setTesting(true);
     setTestResult(null);
     try {
-      const r = await fetch('/api/epet1/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: 2, pet_instance_id: pet.petId, message: '你好！简单介绍一下自己吧~' }),
-      });
-      const d = await r.json();
+      const r = await client.post('/epet1/chat', { user_id: 2, pet_instance_id: pet.petId, message: '你好！简单介绍一下自己吧~' });
+      const d = r.data;
       setTestResult(d.success ? d.reply : `错误：${d.error || '未知'}`);
     } catch (e: any) {
       setTestResult(`网络错误：${e.message}`);
@@ -220,12 +216,26 @@ function LayerEditModal({ pet, onSave, onCancel }: {
             <p className="text-xs text-orange-300/80">{LAYER_TABS[activeTab].hint}</p>
           </div>
 
-          <textarea
-            value={layers[currentKey] as string}
-            onChange={e => handleChange(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-3 text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-orange-500/60 focus:bg-slate-800/80 transition resize-y min-h-[200px] font-mono leading-relaxed"
-            placeholder="在此编写该层的内容..."
-          />
+          {activeTab === 4 ? (
+            <>
+              <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 mb-2">
+                <p className="text-xs text-blue-300/80">🔒 L5 上下文记忆层为运行时自动生成，此处仅供查看。系统会根据宠物实例数据（用户名、情绪状态等）动态填充模板变量。</p>
+              </div>
+              <textarea
+                value={layers[currentKey] as string}
+                readOnly
+                className="w-full rounded-xl border border-white/10 bg-slate-800/60 px-4 py-3 text-sm text-gray-400 placeholder-gray-600 outline-none resize-y min-h-[200px] font-mono leading-relaxed cursor-not-allowed"
+                placeholder="L5 由系统自动生成，无需手动编辑..."
+              />
+            </>
+          ) : (
+            <textarea
+              value={layers[currentKey] as string}
+              onChange={e => handleChange(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-slate-800 px-4 py-3 text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-orange-500/60 focus:bg-slate-800/80 transition resize-y min-h-[200px] font-mono leading-relaxed"
+              placeholder="在此编写该层的内容..."
+            />
+          )}
 
           {/* 预览 */}
           <details className="rounded-xl border border-white/5 bg-slate-800/40 overflow-hidden">
@@ -308,8 +318,8 @@ export default function Companions() {
   const loadPets = async () => {
     setPetsLoading(true);
     try {
-      const r = await fetch('/api/epet/monsters');
-      const d = await r.json();
+      const r = await client.get('/epet/monsters');
+      const d = r.data;
       const petList: EpetPet[] = (d.success ? (d.monsters || []) : []).map((p: any) => ({
         petId: p.petId,
         displayName: p.displayName,
@@ -347,15 +357,8 @@ export default function Companions() {
 
   // ===== 保存5层提示词 =====
   const handleLayerSave = async (modelId: number, layers: PromptLayers) => {
-    const r = await fetch(`/api/epet1/admin/pet-models/${modelId}/layers`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...layers,
-        prompt_version: 2,  // 保存即激活 v2
-      }),
-    });
-    const d = await r.json();
+    const r = await client.put(`/epet1/admin/pet-models/${modelId}/layers`, layers);
+    const d = r.data;
     if (!d.success) throw new Error(d.error || '保存失败');
     setEditingPetId(null);
   };
@@ -482,11 +485,10 @@ export default function Companions() {
                         formData.append('modelId', String(p.modelId));
                         
                         try {
-                          const r = await fetch('/api/pet-images/upload', {
-                            method: 'POST',
-                            body: formData,
+                          const r = await client.post('/pet-images/upload', formData, {
+                            headers: { 'Content-Type': 'multipart/form-data' },
                           });
-                          const d = await r.json();
+                          const d = r.data;
                           if (d.success) {
                             alert('上传成功！');
                             loadPets();
