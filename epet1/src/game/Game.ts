@@ -155,8 +155,9 @@ export class Game {
   /**
    * 逐像素命中检测：检查屏幕坐标 (cx,cy) 是否命中 sprite 的不透明像素
    * 1) AABB 预检测（快速排除）
-   * 2) extract.pixels() 读取 1×1 像素区域
-   * 3) alpha > 30 视为命中
+   * 2) toLocal() 转换为精灵局部坐标（extract.pixels frame 使用局部坐标系）
+   * 3) extract.pixels() 读取 1×1 像素区域
+   * 4) alpha > 30 视为命中
    */
   private _hitTestPixel(sprite: Sprite, cx: number, cy: number): boolean {
     const bounds = sprite.getBounds();
@@ -167,9 +168,12 @@ export class Game {
     }
     if (!this.app?.renderer) return true; // fallback to AABB
     try {
+      // extract.pixels() 的 frame 参数使用精灵局部坐标系，
+      // 必须用 toLocal() 将全局坐标转换，不能直接用 bounds 偏移
+      const local = sprite.toLocal({ x: cx, y: cy } as any);
       const result = this.app.renderer.extract.pixels({
         target: sprite,
-        frame: new Rectangle(cx - bounds.x, cy - bounds.y, 1, 1),
+        frame: new Rectangle(local.x, local.y, 1, 1),
       });
       return result.pixels[3] > 30;
     } catch {
