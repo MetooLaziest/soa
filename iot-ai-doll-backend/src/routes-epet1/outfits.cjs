@@ -179,8 +179,8 @@ module.exports = (pool) => {
     try {
       const petModelId = parseInt(req.params.petModelId);
       const result = await pool.query(
-        `SELECT si.id, si.name, si.image_url, si.description, si.equip_slot, si.price,
-                si.emotion_price, si.shop_tab,
+        `SELECT si.id, si.name, si.image_url, si.description, si.equip_slot, si.price_emotion,
+                si.price_real, si.shop_tab,
                 opm.animations, opm.anchor_override
          FROM outfit_pet_models opm
          JOIN shop_items si ON si.id = opm.outfit_shop_item_id

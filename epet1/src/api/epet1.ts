@@ -800,8 +800,8 @@ export interface OutfitItem {
   equip_slot: string;
   item_category: string;
   quantity?: number;
-  price?: number;
-  emotion_price?: number;
+  price_emotion?: number;
+  price_real?: number;
 }
 
 export interface EquippedOutfit {

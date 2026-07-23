@@ -19,8 +19,8 @@ interface OutfitItem {
   description: string;
   image_url: string;
   equip_slot: string;
-  price: number;
-  emotion_price: number;
+  price_emotion: number;
+  price_real: number;
   shop_tab: string;
   stock: number;
   is_active: boolean;
@@ -97,7 +97,7 @@ export default function OutfitAdmin() {
     setEditing(item);
     setFormName(item.name); setFormDesc(item.description || '');
     setFormImageUrl(item.image_url || ''); setFormSlot(item.equip_slot);
-    setFormPrice(item.price); setFormEmotionPrice(item.emotion_price);
+    setFormPrice(item.price_emotion); setFormEmotionPrice(item.price_real);
     setFormStock(item.stock);
     setShowForm(true);
   };
@@ -140,13 +140,13 @@ export default function OutfitAdmin() {
       if (editing) {
         await client.put(`/admin/outfits/${editing.id}`, {
           name: formName, description: formDesc, image_url: formImageUrl,
-          equip_slot: formSlot, price: formPrice, emotion_price: formEmotionPrice,
+          equip_slot: formSlot, price_emotion: formPrice, price_real: formEmotionPrice,
           stock: formStock,
         });
       } else {
         await client.post('/admin/outfits', {
           name: formName, description: formDesc, image_url: formImageUrl,
-          equip_slot: formSlot, price: formPrice, emotion_price: formEmotionPrice,
+          equip_slot: formSlot, price_emotion: formPrice, price_real: formEmotionPrice,
           stock: formStock, shop_tab: 'outfit',
         });
       }
@@ -368,7 +368,7 @@ export default function OutfitAdmin() {
                   <span className="font-medium text-white text-sm">{item.name}</span>
                   <div className="text-xs text-gray-500">
                     {EQUIP_SLOTS.find(s => s.id === item.equip_slot)?.name || item.equip_slot}
-                    {' · '}💛{item.emotion_price || item.price}
+                    {' · '}💛{item.price_emotion}
                     {item.stock >= 0 && ` · 库存:${item.stock}`}
                     {item.compatible_model_count > 0 && ` · 兼容${item.compatible_model_count}个型号`}
                     {!item.is_active && ' · ❌已下架'}
