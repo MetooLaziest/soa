@@ -34,12 +34,15 @@ import {
   fetchUserSettings,
   updateUserSettings,
   authFetch,
+  fetchPetModels,
 } from './api/epet1';
-import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture, PetSeries, SeriesDetail } from './api/epet1';
+import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture, PetSeries, SeriesDetail, UnlockConfig } from './api/epet1';
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
 import IntroVideoPlayer from './components/IntroVideoPlayer';
 import { LivePage } from './components/LivePage';
 import { IconImg } from './components/IconImg';
+import { PetActionOverlay } from './components/PetActionOverlay';
+import { OutfitPanel } from './components/OutfitPanel';
 import LoginOverlay from './components/LoginOverlay';
 import { useAuthStore } from './store/authStore';
 import './App.css';
@@ -1743,7 +1746,7 @@ function HomePanel() {
   const { emotionPoints, yardPets, setChatPetId, setActiveModal, activeTravel,
           userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture,
           addYardFurniture, removeYardFurniture, removingFurnitureMode, setRemovingFurnitureMode,
-          setIntroVideoData } = useGameStore();
+          addEmotionPoints, showEmotionFloat, setIntroVideoData } = useGameStore();
   const [toast, setToast] = useState('');
   const [otherExpanded, setOtherExpanded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1779,21 +1782,10 @@ function HomePanel() {
         if (!pet) return;
         console.log('[App] onPetTap:', petId, pet);
         setChatPetId(pet.id);
-        // 先检查是否有开场视频
-        (async () => {
-          try {
-            const res = await authFetch(`/api/epet1/intro-video/match?pet_model_id=${pet.pet_model_id}&growth_level=${pet.growth_level}`);
-            const data = await res.json();
-            if (data.success && data.video) {
-              setIntroVideoData(data.video);
-              setActiveModal('intro-video');
-            } else {
-              setActiveModal('chat');
-            }
-          } catch {
-            setActiveModal('chat');
-          }
-        })();
+        // 显示装扮/旅行选项浮层
+        const pos = gameRef.current?.getPetScreenPos(petId);
+        setTappedPetPos(pos || null);
+        setShowPetActionOverlay(true);
       },
       onReady() {
         setGameReady(true);
@@ -1869,7 +1861,7 @@ function HomePanel() {
           .then((res) => {
             gameRef.current?.removeEmotionDrop(dropId);
             addEmotionPoints(res.amount);
-            useGameStore.getState().showEmotionFloat(res.amount);
+            showEmotionFloat(res.amount);
           })
           .catch((e: any) => {
             console.error('[App] collectEmotionDrop error:', e);
@@ -2236,18 +2228,21 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 // ─── App 根组件 ──────────────────────────────────────────────
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, loading, activeModal, setActiveModal,
-          setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId,
+          setYardFurniture, introVideoData, setIntroVideoData, match3LevelId, userId, chatPetId, setChatPetId,
           fullscreenVideoUrl, setFullscreenVideoUrl, homeMode, setHomeMode, setUserSettings, emotionPoints,
-          emotionFloats, removeEmotionFloat, activeTravel } = useGameStore();
+          emotionFloats, removeEmotionFloat, activeTravel, petModels, setPetModels,
+          unlockPromptData, setUnlockPromptData,
+          tappedPetPos, setTappedPetPos, showPetActionOverlay, setShowPetActionOverlay,
+          yardPets } = useGameStore();
   const { isAuthenticated, userId: authUserId, loading: authLoading, initAuth } = useAuthStore();
 
   const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [levelUpAnim, setLevelUpAnim] = useState<{ oldLevel: number; newLevel: number; petName: string } | null>(null);
+  const [levelUpAnim, setLevelUpAnim] = useState<{ oldLevel: number; newLevel: number; petName: string; petModelId?: number } | null>(null);
 
   /** 触发升级动画的全局方法 */
-  const showLevelUp = (oldLevel: number, newLevel: number, petName: string) => {
-    setLevelUpAnim({ oldLevel, newLevel, petName });
+  const showLevelUp = (oldLevel: number, newLevel: number, petName: string, petModelId?: number) => {
+    setLevelUpAnim({ oldLevel, newLevel, petName, petModelId });
   };
 
   // 旅行归来检测：当 activeTravel 存在且接近到期时轮询，归来时刷新数据并检测升级
@@ -2274,7 +2269,7 @@ export default function App() {
           const oldLevel = prevTravelRef.current.growth_level || 1;
           const returnedPet = allPets.find((p: any) => p.id === returnedPetId);
           if (returnedPet && returnedPet.growth_level > oldLevel) {
-            showLevelUp(oldLevel, returnedPet.growth_level, returnedPet.nickname || '宠物');
+            showLevelUp(oldLevel, returnedPet.growth_level, returnedPet.nickname || '宠物', returnedPet.pet_model_id);
           }
           prevTravelRef.current = null;
         }
@@ -2323,16 +2318,18 @@ export default function App() {
           setHomeMode(localMode || 'yard');
         }
 
-        const [yardPets, allPets, travel, yardFurn] = await Promise.all([
+        const [yardPets, allPets, travel, yardFurn, models] = await Promise.all([
           fetchYardPets(uid),
           fetchUserPets(uid),
           fetchTravelStatus(uid),
           fetchYardFurniture(uid),
+          fetchPetModels(),
         ]);
         setYardPets(yardPets);
         setAllPets(allPets);
         setActiveTravel(travel);
         setYardFurniture(yardFurn);
+        setPetModels(models);
 
         // 加载图标到 Zustand store (yard/live 共用, 不管 homeMode)
         try {
@@ -2379,7 +2376,7 @@ export default function App() {
         const result = await claimPet(pendingCode);
         const pet = result.pet;
         if (result.merged && result.growth?.leveled_up) {
-          showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || '宠物');
+          showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || '宠物', pet.pet_model_id);
           setClaimResult({ ok: true, msg: `🔄 重复宠物，已合并喂经验 +100！升级了！` });
         } else if (result.merged) {
           setClaimResult({ ok: true, msg: `🔄 重复宠物，已合并喂经验 +100` });
@@ -2497,7 +2494,7 @@ export default function App() {
               const result = await activatePet(userId, nfcId.trim());
               const pet = result.pet;
               if (result.merged && result.growth?.leveled_up) {
-                showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || '宠物');
+                showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || '宠物', pet.pet_model_id);
               }
               alert(result.merged ? `🔄 重复宠物，已合并喂经验！` : `🎉 激活成功！${pet.nickname} 加入藏品库！`);
               setActiveModal('collection');
@@ -2603,9 +2600,96 @@ export default function App() {
           oldLevel={levelUpAnim.oldLevel}
           newLevel={levelUpAnim.newLevel}
           petName={levelUpAnim.petName}
-          onDone={() => setLevelUpAnim(null)}
+          onDone={() => {
+            // 升级动画播完 → 检查 growth_unlock_config
+            if (levelUpAnim.petModelId) {
+              const model = petModels.find(m => m.id === levelUpAnim.petModelId);
+              const config = model?.growth_unlock_config?.[String(levelUpAnim.newLevel)];
+              if (config && (config.shop_items?.length || config.dialog_topics?.length || config.videos?.length || config.level_label)) {
+                setUnlockPromptData({ level: levelUpAnim.newLevel, config, petName: levelUpAnim.petName });
+              }
+            }
+            setLevelUpAnim(null);
+          }}
         />
       )}
+      {/* 升级解锁提示 */}
+      {unlockPromptData && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9500,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.5)', animation: 'fadeIn 0.3s ease',
+        }} onClick={() => setUnlockPromptData(null)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: 16, padding: '28px 24px', width: 320,
+            textAlign: 'center', animation: 'scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#333', marginBottom: 4 }}>
+              {unlockPromptData.petName} 升级解锁!
+            </div>
+            <div style={{ fontSize: 14, color: '#888', marginBottom: 16 }}>
+              Lv.{unlockPromptData.level}
+              {unlockPromptData.config.level_label ? ` · ${unlockPromptData.config.level_label}` : ''}
+            </div>
+            <div style={{ textAlign: 'left', fontSize: 14, color: '#555', lineHeight: 2 }}>
+              {unlockPromptData.config.shop_items && unlockPromptData.config.shop_items.length > 0 && (
+                <div>🛒 解锁新商品 {unlockPromptData.config.shop_items.length} 件</div>
+              )}
+              {unlockPromptData.config.dialog_topics && unlockPromptData.config.dialog_topics.length > 0 && (
+                <div>💬 解锁新话题 {unlockPromptData.config.dialog_topics.length} 个</div>
+              )}
+              {unlockPromptData.config.videos && unlockPromptData.config.videos.length > 0 && (
+                <div>🎬 解锁新视频 {unlockPromptData.config.videos.length} 个</div>
+              )}
+            </div>
+            <button onClick={() => setUnlockPromptData(null)} style={{
+              marginTop: 20, padding: '10px 40px', borderRadius: 24, border: 'none',
+              background: 'linear-gradient(135deg, #FFD700, #FFA500)', color: '#fff',
+              fontSize: 16, fontWeight: 700, cursor: 'pointer',
+            }}>
+              太棒了!
+            </button>
+          </div>
+        </div>
+      )}
+      {/* 庭院点击机伴 → 装扮/旅行选项浮层 */}
+      {showPetActionOverlay && tappedPetPos && chatPetId && (() => {
+        const pet = yardPets.find(p => p.id === chatPetId);
+        if (!pet) return null;
+        return createPortal(
+          <PetActionOverlay
+            petId={pet.id}
+            petName={pet.nickname || pet.name}
+            position={tappedPetPos}
+            onOutfit={() => {
+              setShowPetActionOverlay(false);
+              setActiveModal('outfit');
+            }}
+            onTravel={() => {
+              setShowPetActionOverlay(false);
+              setActiveModal('travel');
+            }}
+            onClose={() => setShowPetActionOverlay(false)}
+          />,
+          document.body
+        );
+      })()}
+      {/* 装扮面板 (outfit modal) */}
+      {activeModal === 'outfit' && chatPetId && (() => {
+        const pet = yardPets.find(p => p.id === chatPetId);
+        if (!pet) return null;
+        return createPortal(
+          <OutfitPanel
+            petId={pet.id}
+            petModelId={pet.pet_model_id}
+            petName={pet.nickname || pet.name}
+            onClose={() => setActiveModal(null)}
+            gameRef={gameRef.current}
+          />,
+          document.body
+        );
+      })()}
     </div>
   );
 }
