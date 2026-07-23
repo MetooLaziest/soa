@@ -2319,15 +2319,16 @@ export default function App() {
           setHomeMode(localMode || 'yard');
         }
 
-        // 并行加载所有数据（含情绪值）
+        // 并行加载所有数据（含情绪值）— 每条单独 .catch 防止单项失败拖垮整组
         const [yardPets, allPets, travel, yardFurn, models, emotionPts] = await Promise.all([
-          fetchYardPets(uid),
-          fetchUserPets(uid),
-          fetchTravelStatus(uid),
-          fetchYardFurniture(uid),
-          fetchPetModels(),
-          fetchEmotionPoints(uid).catch(() => 0),
+          fetchYardPets(uid).catch(e => { console.error('fetchYardPets failed:', e); return []; }),
+          fetchUserPets(uid).catch(e => { console.error('fetchUserPets failed:', e); return []; }),
+          fetchTravelStatus(uid).catch(e => { console.error('fetchTravelStatus failed:', e); return null; }),
+          fetchYardFurniture(uid).catch(e => { console.error('fetchYardFurniture failed:', e); return []; }),
+          fetchPetModels().catch(e => { console.error('fetchPetModels failed:', e); return []; }),
+          fetchEmotionPoints(uid).catch(e => { console.error('❌ fetchEmotionPoints failed:', e); return 0; }),
         ]);
+        console.log('🔑 [emotion-debug] uid=', uid, 'emotionPts=', emotionPts);
         setYardPets(yardPets);
         setAllPets(allPets);
         setActiveTravel(travel);

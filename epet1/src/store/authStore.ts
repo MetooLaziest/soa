@@ -46,6 +46,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
 
+    // 非演示模式：清除可能残留的 demo 标记，防止 authParams() 误走 demo bypass
+    localStorage.removeItem(DEMO_KEY);
+
     const saved = localStorage.getItem(TOKEN_KEY);
     if (!saved) {
       set({ loading: false });
@@ -99,6 +102,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   _setAuth: (token, userId, phone, isDemo = false) => {
     localStorage.setItem(TOKEN_KEY, token);
+    // 真实用户登录/注册时，清除可能残留的 demo 标记
+    if (!isDemo) localStorage.removeItem(DEMO_KEY);
     set({ token, userId, phone, isDemo, isAuthenticated: true });
   },
 }));

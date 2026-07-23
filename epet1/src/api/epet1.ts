@@ -194,8 +194,15 @@ export async function fetchUserPets(userId: number): Promise<PetInstance[]> {
 
 /** 获取用户情绪值 */
 export async function fetchEmotionPoints(userId: number): Promise<number> {
-  const res = await get<any>(`/emotion/${userId}`);
-  return res.emotion_points ?? 0;
+  console.log('🔑 [emotion-debug] fetchEmotionPoints called, userId=', userId, 'demo=', !!localStorage.getItem('epet1_demo'), 'hasToken=', !!localStorage.getItem('epet1_token'));
+  try {
+    const res = await get<any>(`/emotion/${userId}`);
+    console.log('🔑 [emotion-debug] emotion API response:', JSON.stringify(res));
+    return res.emotion_points ?? 0;
+  } catch (e) {
+    console.error('🔑 [emotion-debug] emotion API threw:', e);
+    throw e;
+  }
 }
 
 /** NFC 激活宠物 — 返回 pet + 合并/升级信息 */
