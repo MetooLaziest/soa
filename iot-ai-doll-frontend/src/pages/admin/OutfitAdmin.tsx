@@ -1,15 +1,8 @@
 /**
- * 装扮管理 - Admin CRUD + 机伴兼容绑定 + 动画帧上传
+ * 装扮管理 - Admin CRUD + 机伴兼容绑定 + 动画帧上传 (套装模式)
  */
 import { useState, useEffect } from 'react';
 import client from '../../api/client';
-
-const EQUIP_SLOTS = [
-  { id: 'hat', name: '🎩 头饰' },
-  { id: 'accessory', name: '💍 配饰' },
-  { id: 'back', name: '🦋 背饰' },
-  { id: 'body', name: '👗 身体' },
-];
 
 const ANIM_STATES = ['idle', 'walk', 'eat', 'shake', 'sleep', 'work'];
 
@@ -18,7 +11,6 @@ interface OutfitItem {
   name: string;
   description: string;
   image_url: string;
-  equip_slot: string;
   price_emotion: number;
   price_real: number;
   shop_tab: string;
@@ -62,7 +54,6 @@ export default function OutfitAdmin() {
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formImageUrl, setFormImageUrl] = useState('');
-  const [formSlot, setFormSlot] = useState('hat');
   const [formPrice, setFormPrice] = useState(0);
   const [formEmotionPrice, setFormEmotionPrice] = useState(0);
   const [formStock, setFormStock] = useState(-1);
@@ -89,14 +80,14 @@ export default function OutfitAdmin() {
 
   const resetForm = () => {
     setFormName(''); setFormDesc(''); setFormImageUrl('');
-    setFormSlot('hat'); setFormPrice(0); setFormEmotionPrice(0); setFormStock(-1);
+    setFormPrice(0); setFormEmotionPrice(0); setFormStock(-1);
     setEditing(null); setShowForm(false);
   };
 
   const openEdit = (item: OutfitItem) => {
     setEditing(item);
     setFormName(item.name); setFormDesc(item.description || '');
-    setFormImageUrl(item.image_url || ''); setFormSlot(item.equip_slot);
+    setFormImageUrl(item.image_url || '');
     setFormPrice(item.price_emotion); setFormEmotionPrice(item.price_real);
     setFormStock(item.stock);
     setShowForm(true);
@@ -135,18 +126,18 @@ export default function OutfitAdmin() {
   };
 
   const save = async () => {
-    if (!formName || !formSlot) return;
+    if (!formName) return;
     try {
       if (editing) {
         await client.put(`/admin/outfits/${editing.id}`, {
           name: formName, description: formDesc, image_url: formImageUrl,
-          equip_slot: formSlot, price_emotion: formPrice, price_real: formEmotionPrice,
+          price_emotion: formPrice, price_real: formEmotionPrice,
           stock: formStock,
         });
       } else {
         await client.post('/admin/outfits', {
           name: formName, description: formDesc, image_url: formImageUrl,
-          equip_slot: formSlot, price_emotion: formPrice, price_real: formEmotionPrice,
+          price_emotion: formPrice, price_real: formEmotionPrice,
           stock: formStock, shop_tab: 'outfit',
         });
       }
@@ -246,8 +237,7 @@ export default function OutfitAdmin() {
         </button>
         <h2 className="text-xl font-bold text-white mb-1">👔 {detailOutfit.name}</h2>
         <p className="text-sm text-gray-500 mb-4">
-          {EQUIP_SLOTS.find(s => s.id === detailOutfit.equip_slot)?.name || detailOutfit.equip_slot}
-          {detailOutfit.model_names && ` · 兼容: ${detailOutfit.model_names}`}
+          {detailOutfit.model_names && `兼容: ${detailOutfit.model_names}`}
         </p>
 
         {/* Assign model */}
@@ -328,7 +318,7 @@ export default function OutfitAdmin() {
                 onChange={e => setEditingAnchor(e.target.value)}
                 rows={3}
                 className="w-full rounded bg-white/10 px-2 py-1 text-xs text-white font-mono outline-none"
-                placeholder='{"hat": [0.5, 0.3]}'
+                placeholder='{"offset": [0, -10]}'
               />
               <button onClick={() => saveAnchor(assign.pet_model_id)}
                 className="mt-1 rounded bg-yellow-600/80 px-3 py-1 text-xs text-white hover:bg-yellow-600">
@@ -367,8 +357,7 @@ export default function OutfitAdmin() {
                 <div>
                   <span className="font-medium text-white text-sm">{item.name}</span>
                   <div className="text-xs text-gray-500">
-                    {EQUIP_SLOTS.find(s => s.id === item.equip_slot)?.name || item.equip_slot}
-                    {' · '}💛{item.price_emotion}
+                    💛{item.price_emotion}
                     {item.stock >= 0 && ` · 库存:${item.stock}`}
                     {item.compatible_model_count > 0 && ` · 兼容${item.compatible_model_count}个型号`}
                     {!item.is_active && ' · ❌已下架'}
@@ -399,13 +388,6 @@ export default function OutfitAdmin() {
                 <label className="text-xs text-gray-400">名称</label>
                 <input value={formName} onChange={e => setFormName(e.target.value)}
                   className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-purple-500" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400">装备槽位</label>
-                <select value={formSlot} onChange={e => setFormSlot(e.target.value)}
-                  className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none">
-                  {EQUIP_SLOTS.map(s => <option key={s.id} value={s.id} className="bg-slate-800">{s.name}</option>)}
-                </select>
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">

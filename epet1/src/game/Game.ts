@@ -30,12 +30,11 @@ export interface PlacingFurnitureInfo {
   height: number;
 }
 
-/** Outfit slot data for rendering (set from App.tsx after equip/unequip) */
-export interface PetOutfitSlot {
+/** Outfit data for rendering (full-set mode: one outfit per pet, replaces body frames) */
+export interface PetOutfitData {
   shopItemId: number;
-  equipSlot: string;       // 'hat' | 'accessory' | 'back' | 'body'
   animations: Record<string, string[]>;  // {"idle":[url,...], "walk":[...]}
-  anchorOverride?: Record<string, number[]>;  // {"hat":[0.5,0.3]}
+  anchorOffset?: [number, number];        // [dx, dy] pixel offset for entire outfit
 }
 
 export interface PetEventCallbacks {
@@ -54,9 +53,9 @@ export class Game {
   canopyContainer: Container | null = null;     // Layer 2: always-on-top (tree canopies)
   petContainer: Container | null = null;        // sub-container inside sortedContainer
   furnitureContainer: Container | null = null;  // furniture sprites inside sortedContainer
-  petContainers = new Map<string, Container>();  // Each Container: shadow + back + body + hat + accessory
+  petContainers = new Map<string, Container>();  // Each Container: shadow + body
   petEntities = new Map<string, PetEntity>();
-  private _petOutfits = new Map<string, Record<string, PetOutfitSlot>>(); // petId → {slot → outfit data}
+  private _petOutfits = new Map<string, PetOutfitData | null>(); // petId → outfit data (套装模式: 1套/宠物)
   private _sceneObjects: SceneObjectData[] = [];  // from API
   private _sceneSprites: Sprite[] = [];           // rendered scene object sprites
   private _furnitureSprites = new Map<number, Container>(); // furniture id → container (sprite + remove btn)
@@ -360,7 +359,7 @@ export class Game {
       const tex = await this._loadTextureSafe(url);
       if (!tex) return;
 
-      // Create Container for multi-layer rendering (shadow + back + body + hat + accessory)
+      // Create Container for rendering (shadow + body; outfit replaces body frames in-place)
       const container = new Container();
       container.label = `pet-${petId}`;
       container.x = entity.x;
@@ -371,41 +370,20 @@ export class Game {
       shadow.label = 'shadow';
       container.addChild(shadow);
 
-      // [1] Back outfit slot
-      const backSprite = new Sprite(Texture.EMPTY);
-      backSprite.label = 'outfit-back';
-      backSprite.anchor.set(0.5, 0.85);
-      backSprite.visible = false;
-      container.addChild(backSprite);
-
-      // [2] Body (the main pet sprite)
+      // [1] Body (the main pet sprite; outfit frames swap this texture)
       const bodySprite = new Sprite(tex);
       bodySprite.anchor.set(0.5, 0.85); // anchor near feet
       bodySprite.label = 'body';
       bodySprite.eventMode = 'static';
       bodySprite.cursor = 'pointer';
 
-      // Tap handler — on body sprite (outfit sprites pass through)
+      // Tap handler
       bodySprite.on('pointerdown', (e: any) => {
         e.stopPropagation?.(); // prevent stage click
         console.log('[Game] Pet tapped:', petId);
         this._callbacks.onPetTap?.(petId, entity);
       });
       container.addChild(bodySprite);
-
-      // [3] Hat outfit slot
-      const hatSprite = new Sprite(Texture.EMPTY);
-      hatSprite.label = 'outfit-hat';
-      hatSprite.anchor.set(0.5, 0.85);
-      hatSprite.visible = false;
-      container.addChild(hatSprite);
-
-      // [4] Accessory outfit slot
-      const accessorySprite = new Sprite(Texture.EMPTY);
-      accessorySprite.label = 'outfit-accessory';
-      accessorySprite.anchor.set(0.5, 0.85);
-      accessorySprite.visible = false;
-      container.addChild(accessorySprite);
 
       this.petContainers.set(petId, container);
       this.petContainer.addChild(container);
@@ -426,47 +404,27 @@ export class Game {
   }
 
   /** 设置宠物装扮数据（由 App.tsx 在装备/卸装后调用） */
-  setPetOutfits(petId: string, outfits: Record<string, PetOutfitSlot>): void {
-    this._petOutfits.set(petId, outfits);
+  setPetOutfits(petId: string, outfit: PetOutfitData | null): void {
+    this._petOutfits.set(petId, outfit);
 
     // Preload outfit textures
-    const allFrames: string[] = [];
-    for (const slot of Object.values(outfits)) {
-      for (const frames of Object.values(slot.animations)) {
+    if (outfit) {
+      const allFrames: string[] = [];
+      for (const frames of Object.values(outfit.animations)) {
         allFrames.push(...frames);
       }
-    }
-    if (allFrames.length > 0) {
-      this._preloadAnimationTextures(
-        Object.fromEntries(allFrames.map((url, i) => [`outfit-${petId}-${i}`, [url]]))
-      );
-    }
-
-    // Toggle slot sprite visibility
-    const container = this.petContainers.get(petId);
-    if (container) {
-      const activeSlots = new Set(Object.keys(outfits));
-      for (const label of ['outfit-hat', 'outfit-accessory', 'outfit-back']) {
-        const sprite = container.getChildByLabel(label) as Sprite | undefined;
-        if (sprite) {
-          const slot = label.replace('outfit-', '');
-          sprite.visible = activeSlots.has(slot);
-        }
+      if (allFrames.length > 0) {
+        this._preloadAnimationTextures(
+          Object.fromEntries(allFrames.map((url, i) => [`outfit-${petId}-${i}`, [url]]))
+        );
       }
     }
   }
 
-  /** 从已装备装扮列表更新 (convenience: accepts EquippedOutfit[] from API) */
-  async updatePetOutfits(petId: string, equippedOutfits: { equipSlot: string; shopItemId: number; animations: Record<string, string[]>; anchorOverride?: Record<string, number[]> }[]): Promise<void> {
-    const outfits: Record<string, PetOutfitSlot> = {};
-    for (const eq of equippedOutfits) {
-      outfits[eq.equipSlot] = {
-        shopItemId: eq.shopItemId,
-        equipSlot: eq.equipSlot,
-        animations: eq.animations,
-        anchorOverride: eq.anchorOverride,
-      };
-    }
+  /** 从已装备装扮更新 (convenience: accepts EquippedOutfit | null from API) */
+  async updatePetOutfits(petId: string, equipped: { shopItemId: number; animations: Record<string, string[]>; anchorOffset?: [number, number] } | null): Promise<void> {
+    this.setPetOutfits(petId, equipped);
+  }
     this.setPetOutfits(petId, outfits);
   }
 
@@ -544,12 +502,11 @@ export class Game {
   }
 
   /** 更新指定槽位 sprite 的纹理（动画帧切换 — uses pre-loaded cache）*/
-  private _updateSlotTexture(petId: string, slot: string, imgPath: string): void {
+  /** Update body sprite texture (used for both base pet animation and outfit body-swap) */
+  private _updateSlotTexture(petId: string, imgPath: string): void {
     const container = this.petContainers.get(petId);
     if (!container) return;
-    const sprite = (slot === 'body')
-      ? container.getChildByLabel('body') as Sprite
-      : container.getChildByLabel(`outfit-${slot}`) as Sprite;
+    const sprite = container.getChildByLabel('body') as Sprite;
     if (!sprite) return;
 
     const base = `${window.location.protocol}//${window.location.host}`;
@@ -688,49 +645,65 @@ export class Game {
       }
 
       // ── 动画帧切换 (body) ──
-      const animFrame = entity.getCurrentAnimationFrame();
-      if (animFrame) {
-        const lastFrame = this._lastBehaviorFrame.get(petId);
-        if (animFrame !== lastFrame) {
-          this._lastBehaviorFrame.set(petId, animFrame);
-          this._updateSlotTexture(petId, 'body', animFrame);
-        }
-      } else {
-        const imgPath = entity.getImageName();
-        const lastFrame = this._lastBehaviorFrame.get(petId);
-        if (imgPath !== lastFrame) {
-          this._lastBehaviorFrame.set(petId, imgPath);
-          this._updateSlotTexture(petId, 'body', imgPath);
-        }
-      }
-
-      // ── 装扮帧同步 ──
-      const outfits = this._petOutfits.get(petId);
-      if (outfits) {
+      // 套装模式: 如果有装扮, 套装帧替换身体帧; 否则用宠物自身帧
+      const outfit = this._petOutfits.get(petId);
+      if (outfit) {
         const stateKey = entity.getAnimStateKey();
         const frameIdx = entity.getAnimFrameIndex();
-        for (const [slot, outfitData] of Object.entries(outfits)) {
-          const slotSprite = container.getChildByLabel(`outfit-${slot}`) as Sprite | undefined;
-          if (!slotSprite) continue;
-          const frames = outfitData.animations[stateKey];
-          if (frames && frames.length > 0) {
-            slotSprite.visible = true;
-            const outfitFrame = frames[frameIdx % frames.length];
-            // Apply anchor override if specified
-            if (outfitData.anchorOverride && outfitData.anchorOverride[slot]) {
-              const [ax, ay] = outfitData.anchorOverride[slot];
-              slotSprite.anchor.set(ax, ay);
-            }
-            // Scale outfit to match body
-            const bodyW = bodySprite.texture.width || 1;
-            const outfitS = (baseSize * entity.scale) / (slotSprite.texture.width || bodyW);
-            slotSprite.scale.set(
-              entity.facingRight ? Math.abs(outfitS) : -Math.abs(outfitS),
-              Math.abs(outfitS),
-            );
-            this._updateSlotTexture(petId, slot, outfitFrame);
+        const frames = outfit.animations[stateKey];
+        if (frames && frames.length > 0) {
+          const outfitFrame = frames[frameIdx % frames.length];
+          const lastFrame = this._lastBehaviorFrame.get(petId);
+          if (outfitFrame !== lastFrame) {
+            this._lastBehaviorFrame.set(petId, outfitFrame);
+            this._updateSlotTexture(petId, outfitFrame);
+          }
+          // Apply anchor offset if specified (pixel shift for entire outfit)
+          if (outfit.anchorOffset) {
+            const [dx, dy] = outfit.anchorOffset;
+            bodySprite.x = dx;
+            bodySprite.y = dy;
           } else {
-            slotSprite.visible = false;
+            bodySprite.x = 0;
+            bodySprite.y = 0;
+          }
+        } else {
+          // No frames for this state → fall back to base pet animation
+          bodySprite.x = 0;
+          bodySprite.y = 0;
+          const animFrame = entity.getCurrentAnimationFrame();
+          if (animFrame) {
+            const lastFrame = this._lastBehaviorFrame.get(petId);
+            if (animFrame !== lastFrame) {
+              this._lastBehaviorFrame.set(petId, animFrame);
+              this._updateSlotTexture(petId, animFrame);
+            }
+          } else {
+            const imgPath = entity.getImageName();
+            const lastFrame = this._lastBehaviorFrame.get(petId);
+            if (imgPath !== lastFrame) {
+              this._lastBehaviorFrame.set(petId, imgPath);
+              this._updateSlotTexture(petId, imgPath);
+            }
+          }
+        }
+      } else {
+        // No outfit → use base pet animation frames
+        bodySprite.x = 0;
+        bodySprite.y = 0;
+        const animFrame = entity.getCurrentAnimationFrame();
+        if (animFrame) {
+          const lastFrame = this._lastBehaviorFrame.get(petId);
+          if (animFrame !== lastFrame) {
+            this._lastBehaviorFrame.set(petId, animFrame);
+            this._updateSlotTexture(petId, animFrame);
+          }
+        } else {
+          const imgPath = entity.getImageName();
+          const lastFrame = this._lastBehaviorFrame.get(petId);
+          if (imgPath !== lastFrame) {
+            this._lastBehaviorFrame.set(petId, imgPath);
+            this._updateSlotTexture(petId, imgPath);
           }
         }
       }

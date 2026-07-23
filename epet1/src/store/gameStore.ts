@@ -48,6 +48,8 @@ interface GameStore {
   // 庭院点击机伴浮层
   tappedPetPos: { x: number; y: number } | null;
   showPetActionOverlay: boolean;
+  // PixiJS Game 实例引用 (HomePanel 初始化后 set 进来，供 OutfitPanel 等组件使用)
+  gameRef: any;
 
   setUser: (userId: number, emotionPoints: number) => void;
   setYardPets: (pets: PetInstance[]) => void;
@@ -76,6 +78,7 @@ interface GameStore {
   setPetModels: (models: PetModel[]) => void;
   setTappedPetPos: (pos: { x: number; y: number } | null) => void;
   setShowPetActionOverlay: (v: boolean) => void;
+  setGameRef: (ref: any) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -102,6 +105,7 @@ export const useGameStore = create<GameStore>((set) => ({
   petModels: [],
   tappedPetPos: null,
   showPetActionOverlay: false,
+  gameRef: null,
 
   setUser: (userId, emotionPoints) => set({ userId, emotionPoints }),
   setYardPets: (yardPets) => set({ yardPets }),
@@ -140,4 +144,5 @@ export const useGameStore = create<GameStore>((set) => ({
   setPetModels: (petModels) => set({ petModels }),
   setTappedPetPos: (tappedPetPos) => set({ tappedPetPos }),
   setShowPetActionOverlay: (showPetActionOverlay) => set({ showPetActionOverlay }),
+  setGameRef: (gameRef) => set({ gameRef }),
 }));

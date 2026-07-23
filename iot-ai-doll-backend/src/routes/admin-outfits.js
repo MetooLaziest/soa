@@ -36,7 +36,7 @@ router.get('/', async (_req, res) => {
          WHERE opm.outfit_shop_item_id = si.id
        ) model_info ON true
        WHERE si.item_category = 'outfit'
-       ORDER BY si.equip_slot, si.name`
+       ORDER BY si.name`
     );
     res.json({ success: true, outfits: r.rows });
   } catch (err) {
@@ -48,19 +48,15 @@ router.get('/', async (_req, res) => {
 // ─── 创建装扮 ───
 router.post('/', async (req, res) => {
   try {
-    const { name, description, image_url, equip_slot, price_emotion, price_real, shop_tab } = req.body;
-    if (!name || !equip_slot) {
-      return res.status(400).json({ success: false, error: 'name, equip_slot 必填' });
-    }
-    const validSlots = ['hat', 'accessory', 'back', 'body'];
-    if (!validSlots.includes(equip_slot)) {
-      return res.status(400).json({ success: false, error: `equip_slot 必须为 ${validSlots.join('/')}` });
+    const { name, description, image_url, price_emotion, price_real, shop_tab } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'name 必填' });
     }
     const r = await poolEpet1.query(
-      `INSERT INTO shop_items (name, description, image_url, item_type, item_category, shop_tab, equip_slot, price_emotion, price_real)
-       VALUES ($1, $2, $3, 'virtual', 'outfit', $4, $5, $6, $7)
+      `INSERT INTO shop_items (name, description, image_url, item_type, item_category, shop_tab, price_emotion, price_real)
+       VALUES ($1, $2, $3, 'virtual', 'outfit', $4, $5, $6)
        RETURNING *`,
-      [name, description || '', image_url || '', shop_tab || 'outfit', equip_slot, price_emotion || 0, price_real || 0]
+      [name, description || '', image_url || '', shop_tab || 'outfit', price_emotion || 0, price_real || 0]
     );
     res.json({ success: true, outfit: r.rows[0] });
   } catch (err) {
@@ -73,7 +69,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const fields = ['name', 'description', 'image_url', 'equip_slot', 'price_emotion', 'price_real', 'shop_tab', 'is_active'];
+    const fields = ['name', 'description', 'image_url', 'price_emotion', 'price_real', 'shop_tab', 'is_active'];
     const sets = [];
     const vals = [];
     let i = 1;

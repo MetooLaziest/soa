@@ -1746,7 +1746,8 @@ function HomePanel() {
   const { emotionPoints, yardPets, setChatPetId, setActiveModal, activeTravel,
           userId, placingFurniture, setPlacingFurniture, yardFurniture, setYardFurniture,
           addYardFurniture, removeYardFurniture, removingFurnitureMode, setRemovingFurnitureMode,
-          addEmotionPoints, showEmotionFloat, setIntroVideoData } = useGameStore();
+          addEmotionPoints, showEmotionFloat, setIntroVideoData,
+          setTappedPetPos, setShowPetActionOverlay } = useGameStore();
   const [toast, setToast] = useState('');
   const [otherExpanded, setOtherExpanded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1775,6 +1776,8 @@ function HomePanel() {
     if (!canvas || gameRef.current) return;
     const g = gameInstance;
     gameRef.current = g;
+    // Store game ref globally for OutfitPanel etc.
+    useGameStore.getState().setGameRef(g);
 
     g.setCallbacks({
       onPetTap(petId) {
@@ -2691,7 +2694,6 @@ export default function App() {
             petModelId={pet.pet_model_id}
             petName={pet.nickname || pet.name}
             onClose={() => setActiveModal(null)}
-            gameRef={gameRef.current}
           />,
           document.body
         );

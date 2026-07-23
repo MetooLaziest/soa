@@ -810,7 +810,6 @@ export interface OutfitItem {
   name: string;
   image_url: string;
   description: string;
-  equip_slot: string;
   item_category: string;
   quantity?: number;
   price_emotion?: number;
@@ -820,13 +819,12 @@ export interface OutfitItem {
 export interface EquippedOutfit {
   id: number;
   outfit_shop_item_id: number;
-  equip_slot: string;
   equipped_at: string;
   name: string;
   image_url: string;
   description: string;
   animations?: Record<string, string[]>;
-  anchor_override?: Record<string, number[]>;
+  anchor_override?: Record<string, number[]>;  // 套装模式: {"offset": [dx, dy]}
 }
 
 /** 获取用户拥有的装扮列表 */
@@ -835,34 +833,30 @@ export async function fetchOutfitInventory(userId: number): Promise<OutfitItem[]
   return res.outfits || [];
 }
 
-/** 获取宠物当前装备列表 */
-export async function fetchEquippedOutfits(petInstanceId: number): Promise<EquippedOutfit[]> {
+/** 获取宠物当前装备的套装 (单条或 null) */
+export async function fetchEquippedOutfits(petInstanceId: number): Promise<EquippedOutfit | null> {
   const res = await get<any>(`/outfit/equipped/${petInstanceId}`);
-  return res.equipped || [];
+  return res.equipped || null;
 }
 
-/** 装备装扮 */
+/** 装备套装 */
 export async function equipOutfit(
   petInstanceId: number,
-  outfitShopItemId: number,
-  equipSlot: string
+  outfitShopItemId: number
 ): Promise<EquippedOutfit> {
   const res = await post<any>('/outfit/equip', {
     pet_instance_id: petInstanceId,
     outfit_shop_item_id: outfitShopItemId,
-    equip_slot: equipSlot,
   });
   return res.equipped;
 }
 
-/** 卸下装扮 */
+/** 卸下套装 */
 export async function unequipOutfit(
-  petInstanceId: number,
-  equipSlot: string
+  petInstanceId: number
 ): Promise<{ success: boolean }> {
   const res = await post<any>('/outfit/unequip', {
     pet_instance_id: petInstanceId,
-    equip_slot: equipSlot,
   });
   return res;
 }
