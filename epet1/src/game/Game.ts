@@ -52,10 +52,8 @@ export interface PetEventCallbacks {
 export class Game {
   app: Application | null = null;
   bgContainer: Container | null = null;        // Layer 0: background (sky/ground)
-  sortedContainer: Container | null = null;     // Layer 1: Y-sorted objects (pets, tree trunks, fences)
+  sortedContainer: Container | null = null;     // Layer 1: Y-sorted objects (pets, furniture, scene objects)
   canopyContainer: Container | null = null;     // Layer 2: always-on-top (tree canopies)
-  petContainer: Container | null = null;        // sub-container inside sortedContainer
-  furnitureContainer: Container | null = null;  // furniture sprites inside sortedContainer
   petContainers = new Map<string, Container>();  // Each Container: shadow + body
   petEntities = new Map<string, PetEntity>();
   private _petOutfits = new Map<string, PetOutfitData | null>(); // petId → outfit data (套装模式: 1套/宠物)
@@ -109,20 +107,11 @@ export class Game {
       // Background will be loaded by _loadSceneConfig after getting bg_image_url from API
       // (fallback to default if no API scene)
 
-      // Layer 1: Y-sorted objects (pets, tree trunks, fences, etc.)
+      // Layer 1: Y-sorted objects (pets, furniture, scene objects — all flat, sorted by zIndex)
       this.sortedContainer = new Container();
       this.sortedContainer.label = 'sorted';
+      this.sortedContainer.sortableChildren = true;
       app.stage.addChild(this.sortedContainer);
-
-      // Pet sub-container lives inside sortedContainer so Y-sort includes them
-      this.petContainer = new Container();
-      this.petContainer.label = 'pets';
-      this.sortedContainer.addChild(this.petContainer);
-
-      // Furniture sub-container inside sortedContainer (Y-sorted with pets)
-      this.furnitureContainer = new Container();
-      this.furnitureContainer.label = 'furniture';
-      this.sortedContainer.addChild(this.furnitureContainer);
 
       // Layer 2: Canopy / always-on-top (tree canopies, roof eaves)
       this.canopyContainer = new Container();
@@ -362,7 +351,7 @@ export class Game {
     opts?: { modelId?: number; nickname?: string; x?: number; y?: number; imageUrl?: string; animations?: Record<string, string[]> },
   ): Promise<void> {
     if (this.petEntities.has(petId)) return;
-    if (!this.app || !this.petContainer) return;
+    if (!this.app || !this.sortedContainer) return;
 
     const entity = new PetEntity({
       petId,
@@ -441,7 +430,7 @@ export class Game {
       container.addChild(bodySprite);
 
       this.petContainers.set(petId, container);
-      this.petContainer.addChild(container);
+      this.sortedContainer!.addChild(container);
     } catch (e) {
       console.warn(`Failed to load pet texture: ${imgPath}`, e);
     }
@@ -449,8 +438,8 @@ export class Game {
 
   removePet(petId: string): void {
     const container = this.petContainers.get(petId);
-    if (container && this.petContainer) {
-      this.petContainer.removeChild(container);
+    if (container && this.sortedContainer) {
+      this.sortedContainer.removeChild(container);
       container.destroy({ children: true }); // cascading: shadow + all slot sprites
       this.petContainers.delete(petId);
     }
@@ -690,7 +679,7 @@ export class Game {
   }
 
   private _loop(): void {
-    if (!this.app || !this.petContainer) return;
+    if (!this.app || !this.sortedContainer) return;
     const now = Date.now();
     const { W, H } = getViewport();
 
@@ -808,8 +797,8 @@ export class Game {
       }
     });
 
-    // Y-sort: arrange pet sprites by foot Y so closer pets overlap farther ones
-    this._ySortPets();
+    // Y-sort: arrange all renderables by foot Y so closer objects overlap farther ones
+    this._ySortAll();
 
     // Emotion drop bob animation
     this._emotionDropSprites.forEach((container) => {
@@ -931,7 +920,7 @@ export class Game {
 
   /** Render user furniture into the sorted layer with remove buttons */
   private async _renderFurniture(furniture: SceneObjectData[]): Promise<void> {
-    if (!this.furnitureContainer) return;
+    if (!this.sortedContainer) return;
     const { W, H } = getViewport();
 
     for (const f of furniture) {
@@ -942,7 +931,7 @@ export class Game {
 
   /** Add a single furniture sprite (with remove button) to the furniture container */
   private async _addFurnitureSprite(f: SceneObjectData): Promise<void> {
-    if (!this.furnitureContainer) return;
+    if (!this.sortedContainer) return;
     const { W, H } = getViewport();
     const targetW = f.width * W;
     const targetH = f.height * H;
@@ -1021,7 +1010,7 @@ export class Game {
     btnBg.on('pointerdown', handleRemove);
     btnLabel.on('pointerdown', handleRemove);
 
-    this.furnitureContainer.addChild(container);
+    this.sortedContainer!.addChild(container);
     this._furnitureSprites.set(f.id, container);
     // Store full data including image_url for pixel-accurate collision
     this._furnitureData.set(f.id, f);
@@ -1302,8 +1291,8 @@ export class Game {
   /** Remove a furniture sprite and its collision from the yard */
   removeFurnitureSprite(furnitureId: number): void {
     const container = this._furnitureSprites.get(furnitureId);
-    if (container && this.furnitureContainer) {
-      this.furnitureContainer.removeChild(container);
+    if (container && this.sortedContainer) {
+      this.sortedContainer.removeChild(container);
       container.destroy();
       this._furnitureSprites.delete(furnitureId);
     }
@@ -1336,13 +1325,20 @@ export class Game {
     }
   }
 
-  /** Sort petContainer children by Y position (lower Y = farther = drawn first) */
-  private _ySortPets(): void {
-    if (!this.petContainer) return;
-    const children = [...this.petContainer.children];
-    children.sort((a, b) => a.y - b.y);
-    for (let i = 0; i < children.length; i++) {
-      this.petContainer.addChildAt(children[i], i);
+  /** Update zIndex of all sortedContainer children based on Y position.
+   *  Lower Y = farther from camera = lower zIndex (drawn first).
+   *  Higher Y = closer to camera = higher zIndex (drawn on top).
+   *  UI items (placing, emotion drops) get high zIndex to stay on top.
+   */
+  private _ySortAll(): void {
+    if (!this.sortedContainer) return;
+    for (const child of this.sortedContainer.children) {
+      const label = child.label || '';
+      if (label === 'placing-ghost' || label.startsWith('placing-preview') || label.startsWith('emotion-drop')) {
+        child.zIndex = 999999;
+      } else {
+        child.zIndex = child.y;
+      }
     }
   }
 
@@ -1352,8 +1348,6 @@ export class Game {
     this.bgContainer = null;
     this.sortedContainer = null;
     this.canopyContainer = null;
-    this.petContainer = null;
-    this.furnitureContainer = null;
     this._sceneObjects = [];
     this._sceneSprites = [];
     this._furnitureSprites.clear();
