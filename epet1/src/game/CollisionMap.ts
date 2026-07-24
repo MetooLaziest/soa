@@ -356,23 +356,15 @@ export class CollisionMap {
     const ny = y / vpH;
     const petNY = petY != null ? petY / vpH : undefined;
 
-    // Check rect obstacles
+    // Check rect obstacles (Plan A: footprint-only, no Y-aware skip)
     for (const r of this._obstacles) {
-      // Plan B: skip obstacle if pet is in front of it (pet Y >= groundY)
-      if (petNY != null && r.groundY != null && petNY >= r.groundY) {
-        continue;
-      }
       if (nx >= r.xMin && nx <= r.xMax && ny >= r.yMin && ny <= r.yMax) {
         return false;
       }
     }
 
-    // Check sprite-based collisions (per-pixel alpha)
+    // Check sprite-based collisions (per-pixel alpha, Plan A: footprint-only)
     for (const sc of this._spriteCollisions) {
-      // Plan B: skip sprite collision if pet is in front of it (pet Y >= groundY)
-      if (petNY != null && sc.groundY != null && petNY >= sc.groundY) {
-        continue;
-      }
       if (nx < sc.xMin || nx > sc.xMax || ny < sc.yMin || ny > sc.yMax) continue;
 
       // Convert to sprite pixel coords
