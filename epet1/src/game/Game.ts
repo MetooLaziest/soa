@@ -938,6 +938,8 @@ export class Game {
 
     const container = new Container();
     container.label = `furniture-${f.id}`;
+    container.x = f.pos_x * W;
+    container.y = f.pos_y * H;
 
     let sprite: Container;
     try {
@@ -969,8 +971,8 @@ export class Game {
       sprite = g;
     }
 
-    sprite.x = f.pos_x * W;
-    sprite.y = f.pos_y * H;
+    sprite.x = 0;
+    sprite.y = 0;
     container.addChild(sprite);
 
     // Remove button (×) — hidden by default, shown in removing mode
