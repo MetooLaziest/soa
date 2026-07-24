@@ -1,6 +1,6 @@
 import { Application, Container, Sprite, Assets, Text, Graphics, Texture } from 'pixi.js';
 import { PetEntity, type ScheduledBehavior } from '../entities/Pet';
-import { collisionMap, type SceneObjectData, computeCollisionBounds, fillScanlineHoles } from './CollisionMap';
+import { collisionMap, type SceneObjectData, computeCollisionBounds, fillScanlineHoles, clearUpperPixels } from './CollisionMap';
 import { useGameStore } from './GameState';
 import { authFetch } from '../api/epet1';
 
@@ -1053,8 +1053,12 @@ export class Game {
           flippedData.set(pixels.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
         }
 
-        // Scanline hole-fill: close interior transparent areas
+        // Plan A: footprint-only collision mask
+        // 1. Scanline hole-fill: close interior transparent areas
         fillScanlineHoles(flippedData, imgW, imgH);
+        // 2. Clear upper ~75% of pixels — only keep bottom 25% as collidable
+        //    This prevents collision with "air" above furniture (chair backs, swing chains, etc.)
+        clearUpperPixels(flippedData, imgW, imgH, 0.25);
 
         collisionMap.addSpriteCollision({
           label: `furniture-${f.id}`,
@@ -1063,14 +1067,16 @@ export class Game {
           pixels: flippedData,
           pixelW: imgW,
           pixelH: imgH,
+          groundY: bounds.groundY,
         });
-        console.log(`✅ Furniture SPRITE+SCANLINE collision: ${f.label} (${imgW}x${imgH}), bounds=`, bounds);
+        console.log(`✅ Furniture SPRITE+FOOTPRINT collision: ${f.label} (${imgW}x${imgH}), bounds=`, bounds);
       } else {
         // Fallback: use rect collision (no aspect-fit)
         collisionMap.addObstacle({
           xMin: f.pos_x - f.width / 2, yMin: f.pos_y - f.height * 0.85,
           xMax: f.pos_x + f.width / 2, yMax: f.pos_y + f.height * 0.15,
           label: `furniture-${f.id}`,
+          groundY: f.pos_y,
         });
         console.log(`✅ Furniture RECT collision (fallback): ${f.label}, bounds from width/height`);
       }
@@ -1080,6 +1086,7 @@ export class Game {
         xMin: f.pos_x - f.width / 2, yMin: f.pos_y - f.height * 0.85,
         xMax: f.pos_x + f.width / 2, yMax: f.pos_y + f.height * 0.15,
         label: `furniture-${f.id}`,
+        groundY: f.pos_y,
       });
       console.warn(`⚠️ Furniture image load failed, using rect collision: ${f.label}`, e);
     }

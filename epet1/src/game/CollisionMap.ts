@@ -25,6 +25,8 @@ export interface RectObstacle {
   xMax: number;
   yMax: number;
   label?: string;
+  /** Ground Y (anchor Y) in viewport-fraction — for Y-aware collision (Plan B) */
+  groundY?: number;
 }
 
 /** Per-sprite pixel collision data */
@@ -39,6 +41,8 @@ export interface SpriteCollision {
   pixels: Uint8ClampedArray;
   pixelW: number;
   pixelH: number;
+  /** Ground Y (anchor Y) in viewport-fraction — for Y-aware collision (Plan B) */
+  groundY?: number;
 } /**
  * Compute the actual viewport-fraction collision bounds for an object,
  * accounting for aspect-fit (Math.min(scaleX, scaleY)) scaling
@@ -63,7 +67,7 @@ export interface SpriteCollision {
 export function computeCollisionBounds(
   o: { pos_x: number; pos_y: number; width: number; height: number },
   imgW: number, imgH: number,
-): { xMin: number; yMin: number; xMax: number; yMax: number } {
+): { xMin: number; yMin: number; xMax: number; yMax: number; groundY: number } {
   const scaleX = o.width / imgW;
   const scaleY = o.height / imgH;
   const actualScale = Math.min(scaleX, scaleY);
@@ -75,6 +79,7 @@ export function computeCollisionBounds(
     xMax: o.pos_x + actualW / 2,
     yMin: o.pos_y - actualH * 0.85,
     yMax: o.pos_y + actualH * 0.15,
+    groundY: o.pos_y, // anchor Y = ground position (where feet touch)
   };
 }
 
@@ -84,12 +89,13 @@ export function computeCollisionBounds(
  */
 function computeRectCollisionBounds(
   o: { pos_x: number; pos_y: number; width: number; height: number },
-): { xMin: number; yMin: number; xMax: number; yMax: number } {
+): { xMin: number; yMin: number; xMax: number; yMax: number; groundY: number } {
   return {
     xMin: o.pos_x - o.width / 2,
     xMax: o.pos_x + o.width / 2,
     yMin: o.pos_y - o.height * 0.85,
     yMax: o.pos_y + o.height * 0.15,
+    groundY: o.pos_y, // anchor Y = ground position (where feet touch)
   };
 }
 
@@ -134,6 +140,33 @@ export function fillScanlineHoles(data: Uint8ClampedArray, w: number, h: number)
         data[idx + 2] = 255; // B
         data[idx + 3] = 255; // A — mark as solid
       }
+    }
+  }
+}
+
+/**
+ * Plan A: Footprint-only collision mask.
+ * Clear (set alpha=0) all pixels above a certain row ratio,
+ * keeping only the bottom portion as collidable.
+ * This prevents pets from colliding with the "air" above furniture
+ * (e.g., chair back, swing chains) while still blocking the footprint.
+ *
+ * @param data   RGBA pixel data (Y-flipped, same as after fillScanlineHoles)
+ * @param w      Image width in pixels
+ * @param h      Image height in pixels
+ * @param keepRatio  Fraction of image height from bottom to KEEP as collidable (0.25 = bottom 25%)
+ */
+export function clearUpperPixels(data: Uint8ClampedArray, w: number, h: number, keepRatio: number = 0.25): void {
+  // In Y-flipped data: row 0 = visual TOP, row (h-1) = visual BOTTOM
+  // We want to keep the bottom `keepRatio` portion → rows from (h * (1 - keepRatio)) to (h-1)
+  // Clear everything from row 0 to the cutoff row
+  const cutoffRow = Math.floor(h * (1 - keepRatio));
+  const rowBytes = w * 4;
+  for (let y = 0; y < cutoffRow; y++) {
+    const rowStart = y * rowBytes;
+    for (let x = 0; x < w; x++) {
+      const idx = rowStart + x * 4;
+      data[idx + 3] = 0; // Set alpha to 0 = transparent/non-collidable
     }
   }
 }
@@ -199,7 +232,7 @@ export class CollisionMap {
           if (bmp.width === 0 || bmp.height === 0) {
             bmp.close();
             console.warn(`⚠️ Sprite collision 0x0, fallback to rect: ${o.label}`);
-            obs.push({ ...computeRectCollisionBounds(o), label: o.label });
+            obs.push({ ...computeRectCollisionBounds(o), label: o.label, groundY: o.pos_y });
             continue;
           }
 
@@ -229,6 +262,13 @@ export class CollisionMap {
             flippedData.set(imgData.data.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
           }
 
+          // Plan A: footprint-only collision mask
+          // 1. Fill scanline holes first (close interior gaps in the footprint area)
+          fillScanlineHoles(flippedData, bmpW, bmpH);
+          // 2. Clear upper ~75% of pixels — only keep bottom 25% as collidable
+          //    This prevents collision with "air" above furniture (chair backs, swing chains, etc.)
+          clearUpperPixels(flippedData, bmpW, bmpH, 0.25);
+
           spriteCols.push({
             label: o.label,
             xMin: bounds.xMin,
@@ -238,16 +278,17 @@ export class CollisionMap {
             pixels: flippedData,
             pixelW: bmpW,
             pixelH: bmpH,
+            groundY: bounds.groundY,
           });
-          console.log(`✅ Sprite collision (aspect-fit): ${o.label} (${bmpW}x${bmpH}), bounds=`, bounds);
+          console.log(`✅ Sprite collision (footprint-only, aspect-fit): ${o.label} (${bmpW}x${bmpH}), bounds=`, bounds);
         } catch (e) {
           console.warn(`Failed to load sprite for collision: ${o.label}`, e);
           // Fallback to rect
-          obs.push({ ...computeRectCollisionBounds(o), label: o.label });
+          obs.push({ ...computeRectCollisionBounds(o), label: o.label, groundY: o.pos_y });
         }
       } else {
         // No image — use rect collision
-        obs.push({ ...computeRectCollisionBounds(o), label: o.label });
+        obs.push({ ...computeRectCollisionBounds(o), label: o.label, groundY: o.pos_y });
       }
     }
 
@@ -304,15 +345,23 @@ export class CollisionMap {
   /**
    * Check if a screen-space position is walkable.
    * Checks both rect obstacles and sprite pixel data.
+   * Plan B: Y-aware collision — if pet's Y position is at or below the
+   * obstacle's groundY (pet is in front of / below the furniture),
+   * the pet can walk through freely.
    */
-  isWalkable(x: number, y: number, vpW: number, vpH: number): boolean {
+  isWalkable(x: number, y: number, vpW: number, vpH: number, petY?: number): boolean {
     if (!this._loaded) return true;
 
     const nx = x / vpW;
     const ny = y / vpH;
+    const petNY = petY != null ? petY / vpH : undefined;
 
     // Check rect obstacles
     for (const r of this._obstacles) {
+      // Plan B: skip obstacle if pet is in front of it (pet Y >= groundY)
+      if (petNY != null && r.groundY != null && petNY >= r.groundY) {
+        continue;
+      }
       if (nx >= r.xMin && nx <= r.xMax && ny >= r.yMin && ny <= r.yMax) {
         return false;
       }
@@ -320,6 +369,10 @@ export class CollisionMap {
 
     // Check sprite-based collisions (per-pixel alpha)
     for (const sc of this._spriteCollisions) {
+      // Plan B: skip sprite collision if pet is in front of it (pet Y >= groundY)
+      if (petNY != null && sc.groundY != null && petNY >= sc.groundY) {
+        continue;
+      }
       if (nx < sc.xMin || nx > sc.xMax || ny < sc.yMin || ny > sc.yMax) continue;
 
       // Convert to sprite pixel coords
@@ -345,30 +398,31 @@ export class CollisionMap {
    * Check if a screen-space area (pet body) is walkable.
    * Samples 5 points: center + 4 cardinal directions at radius r.
    * All 5 must be walkable for the area to be considered walkable.
+   * petY is the pet's actual Y position for Y-aware collision (Plan B).
    */
-  isWalkableArea(x: number, y: number, r: number, vpW: number, vpH: number): boolean {
+  isWalkableArea(x: number, y: number, r: number, vpW: number, vpH: number, petY?: number): boolean {
     return (
-      this.isWalkable(x, y, vpW, vpH) &&
-      this.isWalkable(x - r, y, vpW, vpH) &&
-      this.isWalkable(x + r, y, vpW, vpH) &&
-      this.isWalkable(x, y - r, vpW, vpH) &&
-      this.isWalkable(x, y + r, vpW, vpH)
+      this.isWalkable(x, y, vpW, vpH, petY) &&
+      this.isWalkable(x - r, y, vpW, vpH, petY) &&
+      this.isWalkable(x + r, y, vpW, vpH, petY) &&
+      this.isWalkable(x, y - r, vpW, vpH, petY) &&
+      this.isWalkable(x, y + r, vpW, vpH, petY)
     );
   }
 
   /** Find a nearby walkable position (slide along obstacles) */
-  findWalkable(fromX: number, fromY: number, toX: number, toY: number, vpW: number, vpH: number): { x: number; y: number } {
-    if (this.isWalkable(toX, toY, vpW, vpH)) {
+  findWalkable(fromX: number, fromY: number, toX: number, toY: number, vpW: number, vpH: number, petY?: number): { x: number; y: number } {
+    if (this.isWalkable(toX, toY, vpW, vpH, petY)) {
       return { x: toX, y: toY };
     }
 
     // Try sliding along X only
-    if (this.isWalkable(toX, fromY, vpW, vpH)) {
+    if (this.isWalkable(toX, fromY, vpW, vpH, petY)) {
       return { x: toX, y: fromY };
     }
 
     // Try sliding along Y only
-    if (this.isWalkable(fromX, toY, vpW, vpH)) {
+    if (this.isWalkable(fromX, toY, vpW, vpH, petY)) {
       return { x: fromX, y: toY };
     }
 
@@ -377,18 +431,18 @@ export class CollisionMap {
   }
 
   /** Find a nearby walkable position for a pet body (volume-aware sliding collision) */
-  findWalkableArea(fromX: number, fromY: number, toX: number, toY: number, r: number, vpW: number, vpH: number): { x: number; y: number } {
-    if (this.isWalkableArea(toX, toY, r, vpW, vpH)) {
+  findWalkableArea(fromX: number, fromY: number, toX: number, toY: number, r: number, vpW: number, vpH: number, petY?: number): { x: number; y: number } {
+    if (this.isWalkableArea(toX, toY, r, vpW, vpH, petY)) {
       return { x: toX, y: toY };
     }
 
     // Try sliding along X only
-    if (this.isWalkableArea(toX, fromY, r, vpW, vpH)) {
+    if (this.isWalkableArea(toX, fromY, r, vpW, vpH, petY)) {
       return { x: toX, y: fromY };
     }
 
     // Try sliding along Y only
-    if (this.isWalkableArea(fromX, toY, r, vpW, vpH)) {
+    if (this.isWalkableArea(fromX, toY, r, vpW, vpH, petY)) {
       return { x: fromX, y: toY };
     }
 

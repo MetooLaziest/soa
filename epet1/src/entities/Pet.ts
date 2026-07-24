@@ -124,7 +124,7 @@ export class PetEntity {
         const targetX = vpW * behavior.position_x;
         const targetY = vpH * behavior.position_y;
         const cr = vpW * this._collisionRadius;
-        if (collisionMap.isLoaded && !collisionMap.isWalkableArea(targetX, targetY, cr, vpW, vpH)) {
+        if (collisionMap.isLoaded && !collisionMap.isWalkableArea(targetX, targetY, cr, vpW, vpH, this.y)) {
           // 目标位置在家具内 → 螺旋搜索附近可行走位置
           const escape = this._findNearbyWalkable(targetX, targetY, vpW, vpH);
           if (escape) {
@@ -170,7 +170,7 @@ export class PetEntity {
 
     // Check if target is walkable (5-point volume check)
     const cr = vpW * this._collisionRadius;
-    if (collisionMap.isLoaded && !collisionMap.isWalkableArea(cx, cy, cr, vpW, vpH)) {
+    if (collisionMap.isLoaded && !collisionMap.isWalkableArea(cx, cy, cr, vpW, vpH, this.y)) {
       const found = this._findNearbyWalkable(cx, cy, vpW, vpH);
       if (found) {
         this._targetX = found.x;
@@ -238,7 +238,7 @@ export class PetEntity {
         const a = (angle / (8 * r)) * Math.PI * 2;
         const tx = x + Math.cos(a) * step * r;
         const ty = y + Math.sin(a) * step * r;
-        if (collisionMap.isWalkableArea(tx, ty, cr, vpW, vpH) &&
+        if (collisionMap.isWalkableArea(tx, ty, cr, vpW, vpH, this.y) &&
             tx >= vpW * this._walkBounds.xMin && tx <= vpW * this._walkBounds.xMax &&
             ty >= vpH * this._walkBounds.yMin && ty <= vpH * this._walkBounds.yMax) {
           return { x: tx, y: ty };
@@ -254,7 +254,7 @@ export class PetEntity {
     for (let attempt = 0; attempt < 10; attempt++) {
       const tx = vpW * (this._walkBounds.xMin + Math.random() * (this._walkBounds.xMax - this._walkBounds.xMin));
       const ty = vpH * (this._walkBounds.yMin + Math.random() * (this._walkBounds.yMax - this._walkBounds.yMin));
-      if (!collisionMap.isLoaded || collisionMap.isWalkableArea(tx, ty, cr, vpW, vpH)) {
+      if (!collisionMap.isLoaded || collisionMap.isWalkableArea(tx, ty, cr, vpW, vpH, this.y)) {
         this._targetX = tx;
         this._targetY = ty;
         this._walkSpeed = 0.3 + Math.random() * 0.9;
@@ -274,7 +274,7 @@ export class PetEntity {
       if (moved < PetEntity.STUCK_MOVE_TOLERANCE) {
         // 检查当前是否在不通行区域
         const cr = vpW * this._collisionRadius;
-        if (!collisionMap.isWalkableArea(this.x, this.y, cr, vpW, vpH)) {
+        if (!collisionMap.isWalkableArea(this.x, this.y, cr, vpW, vpH, this.y)) {
           // 已经卡了至少1秒，累计检测
           if (this._stuckCheckStart > 0 && now - this._stuckCheckStart >= PetEntity.STUCK_THRESHOLD) {
             // 卡住超过阈值 → 螺旋搜索脱困
@@ -289,7 +289,7 @@ export class PetEntity {
               // 螺旋搜索也找不到 → 强制移到可行走区域中心
               const cx = vpW * (this._walkBounds.xMin + 0.5 * (this._walkBounds.xMax - this._walkBounds.xMin));
               const cy = vpH * (this._walkBounds.yMin + 0.5 * (this._walkBounds.yMax - this._walkBounds.yMin));
-              if (collisionMap.isWalkableArea(cx, cy, cr, vpW, vpH)) {
+              if (collisionMap.isWalkableArea(cx, cy, cr, vpW, vpH, this.y)) {
                 console.log(`🐾 Pet ${this.displayName} stuck → forced reset to center`);
                 this.x = cx;
                 this.y = cy;
@@ -431,7 +431,7 @@ export class PetEntity {
         const nextY = this.y + dy * ratio;
         const cr = vpW * this._collisionRadius;
 
-        const walkable = collisionMap.findWalkableArea(this.x, this.y, nextX, nextY, cr, vpW, vpH);
+        const walkable = collisionMap.findWalkableArea(this.x, this.y, nextX, nextY, cr, vpW, vpH, this.y);
 
         if (walkable.x === this.x && walkable.y === this.y) {
           if (this._behaviorMode === 'scheduled' && this._scheduledBehavior?.behavior_type === 'walk') {
