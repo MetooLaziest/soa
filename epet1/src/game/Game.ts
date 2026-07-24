@@ -1,4 +1,4 @@
-import { Application, Container, Sprite, Assets, Text, Graphics, Texture, Rectangle } from 'pixi.js';
+import { Application, Container, Sprite, Assets, Text, Graphics, Texture } from 'pixi.js';
 import { PetEntity, type ScheduledBehavior } from '../entities/Pet';
 import { collisionMap, type SceneObjectData, computeCollisionBounds, fillScanlineHoles } from './CollisionMap';
 import { useGameStore } from './GameState';
@@ -9,6 +9,9 @@ const MAX_TEX_DIM = 1024;
 
 /** Pre-loaded texture cache: url → Texture (avoids per-frame async loading during animation) */
 const _texCache = new Map<string, Texture>();
+
+/** Pre-computed alpha mask cache: url → { width, height, alpha: Uint8Array } */
+const _alphaMaskCache = new Map<string, { width: number; height: number; alpha: Uint8Array }>();
 
 // Default walk bounds for PORTRAIT mode (overridden by API scene config)
 // Large range — let scene objects (colliders) limit walking, not hard bounds
@@ -155,9 +158,14 @@ export class Game {
   /**
    * 逐像素命中检测：检查屏幕坐标 (cx,cy) 是否命中 sprite 的不透明像素
    * 1) AABB 预检测（快速排除）
-   * 2) toLocal() 转换为精灵局部坐标（extract.pixels frame 使用局部坐标系）
-   * 3) extract.pixels() 读取 1×1 像素区域
-   * 4) alpha > 30 视为命中
+   * 2) toLocal() 转换为精灵局部坐标
+   * 3) 根据锚点偏移转换为纹理像素坐标
+   * 4) 查询预缓存的 alpha mask 数组
+   * 5) alpha > 30 视为命中
+   *
+   * 注意：不再使用 extract.pixels()，因为 PixiJS v8 的 extract.pixels({target: sprite})
+   * 在事件处理器中调用会调用 generateTexture() 破坏精灵渲染状态，导致精灵消失。
+   * 改为在纹理加载时预提取 alpha 通道到 _alphaMaskCache，点击时只做数组查找。
    */
   private _hitTestPixel(sprite: Sprite, cx: number, cy: number): boolean {
     const bounds = sprite.getBounds();
@@ -166,18 +174,32 @@ export class Game {
         cy < bounds.y || cy > bounds.y + bounds.height) {
       return false;
     }
-    if (!this.app?.renderer) return true; // fallback to AABB
     try {
-      // extract.pixels() 的 frame 参数使用精灵局部坐标系，
-      // 必须用 toLocal() 将全局坐标转换，不能直接用 bounds 偏移
+      // 将全局坐标转换为精灵局部坐标
       const local = sprite.toLocal({ x: cx, y: cy } as any);
-      const result = this.app.renderer.extract.pixels({
-        target: sprite,
-        frame: new Rectangle(local.x, local.y, 1, 1),
-      });
-      return result.pixels[3] > 30;
+      // local 坐标系以 anchor 为原点，需要转换为纹理像素坐标
+      // anchor = (0.5, 0.85) 意味着锚点在纹理的 (0.5*w, 0.85*h) 处
+      const texW = sprite.texture.width;
+      const texH = sprite.texture.height;
+      const anchorX = sprite.anchor.x;
+      const anchorY = sprite.anchor.y;
+      // 纹理像素坐标 = local + anchor * textureSize
+      // 因为 local (0,0) 就是 anchor 点，向右为正 x，向下为正 y
+      const px = Math.floor(local.x + anchorX * texW);
+      const py = Math.floor(local.y + anchorY * texH);
+
+      // 查找预缓存的 alpha mask (URL stored on sprite by _updateSlotTexture / addPet)
+      const texUrl = (sprite as any)._texUrl as string | undefined;
+      const mask = texUrl ? _alphaMaskCache.get(texUrl) : undefined;
+      if (!mask) return true; // 无缓存时 fallback 到 AABB
+
+      // 越界检查
+      if (px < 0 || px >= mask.width || py < 0 || py >= mask.height) return false;
+
+      // 查找 alpha 值
+      return mask.alpha[py * mask.width + px] > 30;
     } catch {
-      return true; // extract 失败时 fallback 到 AABB
+      return true; // 异常时 fallback 到 AABB
     }
   }
 
@@ -405,6 +427,7 @@ export class Game {
       bodySprite.label = 'body';
       bodySprite.eventMode = 'static';
       bodySprite.cursor = 'pointer';
+      (bodySprite as any)._texUrl = url; // track URL for alpha mask lookup
 
       // Tap handler — only trigger on opaque pixels (transparent → let event bubble to stage for click-to-move)
       bodySprite.on('pointerdown', (e: any) => {
@@ -489,7 +512,9 @@ export class Game {
     console.log(`[Game] Animation textures pre-loaded in ${(performance.now() - t0).toFixed(0)}ms`);
   }
 
-  /** Load a texture with auto-downscale for oversized images (prevents GPU OOM) */
+  /** Load a texture with auto-downscale for oversized images (prevents GPU OOM)
+   *  Also pre-computes alpha mask for pixel-perfect hit testing (avoids extract.pixels()
+   *  which corrupts sprite render state in PixiJS v8). */
   private async _loadTextureSafe(url: string): Promise<Texture | null> {
     // Check cache first
     if (_texCache.has(url)) return _texCache.get(url)!;
@@ -502,6 +527,10 @@ export class Game {
       const bmp = await createImageBitmap(blob);
       const origW = bmp.width;
       const origH = bmp.height;
+
+      // Pre-compute alpha mask from ImageBitmap using 2D Canvas
+      // (safe — doesn't touch the GPU render pipeline at all)
+      this._cacheAlphaMask(url, bmp, origW, origH);
 
       if (origW <= MAX_TEX_DIM && origH <= MAX_TEX_DIM) {
         // Within limit — load normally via PixiJS Assets
@@ -523,11 +552,49 @@ export class Game {
       ctx.drawImage(bmp, 0, 0, newW, newH);
       bmp.close();
 
+      // Update alpha mask for downscaled version
+      this._cacheAlphaMaskFromCanvas(url, canvas, newW, newH);
+
       const tex = Texture.from(canvas);
       return tex;
     } catch (e) {
       console.warn('Texture load failed:', url, e);
       return null;
+    }
+  }
+
+  /** Extract and cache alpha channel from an ImageBitmap (called during texture load) */
+  private _cacheAlphaMask(url: string, bmp: ImageBitmap, w: number, h: number): void {
+    if (_alphaMaskCache.has(url)) return;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(bmp, 0, 0);
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const alpha = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        alpha[i] = imgData.data[i * 4 + 3]; // alpha channel only
+      }
+      _alphaMaskCache.set(url, { width: w, height: h, alpha });
+    } catch (e) {
+      console.warn('[Game] Alpha mask extraction failed:', url, e);
+    }
+  }
+
+  /** Extract and cache alpha channel from a canvas (for downscaled textures) */
+  private _cacheAlphaMaskFromCanvas(url: string, canvas: HTMLCanvasElement, w: number, h: number): void {
+    try {
+      const ctx = canvas.getContext('2d')!;
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const alpha = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        alpha[i] = imgData.data[i * 4 + 3];
+      }
+      _alphaMaskCache.set(url, { width: w, height: h, alpha });
+    } catch (e) {
+      console.warn('[Game] Alpha mask extraction from canvas failed:', url, e);
     }
   }
 
@@ -544,12 +611,14 @@ export class Game {
     const tex = _texCache.get(url);
     if (tex && sprite && !sprite.destroyed) {
       sprite.texture = tex;
+      (sprite as any)._texUrl = url; // track URL for alpha mask lookup
     } else if (!tex) {
       // Fallback: load async (shouldn't happen if pre-load worked, but safe)
       this._loadTextureSafe(url).then(t => {
         if (t && sprite && !sprite.destroyed) {
           _texCache.set(url, t);
           sprite.texture = t;
+          (sprite as any)._texUrl = url;
         }
       });
     }
