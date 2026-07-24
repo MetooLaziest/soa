@@ -942,6 +942,7 @@ export class Game {
     container.y = f.pos_y * H;
 
     let sprite: Container;
+    let sortYOffset = targetH * 0.15; // default for placeholder
     try {
       const base = `${window.location.protocol}//${window.location.host}`;
       const url = f.image_url.startsWith('/') ? `${base}${f.image_url}` : f.image_url;
@@ -956,6 +957,13 @@ export class Game {
       // Store pixel dimensions for aspect-fit collision
       (f as any).img_pixel_w = tex.width;
       (f as any).img_pixel_h = tex.height;
+      // Visual-bottom Y offset for Y-sort.
+      // Anchor (0.5, 0.85): 85% above anchor, 15% below.
+      // Sorting by visual bottom makes tall furniture sort "farther back"
+      // so pets near the base render in front.
+      const actualScale = Math.min(scaleX, scaleY);
+      const actualH = tex.height * actualScale;
+      sortYOffset = actualH * 0.15;
     } catch (e) {
       // Image not found — use colored placeholder
       console.warn(`[Game] Furniture image missing: ${f.label}, using placeholder`);
@@ -969,11 +977,15 @@ export class Game {
       label.y = -targetH * 0.35;
       g.addChild(label);
       sprite = g;
+      // placeholder uses default sortYOffset = targetH * 0.15
     }
 
     sprite.x = 0;
     sprite.y = 0;
     container.addChild(sprite);
+
+    // Store offset for _ySortAll() — furniture containers use visual bottom
+    (container as any)._sortYOffset = sortYOffset;
 
     // Remove button (×) — hidden by default, shown in removing mode
     const spriteBounds = sprite.getBounds();
@@ -1346,7 +1358,11 @@ export class Game {
       if (label === 'placing-ghost' || label.startsWith('placing-preview') || label.startsWith('emotion-drop')) {
         child.zIndex = 999999;
       } else {
-        child.zIndex = child.y;
+        // Furniture containers have _sortYOffset (visual bottom offset);
+        // adding it pushes tall furniture "farther back" in sort order
+        // so pets near the base render in front.
+        const offset = (child as any)._sortYOffset || 0;
+        child.zIndex = child.y + offset;
       }
     }
   }
