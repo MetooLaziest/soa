@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
+import PwaInstallHint from './PwaInstallHint';
 
 type Mode = 'login' | 'register';
 
@@ -104,6 +105,9 @@ export default function LoginOverlay() {
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: 24,
     }}>
+      {/* iOS Safari 用户引导添加到主屏幕 (PWA standalone 模式) */}
+      <PwaInstallHint placement="login" />
+
       {/* 品牌区 */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ fontSize: 56, marginBottom: 8 }}>🏡</div>

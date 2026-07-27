@@ -1,12 +1,21 @@
 .pwa-install-hint {
   position: fixed;
-  top: calc(60px + env(safe-area-inset-top, 0px));
   left: 12px;
   right: 12px;
   z-index: 8000;
   max-width: 480px;
   margin: 0 auto;
   animation: pwa-hint-slide-in 0.4s ease-out;
+}
+
+/* 登录界面: 顶部, 让位给表单 */
+.pwa-install-hint.pwa-hint-login {
+  top: calc(16px + env(safe-area-inset-top, 0px));
+}
+
+/* 主界面: 顶部, 让位给 mode-switch-bar */
+.pwa-install-hint.pwa-hint-main {
+  top: calc(60px + env(safe-area-inset-top, 0px));
 }
 
 @keyframes pwa-hint-slide-in {

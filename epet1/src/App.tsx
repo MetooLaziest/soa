@@ -247,13 +247,6 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
     });
   }, [userId]);
 
-  // 已登录后, 标记"已见过登录态" → 允许 PWA 提示横幅出现
-  useEffect(() => {
-    if (isAuthenticated) {
-      localStorage.setItem('pwa-hint-seen-after-login', '1');
-    }
-  }, [isAuthenticated]);
-
   // 加载当前系列详情
   useEffect(() => {
     if (!userId || seriesList.length === 0) return;
