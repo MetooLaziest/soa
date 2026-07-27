@@ -362,18 +362,19 @@ body {
   justify-content: center;
   gap: 4px;
   /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
-     修复: 抬升 110px 避开浮层 tab bar (顶栏 safe-area-inset-top 已生效, 底栏不生效)
-     背景完全透明: padding 110px 区间直接透出背后的视频/庭院, 不再叠毛玻璃渐变 */
-  padding: 12px 4px calc(110px + env(safe-area-inset-bottom, 0px));
+     修复: 抬升避开浮层 tab bar (顶栏 safe-area-inset-top 已生效, 底栏不生效)
+     背景完全透明: padding 区间直接透出背后的视频/庭院, 不再叠毛玻璃渐变
+     2026-07-27: 由 110px 改为 80px, 把 4 个 icon 再下降 30px, 贴近浮层 tab bar 视觉 */
+  padding: 12px 4px calc(80px + env(safe-area-inset-bottom, 0px));
   background: transparent;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
-/* PWA standalone 模式: 浮层 tab bar 不存在, 还原回 22px */
+/* PWA standalone 模式: 浮层 tab bar 不存在, 还原回 0 */
 @media (display-mode: standalone) {
   .bottom-bar {
-    padding: 12px 4px calc(22px + env(safe-area-inset-bottom, 0px));
+    padding: 12px 4px env(safe-area-inset-bottom, 0px);
   }
 }
 

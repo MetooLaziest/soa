@@ -92,15 +92,17 @@
 .live-page-bottom-menu {
   position: absolute;
   /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
-     修复: 抬升 110px 避开浮层 tab bar (顶栏 safe-area-inset-top 已生效, 底栏不生效) */
-  bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+     修复: 抬升避开浮层 tab bar (顶栏 safe-area-inset-top 已生效, 底栏不生效)
+     2026-07-27: 由 110px 改为 80px, 4 个 icon 下降 30px 贴近浮层 tab bar 视觉
+     同时去掉黑色渐变阴影, 让视频直接露在菜单底 */
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   height: 60px;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  background: transparent;
   padding: 0 16px 12px;
   z-index: 20;
 }
