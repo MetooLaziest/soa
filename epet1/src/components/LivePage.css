@@ -92,8 +92,9 @@
 }
 
 /* ========== 底部菜单 ========== */
-/* 2026-07-27: 4 icon 改为 22x22(与全局 .bottom-bar 同尺寸), height 改 44px, padding 8px
-   让 icon 中心约在距底 92px, 与全局底部 4 icon 同基线 */
+/* 2026-07-27 v2: 完全镜像全局 .bottom-bar 布局 — align-items:flex-end + justify-content:center + gap:4px + padding 12px 4px
+   容器高度由内容撑开(无固定 height), 4 icon 22x22 与全局 .bottom-bar-btn img 完全同尺寸同基线
+   icon 中心距底 = bottom(80) + padding-top(12) + button-padding(6) + icon/2(11) = 109px (与全局一致) */
 .live-page-bottom-menu {
   position: absolute;
   /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
@@ -103,12 +104,12 @@
   bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
-  height: 44px;
   display: flex;
-  justify-content: space-around;
-  align-items: center;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 4px;
   background: transparent;
-  padding: 0 16px 8px;
   z-index: 20;
 }
 
@@ -121,22 +122,29 @@
 
 .live-page-menu-btn {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2px;
   background: none;
   border: none;
   color: #fff;
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 12px;
   transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .live-page-menu-btn:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* 2026-07-27: icon 由 32x32 改 22x22, 与全局 .bottom-bar-btn img 同尺寸同基线 */
+.live-page-menu-btn:active {
+  transform: scale(0.9);
+}
+
+/* 2026-07-27: icon 22x22, 与全局 .bottom-bar-btn img 同尺寸 */
 .live-page-menu-btn img {
   width: 22px;
   height: 22px;
@@ -145,7 +153,11 @@
 
 .live-page-menu-btn.play-btn {
   /* 无特殊背景, 与其他菜单按钮一致 */
-  padding: 10px 16px;
+  padding: 6px 10px;
+}
+
+.live-page-menu-btn.play-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .live-page-menu-btn.play-btn:hover {
