@@ -364,8 +364,8 @@ body {
   /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
      提升 padding-bottom 让按钮内容浮到 Safari 工具栏上方 */
   padding: 12px 4px calc(110px + env(safe-area-inset-bottom, 0px));
-  /* 纯实色背景: 去掉毛玻璃 (iOS Safari 上 backdrop-filter 经常产生白雾伪影) */
-  background: #F5F0E8;
+  /* 无背景: 按钮直接显示在 canvas 庭院背景图上 */
+  background: transparent;
 }
 
 .bottom-bar-btn {
