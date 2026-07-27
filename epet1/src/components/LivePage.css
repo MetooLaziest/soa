@@ -60,11 +60,12 @@
 }
 
 /* ========== 视频信息 ========== */
-/* 2026-07-27: 从 bottom:100px 改为 top:110px, 放在右上角 TopRightMenu(商店, top:60px) 之下
-   防止被底部 4 icon(32x32) 遮挡 */
+/* 2026-07-27: 从 bottom:100px 改为 top:calc(60px + env(safe-area-inset-top, 0px))
+   switch 栏(.mode-switch-bar, top:calc(16px+env) + 高 ~31px) 结束于约 47px(浏览器) / 80px(PWA standalone)
+   60px 浏览器下贴 switch 下方 13px, PWA 下贴近 switch 末尾, 不会被底栏 4 icon(距底 ~102px) 遮挡 */
 .live-page-info {
   position: absolute;
-  top: 110px;
+  top: calc(60px + env(safe-area-inset-top, 0px));
   left: 16px;
   right: 16px;
   color: #fff;
@@ -247,12 +248,13 @@
   z-index: 30;
 }
 
+/* 2026-07-27: 去掉 live 模式商店按钮背后的黑色色块 (rgba(0,0,0,0.5)) 和 backdrop-filter
+   与庭院模式右上角按钮保持简洁风格一致 */
 .live-page-top-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
+  background: transparent;
   border: none;
   color: #fff;
   cursor: pointer;
@@ -262,7 +264,7 @@
 }
 
 .live-page-top-btn:hover {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(255, 255, 255, 0.1);
   transform: scale(1.05);
 }
 
