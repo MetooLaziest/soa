@@ -362,8 +362,9 @@ body {
   justify-content: center;
   gap: 4px;
   /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
-     提升 padding-bottom 让按钮内容浮到 Safari 工具栏上方 */
-  padding: 12px 4px calc(110px + env(safe-area-inset-bottom, 0px));
+     PWA 提示横幅引导用户切到 standalone 模式 (无 Safari chrome),
+     正常浏览器模式下仅作为过渡态, 留 22px + safe-area 即可 */
+  padding: 12px 4px calc(22px + env(safe-area-inset-bottom, 0px));
   /* 无背景: 按钮直接显示在 canvas 庭院背景图上 */
   background: transparent;
 }
