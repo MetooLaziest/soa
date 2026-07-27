@@ -1,0 +1,18 @@
+{
+  "name": "MOMOTOY 绒绒庭院",
+  "short_name": "绒绒庭院",
+  "description": "绒绒庭院 E-Pet H5 - 与可爱宠物共度日常",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f0e8",
+  "theme_color": "#5B9A7D",
+  "icons": [
+    {
+      "src": "/icons.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

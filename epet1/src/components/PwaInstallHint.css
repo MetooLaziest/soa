@@ -1,0 +1,81 @@
+.pwa-install-hint {
+  position: fixed;
+  top: calc(60px + env(safe-area-inset-top, 0px));
+  left: 12px;
+  right: 12px;
+  z-index: 8000;
+  max-width: 480px;
+  margin: 0 auto;
+  animation: pwa-hint-slide-in 0.4s ease-out;
+}
+
+@keyframes pwa-hint-slide-in {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pwa-hint-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(91, 154, 125, 0.3);
+}
+
+.pwa-hint-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.pwa-hint-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.pwa-hint-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2D4A3A;
+  margin-bottom: 2px;
+}
+
+.pwa-hint-desc {
+  font-size: 12px;
+  color: #6B6B6B;
+  line-height: 1.4;
+}
+
+.pwa-hint-share-icon {
+  display: inline-block;
+  font-size: 16px;
+  color: #5B9A7D;
+  margin: 0 2px;
+}
+
+.pwa-hint-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0 8px;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pwa-hint-arrow {
+  text-align: center;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.98);
+  margin-top: -4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  animation: pwa-hint-bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes pwa-hint-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}

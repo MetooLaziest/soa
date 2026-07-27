@@ -361,9 +361,19 @@ body {
   align-items: flex-end;
   justify-content: center;
   gap: 4px;
-  /* 增加底部留白以避开 Safari 底部工具栏 (visualViewport 已排除工具栏, 但部分机型 toolbar 是浮层叠加) */
-  padding: 4px 4px calc(20px + env(safe-area-inset-bottom, 0px));
-  background: transparent;
+  /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
+     提升 padding-bottom 让按钮内容浮到 Safari 工具栏上方 */
+  padding: 12px 4px calc(110px + env(safe-area-inset-bottom, 0px));
+  /* 底部渐变背景: 让按钮上方留白自然过渡到 canvas */
+  background: linear-gradient(
+    to top,
+    rgba(245, 240, 232, 0.92) 0%,
+    rgba(245, 240, 232, 0.75) 30%,
+    rgba(245, 240, 232, 0.35) 60%,
+    rgba(245, 240, 232, 0) 100%
+  );
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .bottom-bar-btn {

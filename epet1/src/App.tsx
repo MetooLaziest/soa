@@ -45,6 +45,7 @@ import { IconImg } from './components/IconImg';
 import { PetActionOverlay } from './components/PetActionOverlay';
 import { OutfitPanel } from './components/OutfitPanel';
 import LoginOverlay from './components/LoginOverlay';
+import PwaInstallHint from './components/PwaInstallHint';
 import { useAuthStore } from './store/authStore';
 import './App.css';
 import './components/LivePage.css';
@@ -245,6 +246,13 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
       setLoading(false);
     });
   }, [userId]);
+
+  // 已登录后, 标记"已见过登录态" → 允许 PWA 提示横幅出现
+  useEffect(() => {
+    if (isAuthenticated) {
+      localStorage.setItem('pwa-hint-seen-after-login', '1');
+    }
+  }, [isAuthenticated]);
 
   // 加载当前系列详情
   useEffect(() => {
@@ -2487,6 +2495,8 @@ export default function App() {
           {claimResult.msg}
         </div>
       )}
+      {/* iOS Safari PWA 安装提示 — 引导用户添加到主屏幕获得全屏体验 */}
+      <PwaInstallHint />
       {/* 情绪值浮动反馈 */}
       <EmotionFloatLayer items={emotionFloats} onDone={removeEmotionFloat} />
       {/* 首页模式切换栏 — 浮动在左上角, yard/live 共用 */}
