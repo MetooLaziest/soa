@@ -92,16 +92,26 @@
 }
 
 /* ========== 底部菜单 ==========
-   v6 几何校准 (2026-07-27):
+   v7 几何校准 (2026-07-27):
    yard (.bottom-bar-btn, App.tsx 2006-2019) 实际 icon 来自 epet_icons 表,
    4 个 icon (icon-postcard/collection/backpack/minigame) 全部为 64x64 上传 png.
    yard button 实测盒高: padding 6 + img 64 + padding 6 = 76px.
-   live (.live-page-menu-btn) img 强制 22x22, button 实际高 34px (6+22+6),
-   比 yard 矮 42px → live img 中心比 yard img 中心高 21px.
-   修复: live button 用 ::after 作为几何 spacer, 使其总盒高与 yard 一致 76px.
-   算式: 6 (padding-top) + 22 (img) + 2 (gap) + 40 (::after) + 6 (padding-bottom) = 76px ✓
-   icon 实际仍渲染 22x22, 居中 (button align-items/justify-content 居中), 视觉跟 yard 大 icon 中心 y 完美对齐.
-   v5 错误: height 12px → 算式 6+22+2+12+6=48px, 仍比 yard 76px 矮 28px (icon 中心高 14px). */
+   yard img 中心 y 距 button 顶 = 6 + 32 = 38px.
+
+   真根因: IconImg 默认 className='bottom-bar-icon-img uploaded', 优先级 (0,2,0)=20
+   覆盖了 .live-page-menu-btn img 的 22x22 (优先级 (0,1,1)=11).
+   所以 live img 实际渲染为 64x64 (跟 yard 一样), 不是 22x22.
+
+   v6 错误: 我以为 live img 是 22x22, 加 ::after 40px 凑 76px → 算式 6+22+2+40+6=76px
+   但 live img 实际是 64x64 → 实际算式 6+64+2+40+6=118px, 比 yard 76px 高 42px,
+   live img 中心比 yard img 中心低 21px (更糟).
+
+   v7 正确方案:
+   1. IconImg 显式 className="bottom-bar-icon-img" (不带 uploaded, 强制 22x22)
+   2. 移除 v6 ::after (不再需要, 不然又会出现 v6 问题)
+   3. padding 27px 10px → button 高 27+22+27=76px (跟 yard 一致)
+      img 居中, 中心 y 距 button 顶 = 27+11 = 38px (跟 yard 一致) ✓
+*/
 .live-page-bottom-menu {
   position: absolute;
   bottom: 0;
@@ -134,20 +144,15 @@
   border: none;
   color: #fff;
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 27px 10px;  /* v7: was 6px 10px in v5/v6, 27+22+27=76px matches yard button height */
   border-radius: 12px;
   transition: all 0.2s;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* v6 (2026-07-27): ::after height 12→40, 凑齐 button 盒高 = 76px (跟 yard button 6+64+6=76 一致)
-   yard icon 是 64x64 上传图, live icon 是 22x22 (强制), 用 40px 不可见 spacer 撑齐几何 */
-.live-page-menu-btn::after {
-  content: "";
-  display: block;
-  height: 40px;
-  width: 1px;
-}
+/* v7: ::after REMOVED. v6 had 40px spacer but live img was actually 64x64 not 22x22, so
+   v6 made things worse. v7 forces live img to 22x22 via className and uses padding 27+27
+   to reach 76px button height matching yard. No spacer needed. */
 
 .live-page-menu-btn:hover {
   background: rgba(255, 255, 255, 0.1);
@@ -157,7 +162,8 @@
   transform: scale(0.9);
 }
 
-/* 2026-07-27: icon 22x22, 与全局 .bottom-bar-btn img 同尺寸 (保持 v4 设定) */
+/* 2026-07-27 v7: icon 22x22, 由 IconImg 显式 className="bottom-bar-icon-img" 强制 (不带 "uploaded")
+   不再用 ::after spacer, 几何通过 padding 27px 10px 凑齐 button 高 76px */
 .live-page-menu-btn img {
   width: 22px;
   height: 22px;
@@ -165,8 +171,8 @@
 }
 
 .live-page-menu-btn.play-btn {
-  /* 无特殊背景, 与其他菜单按钮一致 */
-  padding: 6px 10px;
+  /* 无特殊背景, 与其他菜单按钮一致, padding 与 .live-page-menu-btn 一致 (v7: 27px 10px) */
+  padding: 27px 10px;
 }
 
 .live-page-menu-btn.play-btn:hover {
