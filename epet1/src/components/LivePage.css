@@ -91,17 +91,17 @@
   margin-top: 8px;
 }
 
-/* ========== 底部菜单 ========== */
-/* 2026-07-27 v5: 几何校准 — 完全镜像全局 .bottom-bar
-   全局结构: position:fixed; bottom:0; padding:12px 4px calc(80px + env)
-            align-items:flex-end → content bottom = 80 above viewport bottom
-   live 结构改为一致: position:absolute; bottom:0; padding:12px 4px calc(80px + env)
-            align-items:flex-end → content bottom = 80 above viewport bottom ✓
-   v4 错误: bottom:80+env (容器外推 80) + padding 12 4 → content bottom = 92, 比全局高 12px
-   v5 修正: 容器贴底, padding-bottom 80+env, 与全局几何 1:1 对齐
-   ::after 10→12: 全局 .bottom-bar-label 10px 字体默认 line-height ~1.2, 实际盒高 12px,
-            同步 ::after 到 12px 保证 button 高度与全局完全一致 (6+22+2+12=42)
-*/
+/* ========== 底部菜单 ==========
+   v6 几何校准 (2026-07-27):
+   yard (.bottom-bar-btn, App.tsx 2006-2019) 实际 icon 来自 epet_icons 表,
+   4 个 icon (icon-postcard/collection/backpack/minigame) 全部为 64x64 上传 png.
+   yard button 实测盒高: padding 6 + img 64 + padding 6 = 76px.
+   live (.live-page-menu-btn) img 强制 22x22, button 实际高 34px (6+22+6),
+   比 yard 矮 42px → live img 中心比 yard img 中心高 21px.
+   修复: live button 用 ::after 作为几何 spacer, 使其总盒高与 yard 一致 76px.
+   算式: 6 (padding-top) + 22 (img) + 2 (gap) + 40 (::after) + 6 (padding-bottom) = 76px ✓
+   icon 实际仍渲染 22x22, 居中 (button align-items/justify-content 居中), 视觉跟 yard 大 icon 中心 y 完美对齐.
+   v5 错误: height 12px → 算式 6+22+2+12+6=48px, 仍比 yard 76px 矮 28px (icon 中心高 14px). */
 .live-page-bottom-menu {
   position: absolute;
   bottom: 0;
@@ -140,14 +140,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 2026-07-27 v5: ::after 高度 10→12, 匹配全局 .bottom-bar-label
-   全局 label: font-size:10px 无显式 line-height, iOS Safari 默认 ~1.2 → 实际盒高 12px
-   live ::after 必须 = 12, button 总高 = 6+22+2+12 = 42px, 与全局完全一致
-   容器底 = 视口底, padding-bottom 80 → content 底 = 80, 与全局完全一致 */
+/* v6 (2026-07-27): ::after height 12→40, 凑齐 button 盒高 = 76px (跟 yard button 6+64+6=76 一致)
+   yard icon 是 64x64 上传图, live icon 是 22x22 (强制), 用 40px 不可见 spacer 撑齐几何 */
 .live-page-menu-btn::after {
   content: "";
   display: block;
-  height: 12px;
+  height: 40px;
   width: 1px;
 }
 
