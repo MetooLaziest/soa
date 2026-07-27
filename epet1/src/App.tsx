@@ -385,7 +385,10 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
     }}>
       {/* 顶部导航 */}
       <div style={{
-        height: 56, display: 'flex', alignItems: 'center', padding: '12px 16px 0',
+        // padding-top 用 max(12px, safe-area-inset-top):
+        //  - 浏览器: safe-area = 47px, 状态栏覆盖顶 47px, 按钮不能被遮挡
+        //  - PWA standalone: safe-area = 0, 退回 12px (无状态栏)
+        height: 56, display: 'flex', alignItems: 'center', padding: 'max(12px, env(safe-area-inset-top)) 16px 0',
         background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)',
       }}>
         <button onClick={onBack} style={{
@@ -422,6 +425,10 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
           flex: 1,
           position: 'relative',
           overflow: 'hidden',
+          // padding-bottom = safe-area-inset-bottom:
+          //  - PWA standalone: safe-area = 34px (home indicator), 避免内容延伸到 home bar 下
+          //  - 浏览器模式: safe-area = 0, 不影响布局
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           background: seriesDetail?.series?.displayBackgroundUrl
             ? `url(${seriesDetail.series.displayBackgroundUrl}) center/cover no-repeat`
             : 'linear-gradient(180deg, #f5f0e8 0%, #e8e0d0 100%)',
