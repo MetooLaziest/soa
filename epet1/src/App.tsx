@@ -2248,6 +2248,30 @@ export default function App() {
     setLevelUpAnim({ oldLevel, newLevel, petName, petModelId });
   };
 
+  // iOS Safari 视口修复: 监听 visualViewport 变化, 实时更新 --app-height CSS 变量
+  // 解决 Safari 底部工具栏(~70px) 覆盖在 viewport 上、env(safe-area-inset-bottom) 不包含工具栏的问题
+  // window.visualViewport.height 反映"用户实际可见区域"(不含 Safari 工具栏)
+  useEffect(() => {
+    const setAppHeight = () => {
+      // 优先用 visualViewport (iOS Safari 16+ 支持, 反映真实可视高度)
+      const h = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty('--app-height', `${h}px`);
+    };
+    setAppHeight();
+    // 监听 visualViewport resize (Safari 显示/隐藏工具栏时触发)
+    window.visualViewport?.addEventListener('resize', setAppHeight);
+    window.visualViewport?.addEventListener('scroll', setAppHeight);
+    // 兜底: 普通 resize/orientationchange
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', setAppHeight);
+      window.visualViewport?.removeEventListener('scroll', setAppHeight);
+      window.removeEventListener('resize', setAppHeight);
+      window.removeEventListener('orientationchange', setAppHeight);
+    };
+  }, []);
+
   // 旅行归来检测：当 activeTravel 存在且接近到期时轮询，归来时刷新数据并检测升级
   const prevTravelRef = useRef<any>(null);
   useEffect(() => {

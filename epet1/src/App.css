@@ -83,8 +83,9 @@
 .emotion-float.negative { color: #FF6B6B; }
 
 html {
-  height: 100vh;
-  height: 100dvh;
+  /* 优先用 --app-height (由 visualViewport 动态设置, 反映真实可视区域, 排除 Safari 工具栏) */
+  height: var(--app-height, 100vh);
+  height: var(--app-height, 100dvh);
   overflow: hidden;
 }
 
@@ -100,8 +101,8 @@ body {
 
 /* ─── App Shell ───────────────────────────── */
 .app {
-  height: 100vh;
-  height: 100dvh;
+  height: var(--app-height, 100vh);
+  height: var(--app-height, 100dvh);
   position: relative;
   overflow: hidden;
 }
@@ -156,8 +157,8 @@ body {
 .home-panel {
   position: relative;
   width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  height: var(--app-height, 100vh);
+  height: var(--app-height, 100dvh);
   max-width: 100%;
   /* 跨过 .app-content 容器限制，始终全屏 */
   margin-left: calc(50% - 50vw);
@@ -169,8 +170,9 @@ body {
   top: 0;
   left: 0;
   width: 100vw !important;  /* 覆盖 PixiJS 内联 style */
-  height: 100vh !important;
-  height: 100dvh !important;
+  /* 用 visualViewport 真实高度 (排除 Safari 底部工具栏覆盖) */
+  height: var(--app-height, 100vh) !important;
+  height: var(--app-height, 100dvh) !important;
   display: block;
   z-index: 0;
 }
@@ -359,7 +361,8 @@ body {
   align-items: flex-end;
   justify-content: center;
   gap: 4px;
-  padding: 4px 4px calc(6px + env(safe-area-inset-bottom));
+  /* 增加底部留白以避开 Safari 底部工具栏 (visualViewport 已排除工具栏, 但部分机型 toolbar 是浮层叠加) */
+  padding: 4px 4px calc(20px + env(safe-area-inset-bottom, 0px));
   background: transparent;
 }
 
@@ -836,8 +839,8 @@ body {
 .chat-page {
   position: fixed;
   inset: 0;
-  height: 100%;
-  height: 100dvh;
+  height: var(--app-height, 100%);
+  height: var(--app-height, 100dvh);
   z-index: 200;
   background-color: #FAF3E8;
   background-repeat: no-repeat;
@@ -1203,7 +1206,8 @@ body {
 /* ========== 首页模式切换栏 ========== */
 .mode-switch-bar {
   position: fixed;
-  top: calc(12px + env(safe-area-inset-top));
+  /* 增加顶部留白以避开 Safari 顶部状态栏/地址栏 */
+  top: calc(16px + env(safe-area-inset-top, 0px));
   left: 12px;
   z-index: 500;
   display: flex;
