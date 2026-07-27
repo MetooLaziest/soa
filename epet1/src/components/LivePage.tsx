@@ -245,19 +245,19 @@ function BottomMenu({ onOpenModal, onShowPlayMenu }: {
   return (
     <div className="live-page-bottom-menu">
       <button className="live-page-menu-btn" onClick={() => onOpenModal('postcard')}>
-        <IconImg iconKey="icon-postcard" fallback="💌" className="bottom-bar-icon-img" />
+        <IconImg iconKey="icon-postcard" fallback="💌" />
       </button>
 
       <button className="live-page-menu-btn" onClick={() => onOpenModal('collection')}>
-        <IconImg iconKey="icon-collection" fallback="🏠" className="bottom-bar-icon-img" />
+        <IconImg iconKey="icon-collection" fallback="🏠" />
       </button>
 
       <button className="live-page-menu-btn" onClick={() => onOpenModal('inventory')}>
-        <IconImg iconKey="icon-backpack" fallback="🎒" className="bottom-bar-icon-img" />
+        <IconImg iconKey="icon-backpack" fallback="🎒" />
       </button>
 
       <button className="live-page-menu-btn play-btn" onClick={onShowPlayMenu}>
-        <IconImg iconKey="icon-minigame" fallback="🎮" className="bottom-bar-icon-img" />
+        <IconImg iconKey="icon-minigame" fallback="🎮" />
       </button>
     </div>
   );
