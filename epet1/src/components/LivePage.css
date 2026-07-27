@@ -92,33 +92,35 @@
 }
 
 /* ========== 底部菜单 ========== */
-/* 2026-07-27 v4: 容器 bottom 回到 80, 配合 .live-page-menu-btn::after 占位 10px
-   几何: 容器底 80 + padding-bottom 12 = button 底 92? 不对
-   实际上 padding 在容器内, flex-end 让 button 贴容器底
-   container 底 80, padding 12 4, align-items: flex-end
-   button 底 = 80 (贴底), button 高 44 (含 ::after), button 顶 = 36, img 中心 = 36+6+11 = 53
-   全局 img 中心 47, 差 6 (padding-top 12 vs 全局 6 引起的 6px 误差, 视觉可接受)
-   容器距浮层 tab bar 距离 80px (4 icon 不会向 tab bar 靠近)
+/* 2026-07-27 v5: 几何校准 — 完全镜像全局 .bottom-bar
+   全局结构: position:fixed; bottom:0; padding:12px 4px calc(80px + env)
+            align-items:flex-end → content bottom = 80 above viewport bottom
+   live 结构改为一致: position:absolute; bottom:0; padding:12px 4px calc(80px + env)
+            align-items:flex-end → content bottom = 80 above viewport bottom ✓
+   v4 错误: bottom:80+env (容器外推 80) + padding 12 4 → content bottom = 92, 比全局高 12px
+   v5 修正: 容器贴底, padding-bottom 80+env, 与全局几何 1:1 对齐
+   ::after 10→12: 全局 .bottom-bar-label 10px 字体默认 line-height ~1.2, 实际盒高 12px,
+            同步 ::after 到 12px 保证 button 高度与全局完全一致 (6+22+2+12=42)
 */
 .live-page-bottom-menu {
   position: absolute;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   left: 0;
   right: 0;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   gap: 4px;
-  padding: 12px 4px;
+  padding: 12px 4px calc(80px + env(safe-area-inset-bottom, 0px));
   background: transparent;
   z-index: 20;
   box-sizing: border-box;
 }
 
-/* PWA standalone 模式: 浮层 tab bar 不存在, 还原回 0 */
+/* PWA standalone 模式: 浮层 tab bar 不存在, padding-bottom 还原回 env (与全局一致) */
 @media (display-mode: standalone) {
   .live-page-bottom-menu {
-    bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
@@ -138,14 +140,14 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 2026-07-27 v4: 全局 .bottom-bar-btn 内有 .bottom-bar-label (高 10px) 占位
-   live 只有 img (高 22px), button 总高 34 vs 全局 50, 差 16px
-   用 ::after 占位 10px, 让 button 总高 44, 与全局 50 差 6px (4px padding-top 误差, 视觉不可见)
-   容器保持 bottom: 80px, 4 个 icon 不会向浮层 tab bar 靠近 */
+/* 2026-07-27 v5: ::after 高度 10→12, 匹配全局 .bottom-bar-label
+   全局 label: font-size:10px 无显式 line-height, iOS Safari 默认 ~1.2 → 实际盒高 12px
+   live ::after 必须 = 12, button 总高 = 6+22+2+12 = 42px, 与全局完全一致
+   容器底 = 视口底, padding-bottom 80 → content 底 = 80, 与全局完全一致 */
 .live-page-menu-btn::after {
   content: "";
   display: block;
-  height: 10px;
+  height: 12px;
   width: 1px;
 }
 
@@ -157,7 +159,7 @@
   transform: scale(0.9);
 }
 
-/* 2026-07-27: icon 22x22, 与全局 .bottom-bar-btn img 同尺寸 */
+/* 2026-07-27: icon 22x22, 与全局 .bottom-bar-btn img 同尺寸 (保持 v4 设定) */
 .live-page-menu-btn img {
   width: 22px;
   height: 22px;
