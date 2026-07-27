@@ -60,9 +60,11 @@
 }
 
 /* ========== 视频信息 ========== */
+/* 2026-07-27: 从 bottom:100px 改为 top:110px, 放在右上角 TopRightMenu(商店, top:60px) 之下
+   防止被底部 4 icon(32x32) 遮挡 */
 .live-page-info {
   position: absolute;
-  bottom: 100px;
+  top: 110px;
   left: 16px;
   right: 16px;
   color: #fff;
@@ -89,6 +91,8 @@
 }
 
 /* ========== 底部菜单 ========== */
+/* 2026-07-27: 4 icon 改为 22x22(与全局 .bottom-bar 同尺寸), height 改 44px, padding 8px
+   让 icon 中心约在距底 92px, 与全局底部 4 icon 同基线 */
 .live-page-bottom-menu {
   position: absolute;
   /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
@@ -98,12 +102,12 @@
   bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
-  height: 60px;
+  height: 44px;
   display: flex;
   justify-content: space-around;
   align-items: center;
   background: transparent;
-  padding: 0 16px 12px;
+  padding: 0 16px 8px;
   z-index: 20;
 }
 
@@ -131,9 +135,10 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* 2026-07-27: icon 由 32x32 改 22x22, 与全局 .bottom-bar-btn img 同尺寸同基线 */
 .live-page-menu-btn img {
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
 }
 
