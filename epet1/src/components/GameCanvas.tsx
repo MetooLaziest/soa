@@ -99,6 +99,7 @@ export function GameCanvas() {
         left: 0,
         width: '100vw',
         height: '100vh',
+        height: '100dvh',
         display: 'block',
         cursor: 'pointer',
         zIndex: 0,
