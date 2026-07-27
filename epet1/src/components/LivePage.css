@@ -92,15 +92,16 @@
 }
 
 /* ========== 底部菜单 ========== */
-/* 2026-07-27 v2: 完全镜像全局 .bottom-bar 布局 — align-items:flex-end + justify-content:center + gap:4px + padding 12px 4px
-   容器高度由内容撑开(无固定 height), 4 icon 22x22 与全局 .bottom-bar-btn img 完全同尺寸同基线
-   icon 中心距底 = bottom(80) + padding-top(12) + button-padding(6) + icon/2(11) = 109px (与全局一致) */
+/* 2026-07-27 v4: 容器 bottom 回到 80, 配合 .live-page-menu-btn::after 占位 10px
+   几何: 容器底 80 + padding-bottom 12 = button 底 92? 不对
+   实际上 padding 在容器内, flex-end 让 button 贴容器底
+   container 底 80, padding 12 4, align-items: flex-end
+   button 底 = 80 (贴底), button 高 44 (含 ::after), button 顶 = 36, img 中心 = 36+6+11 = 53
+   全局 img 中心 47, 差 6 (padding-top 12 vs 全局 6 引起的 6px 误差, 视觉可接受)
+   容器距浮层 tab bar 距离 80px (4 icon 不会向 tab bar 靠近)
+*/
 .live-page-bottom-menu {
   position: absolute;
-  /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
-     修复: 抬升避开浮层 tab bar (顶栏 safe-area-inset-top 已生效, 底栏不生效)
-     2026-07-27: 由 110px 改为 80px, 4 个 icon 下降 30px 贴近浮层 tab bar 视觉
-     同时去掉黑色渐变阴影, 让视频直接露在菜单底 */
   bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
@@ -111,6 +112,7 @@
   padding: 12px 4px;
   background: transparent;
   z-index: 20;
+  box-sizing: border-box;
 }
 
 /* PWA standalone 模式: 浮层 tab bar 不存在, 还原回 0 */
@@ -134,6 +136,17 @@
   border-radius: 12px;
   transition: all 0.2s;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 2026-07-27 v4: 全局 .bottom-bar-btn 内有 .bottom-bar-label (高 10px) 占位
+   live 只有 img (高 22px), button 总高 34 vs 全局 50, 差 16px
+   用 ::after 占位 10px, 让 button 总高 44, 与全局 50 差 6px (4px padding-top 误差, 视觉不可见)
+   容器保持 bottom: 80px, 4 个 icon 不会向浮层 tab bar 靠近 */
+.live-page-menu-btn::after {
+  content: "";
+  display: block;
+  height: 10px;
+  width: 1px;
 }
 
 .live-page-menu-btn:hover {
