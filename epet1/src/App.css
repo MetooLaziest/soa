@@ -362,11 +362,28 @@ body {
   justify-content: center;
   gap: 4px;
   /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
-     PWA 提示横幅引导用户切到 standalone 模式 (无 Safari chrome),
-     正常浏览器模式下仅作为过渡态, 留 22px + safe-area 即可 */
-  padding: 12px 4px calc(22px + env(safe-area-inset-bottom, 0px));
-  /* 无背景: 按钮直接显示在 canvas 庭院背景图上 */
-  background: transparent;
+     修复: 抬升 110px 避开浮层 tab bar (顶栏 safe-area-inset-top 已生效, 底栏不生效)
+     兜底加 PWA 检测, standalone 模式下不需要这 110px 抬升 */
+  padding: 12px 4px calc(110px + env(safe-area-inset-bottom, 0px));
+  /* 半透明背景 + 渐变, 让浮层 tab bar 透出来也和谐 */
+  background: linear-gradient(
+    to top,
+    rgba(245, 240, 232, 0.92) 0%,
+    rgba(245, 240, 232, 0.55) 60%,
+    transparent 100%
+  );
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* PWA standalone 模式: 浮层 tab bar 不存在, 还原回 22px */
+@media (display-mode: standalone) {
+  .bottom-bar {
+    padding: 12px 4px calc(22px + env(safe-area-inset-bottom, 0px));
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 .bottom-bar-btn {

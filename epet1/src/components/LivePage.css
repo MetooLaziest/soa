@@ -91,7 +91,9 @@
 /* ========== 底部菜单 ========== */
 .live-page-bottom-menu {
   position: absolute;
-  bottom: 0;
+  /* iOS Safari 浮层 tab bar (~110px) 覆盖在 viewport 之上, env(safe-area-inset-bottom) 和 visualViewport 都不包含它
+     修复: 抬升 110px 避开浮层 tab bar (顶栏 safe-area-inset-top 已生效, 底栏不生效) */
+  bottom: calc(110px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   height: 60px;
@@ -101,6 +103,13 @@
   background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
   padding: 0 16px 12px;
   z-index: 20;
+}
+
+/* PWA standalone 模式: 浮层 tab bar 不存在, 还原回 0 */
+@media (display-mode: standalone) {
+  .live-page-bottom-menu {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 .live-page-menu-btn {
