@@ -369,33 +369,35 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
         }} />
       )}
 
-      {/* ─── L2 湖面动画 ─── */}
-      <div style={{
-        position: 'absolute',
-        top: `${lakeTop}%`, left: `${config.lake_left_pct}%`,
-        width: `${config.lake_width_pct}%`, height: `${config.lake_height_pct}%`,
-        overflow: 'hidden', zIndex: 2,
-      }}>
-        {[7, 11, 15].map((dur, i) => (
-          <div key={i} style={{
-            position: 'absolute',
-            top: i === 0 ? '-30%' : i === 1 ? '-20%' : '-10%',
-            left: '-50%',
-            width: '200%', height: '80%',
-            borderRadius: '45%',
-            background: i === 0
-              ? 'rgba(30,100,180,0.25)'
-              : i === 1
-              ? 'rgba(40,130,210,0.2)'
-              : 'rgba(60,160,240,0.15)',
-            animation: `fishingWave${i} ${dur}s ease-in-out infinite alternate`,
-          }} />
-        ))}
+      {/* ─── L2 湖面动画: 仅当没传背景图时才显示系统画的水池 ─── */}
+      {!bgV2Url && !bgUrl && (
         <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, rgba(100,180,255,0.08) 0%, transparent 40%)',
-        }} />
-      </div>
+          position: 'absolute',
+          top: `${lakeTop}%`, left: `${config.lake_left_pct}%`,
+          width: `${config.lake_width_pct}%`, height: `${config.lake_height_pct}%`,
+          overflow: 'hidden', zIndex: 2,
+        }}>
+          {[7, 11, 15].map((dur, i) => (
+            <div key={i} style={{
+              position: 'absolute',
+              top: i === 0 ? '-30%' : i === 1 ? '-20%' : '-10%',
+              left: '-50%',
+              width: '200%', height: '80%',
+              borderRadius: '45%',
+              background: i === 0
+                ? 'rgba(30,100,180,0.25)'
+                : i === 1
+                ? 'rgba(40,130,210,0.2)'
+                : 'rgba(60,160,240,0.15)',
+              animation: `fishingWave${i} ${dur}s ease-in-out infinite alternate`,
+            }} />
+          ))}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(180deg, rgba(100,180,255,0.08) 0%, transparent 40%)',
+          }} />
+        </div>
+      )}
 
       {/* ─── L3 角色头像 ─── */}
       {avatarUrl && (
