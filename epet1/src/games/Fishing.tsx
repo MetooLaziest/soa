@@ -438,9 +438,9 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
       {/* ─── L5 UI 覆盖层 ─── */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
 
-        {/* 顶部状态栏 */}
+        {/* 顶部状态栏 — PWA safe area 适配, top 用 var(--safe-top) */}
         <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0,
+          position: 'absolute', top: 'var(--safe-top)', left: 0, right: 0,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '12px 16px',
           background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%)',
@@ -464,7 +464,7 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
               onClick={onClose}
               aria-label="返回"
               style={{
-                position: 'absolute', top: 12, left: 12, zIndex: 12,
+                position: 'absolute', top: 'calc(12px + var(--safe-top))', left: 12, zIndex: 12,
                 padding: 0, background: 'transparent', border: 'none', cursor: 'pointer',
                 WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
               }}

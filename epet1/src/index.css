@@ -4,6 +4,13 @@
   padding: 0;
 }
 
+:root {
+  /* PWA safe-area 统一变量 — 顶部状态栏高度 (iOS PWA standalone ~47px) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  /* 底部 home indicator 高度 (iOS PWA ~34px), 备用 */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #FFF8F0;

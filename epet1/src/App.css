@@ -484,7 +484,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 12px;
+  /* 顶 padding 用 max(12px, var(--safe-top)) 兜底 PWA 状态栏 (旅行/漂流/游戏 通用) */
+  padding: max(12px, var(--safe-top)) 20px 12px;
   border-bottom: 1px solid rgba(126, 200, 164, 0.2);
   flex-shrink: 0;
 }

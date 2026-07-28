@@ -1116,10 +1116,10 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
       backgroundSize: 'cover', backgroundPosition: 'center',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
-      {/* 顶部栏 */}
+      {/* 顶部栏 — PWA safe area 适配 (顶 padding 用 max(16px, var(--safe-top))) */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 20px', flexShrink: 0,
+        padding: 'max(16px, var(--safe-top)) 20px 16px', flexShrink: 0,
         background: hasBg ? 'rgba(0,0,0,0.25)' : 'rgba(139,105,20,0.08)',
         backdropFilter: hasBg ? 'blur(8px)' : undefined,
         WebkitBackdropFilter: hasBg ? 'blur(8px)' : undefined,

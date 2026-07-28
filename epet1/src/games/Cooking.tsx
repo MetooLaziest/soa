@@ -235,10 +235,10 @@ export default function Cooking({ onClose, onPageBgChange }: { onClose: () => vo
       userSelect: 'none',
       overflow: 'hidden',
     }}>
-      {/* 顶栏 */}
+      {/* 顶栏 — PWA safe area 适配 (顶 padding 用 max(12px, var(--safe-top))) */}
       <div style={{
         display: 'flex', alignItems: 'center',
-        padding: '12px 16px',
+        padding: 'max(12px, var(--safe-top)) 16px 12px',
         background: 'rgba(0,0,0,0.3)',
         flexShrink: 0,
       }}>
