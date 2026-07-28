@@ -6,7 +6,9 @@ const router = express.Router();
 // GET /api/epet1/inventory/:userId - 获取用户背包
 router.get('/:userId', async (req, res) => {
   try {
-    if (parseInt(req.params.userId) !== req.user.userId) {
+    // 两侧统一转 Number: req.user.userId 可能来自 PG BIGINT (string),
+    // req.params.userId 来自 URL path (string), 严格 !== 永远 true
+    if (Number(req.user.userId) !== Number(req.params.userId)) {
       return res.status(403).json({ error: '无权访问' });
     }
     const { userId } = req.params;
