@@ -201,34 +201,22 @@ router.post('/generate-codes', async (req, res) => {
       return res.status(400).json({ success: false, error: 'pet_model_id 必填, count 范围 1-100' });
     }
 
-    // 检查 model 存在
-    const modelRow = await client.query('SELECT name, nfc_range_start, nfc_range_end FROM pet_models WHERE id = $1', [pet_model_id]);
+    // 检查 model 存在 (不再读取 nfc_range — 激活码 nfc_id 统一走序列自增)
+    const modelRow = await client.query('SELECT id FROM pet_models WHERE id = $1', [pet_model_id]);
     if (modelRow.rowCount === 0) {
       return res.status(400).json({ success: false, error: `pet_model_id=${pet_model_id} 不存在` });
     }
-    const m = modelRow.rows[0];
 
     // 生成 count 个实体
     const results = [];
     for (let i = 0; i < count; i++) {
       const activationCode = crypto.randomBytes(14).toString('base64url');
 
-      // nfc_id: 如果有范围, 从范围内取下一个可用值; 否则用递增 ID
-      let nfcId;
-      if (m.nfc_range_start && m.nfc_range_end) {
-        const maxNfc = await client.query(
-          'SELECT COALESCE(MAX(nfc_id), $1 - 1) as max_nfc FROM pet_instances WHERE pet_model_id = $2 AND nfc_id BETWEEN $1 AND $3',
-          [Number(m.nfc_range_start), pet_model_id, Number(m.nfc_range_end)]
-        );
-        nfcId = Number(maxNfc.rows[0].max_nfc) + 1;
-        if (nfcId > Number(m.nfc_range_end)) {
-          return res.status(400).json({ success: false, error: `nfc_id 范围已满 (${m.nfc_range_start}-${m.nfc_range_end})`, generated: results });
-        }
-      } else {
-        // 无范围限制, 用序列
-        const seqRes = await client.query('SELECT nextval(\'pet_instances_id_seq\') as next_id');
-        nfcId = Number(seqRes.rows[0].next_id) + 100000; // 大数字避免冲突
-      }
+      // nfc_id: 统一用序列自增, 不再依赖 pet_model 的 nfc_range 锁定
+      // (历史 A 路径范围 MAX+1 在 model 之间 nfc_range 重叠时会冲突, B 路径 +100000 偏移
+      //  是设计就考虑 "跟 range 内短号错开", 改统一自增后这个偏移天然安全)
+      const seqRes = await client.query("SELECT nextval('pet_instances_id_seq') as next_id");
+      const nfcId = Number(seqRes.rows[0].next_id) + 100000;
 
       const r = await client.query(
         `INSERT INTO pet_instances (user_id, pet_model_id, nfc_id, nickname, activation_code, status)
