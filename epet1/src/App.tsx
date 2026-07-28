@@ -1335,7 +1335,7 @@ function DriftModal({ onClose }: { onClose: () => void }) {
 
 // ─── 商店 Modal ─────────────────────────────────────────────
 function ShopModal({ onClose }: { onClose: () => void }) {
-  const { userId, emotionPoints, setEmotionPoints, setActiveModal, setMatch3LevelId } = useGameStore();
+  const { userId, emotionPoints, setEmotionPoints, showEmotionFloat, setActiveModal, setMatch3LevelId } = useGameStore();
   const [activeTab, setActiveTab] = useState<string>('food');
   const [tabs, setTabs] = useState<Record<string, any[]>>({});
   const [bgImage, setBgImage] = useState('');
