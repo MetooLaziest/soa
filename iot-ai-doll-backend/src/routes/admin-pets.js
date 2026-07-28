@@ -32,12 +32,13 @@ router.get('/', async (_req, res) => {
        ORDER BY display_order`
     );
 
-    // 2) 全部 instances JOIN user + travel status
+    // 2) 全部 instances JOIN user + travel status (含 NFC 烧录字段 · memory #24)
     const instRes = await poolEpet1.query(
       `SELECT pi.id, pi.user_id, pi.pet_model_id, pi.nfc_id, pi.nickname,
               pi.growth_level, pi.growth_exp, pi.total_interactions,
               pi.total_travels, pi.total_postcards, pi.created_at, pi.updated_at,
               pi.activation_code, pi.status, pi.merged_into_id,
+              pi.nfc_burned_at, pi.nfc_burn_batch, pi.nfc_burn_device,
               u.nickname as user_nickname,
               pm.name as model_name, pm.image_url as model_image,
               yp.position as yard_position, yp.is_active as in_yard,
@@ -233,6 +234,88 @@ router.post('/generate-codes', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// ─── 工厂回灌烧录清单 (CSV → JSON, 前端已解析) ───
+// Body: { rows: [{ nfc_id: number|string, batch?: string, device?: string }],
+//         skipBurned?: bool (默认 true, 防止误覆盖早期烧录记录) }
+// Response: { success, imported, skipped, notFound, invalid, errors: [{row, nfc_id, reason}] }
+// 配合 memory #24: 工厂用导出 CSV 第 6 列烧 NFC, 烧完回灌此接口批量标"已烧录"
+router.post('/import-burned', async (req, res) => {
+  const { rows = [], skipBurned = true } = req.body || {};
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ success: false, error: 'rows 必须是非空数组' });
+  }
+  if (rows.length > 5000) {
+    return res.status(400).json({ success: false, error: '单次最多 5000 行, 请分批' });
+  }
+
+  const client = await poolEpet1.connect();
+  let imported = 0, skipped = 0, notFound = 0, invalid = 0;
+  const errors = [];
+  try {
+    await client.query('BEGIN');
+    for (let i = 0; i < rows.length; i++) {
+      const { nfc_id, batch = null, device = null } = rows[i] || {};
+      // 校验 nfc_id 必填且是数字或数字字符串
+      if (nfc_id === undefined || nfc_id === null || nfc_id === '' || !/^\d+$/.test(String(nfc_id).trim())) {
+        invalid++;
+        errors.push({ row: i + 1, nfc_id, reason: 'nfc_id 缺失或非数字' });
+        continue;
+      }
+      const nfcIdNum = Number(String(nfc_id).trim());
+      const batchStr = batch ? String(batch).trim().slice(0, 64) : null;
+      const deviceStr = device ? String(device).trim().slice(0, 64) : null;
+
+      // 跳过策略: 已烧录则跳过 (除非 skipBurned=false 强制覆盖)
+      if (skipBurned) {
+        const exist = await client.query(
+          'SELECT nfc_burned_at FROM pet_instances WHERE nfc_id = $1',
+          [nfcIdNum]
+        );
+        if (exist.rowCount === 0) {
+          notFound++;
+          errors.push({ row: i + 1, nfc_id: nfcIdNum, reason: '未找到该 nfc_id' });
+          continue;
+        }
+        if (exist.rows[0].nfc_burned_at) {
+          skipped++;
+          errors.push({ row: i + 1, nfc_id: nfcIdNum, reason: '已烧录, 跳过' });
+          continue;
+        }
+      }
+      const r = await client.query(
+        `UPDATE pet_instances
+            SET nfc_burned_at = NOW(),
+                nfc_burn_batch = $2,
+                nfc_burn_device = $3
+          WHERE nfc_id = $1
+        RETURNING id`,
+        [nfcIdNum, batchStr, deviceStr]
+      );
+      if (r.rowCount === 0) {
+        notFound++;
+        errors.push({ row: i + 1, nfc_id: nfcIdNum, reason: '未找到该 nfc_id' });
+      } else {
+        imported++;
+      }
+    }
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    return res.status(500).json({ success: false, error: e.message });
+  } finally {
+    client.release();
+  }
+
+  res.json({
+    success: true,
+    imported,
+    skipped,
+    notFound,
+    invalid,
+    errors: errors.slice(0, 200),  // 上限 200 条, 防 payload 爆炸
+  });
 });
 
 // ─── 单个实体重新生成激活码 (如码泄露) ───

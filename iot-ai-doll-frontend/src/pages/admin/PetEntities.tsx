@@ -46,6 +46,10 @@ interface PetInstance {
   travel_status: 'traveling' | 'returned' | null;
   travel_return_at: string | null;
   travel_dish_rating: number | null;
+  // NFC 烧录追踪 (memory #24, 工厂回灌 CSV 后填)
+  nfc_burned_at: string | null;
+  nfc_burn_batch: string | null;
+  nfc_burn_device: string | null;
 }
 
 interface PetModel {
@@ -74,6 +78,7 @@ export default function PetEntities() {
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<string>(''); // 按用户筛选
   const [qrCodes, setQrCodes] = useState<{ code: string; nfcId: string; modelName: string }[] | null>(null);
+  const [showUploadBurned, setShowUploadBurned] = useState(false); // CSV 上传烧录清单 modal (memory #24)
 
   useEffect(() => {
     loadData();
@@ -240,6 +245,8 @@ export default function PetEntities() {
       '完整认领URL',
       '所属用户',
       '创建时间',
+      '烧录状态',
+      '烧录时间',
     ];
     const csvRows = [headers];
     for (const inst of filtered) {
@@ -255,6 +262,10 @@ export default function PetEntities() {
         url,
         inst.user_nickname ? `${inst.user_nickname}(id=${inst.user_id})` : '',
         new Date(inst.created_at).toLocaleString('zh-CN'),
+        inst.nfc_burned_at ? '已烧录' : '未烧录',
+        inst.nfc_burned_at
+          ? `${new Date(inst.nfc_burned_at).toLocaleString('zh-CN')} [${inst.nfc_burn_batch || '-'}#${inst.nfc_burn_device || '-'}]`
+          : '',
       ]);
     }
     // CSV 字段内含逗号/引号/换行的需要双引号包裹 + 引号转义
@@ -343,6 +354,13 @@ export default function PetEntities() {
           >
             📥 导出未认领
           </button>
+          <button
+            onClick={() => setShowUploadBurned(true)}
+            className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-sm hover:bg-purple-600"
+            title="上传工厂回灌的烧录清单 CSV, 批量标记已烧录 (memory #24)"
+          >
+            📤 导入烧录清单
+          </button>
         </div>
       </div>
 
@@ -398,6 +416,14 @@ export default function PetEntities() {
       {/* QR Codes Modal */}
       {qrCodes && (
         <QRCodesModal codes={qrCodes} onClose={() => setQrCodes(null)} />
+      )}
+
+      {/* Upload Burned Modal (memory #24 — 工厂回灌 CSV 批量标已烧录) */}
+      {showUploadBurned && (
+        <UploadBurnedModal
+          onClose={() => setShowUploadBurned(false)}
+          onImported={loadData}
+        />
       )}
     </div>
   );
@@ -493,6 +519,7 @@ function ModelCard({
               <th className="text-left px-4 py-2 font-medium">互动</th>
               <th className="text-left px-4 py-2 font-medium">庭院</th>
               <th className="text-left px-4 py-2 font-medium">状态</th>
+              <th className="text-left px-4 py-2 font-medium">🔥 烧录</th>
               <th className="text-left px-4 py-2 font-medium">创建</th>
               <th className="text-right px-4 py-2 font-medium">操作</th>
             </tr>
@@ -570,6 +597,18 @@ function ModelCard({
                     <span className="text-green-600 font-medium">🏡 庭院</span>
                   ) : (
                     <span className="text-gray-400">待命</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-xs">
+                  {inst.nfc_burned_at ? (
+                    <div className="flex flex-col gap-0.5" title={inst.nfc_burn_batch ? `批次 ${inst.nfc_burn_batch}${inst.nfc_burn_device ? ' / 设备 ' + inst.nfc_burn_device : ''}` : ''}>
+                      <span className="text-orange-600 font-medium">🔥 已烧</span>
+                      <span className="text-gray-500 text-[10px]">
+                        {new Date(inst.nfc_burned_at).toLocaleDateString('zh-CN')}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">⚪ 未烧</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
@@ -816,6 +855,257 @@ function QRCodesModal({
             扫码跳转认领页面: {CLAIM_URL_BASE}&lt;激活码&gt;
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── 导入烧录清单 (工厂回灌 CSV, 批量标"已烧录") ───
+// 跟 memory #24 闭环: admin 导出 CSV (第 6 列是烧录 URL) → 工厂烧 NFC → 工厂回灌此 Modal
+// → 后端 POST /admin/pets/import-burned 事务批量 UPDATE → 列表显示「🔥 已烧」
+function UploadBurnedModal({
+  onClose,
+  onImported,
+}: {
+  onClose: () => void;
+  onImported?: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<{ rows: any[]; errors: string[] }>({ rows: [], errors: [] });
+  const [parsing, setParsing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [skipBurned, setSkipBurned] = useState(true);
+
+  // CSV 解析 (跟 exportToCsv 反向): BOM + 逗号 + 双引号转义
+  // 不引 csv-parse 库, 200 行内够用
+  const parseCsv = (text: string) => {
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // 去 UTF-8 BOM
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) return { rows: [], errors: ['CSV 至少需要 1 行表头 + 1 行数据'] };
+    const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+    const nfcIdx = headers.findIndex((h) => /^nfc[_]?id$/i.test(h));
+    if (nfcIdx < 0) return { rows: [], errors: ['表头必须包含 nfc_id 列 (兼容 nfcid)'] };
+    const batchIdx = headers.findIndex((h) => /^(batch|批次)$/i.test(h));
+    const deviceIdx = headers.findIndex((h) => /^(device|设备)$/i.test(h));
+    const rows = lines
+      .slice(1)
+      .map((line, i) => {
+        // 简单 split, 不处理引号转义内的逗号 (工厂 CSV 没这种情况)
+        const cells = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+        return {
+          nfc_id: cells[nfcIdx] || '',
+          batch: batchIdx >= 0 ? cells[batchIdx] || null : null,
+          device: deviceIdx >= 0 ? cells[deviceIdx] || null : null,
+          _row: i + 2, // 表头占 1 行, 数据从 2 开始
+        };
+      })
+      .filter((r) => r.nfc_id);
+    return { rows, errors: [] };
+  };
+
+  const onFile = (f: File | null) => {
+    setFile(f);
+    setResult(null);
+    if (!f) {
+      setPreview({ rows: [], errors: [] });
+      return;
+    }
+    setParsing(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = String(e.target?.result || '');
+      setPreview(parseCsv(text));
+      setParsing(false);
+    };
+    reader.readAsText(f, 'UTF-8');
+  };
+
+  const submit = async () => {
+    if (preview.rows.length === 0) return;
+    setSubmitting(true);
+    try {
+      const res = await client.post('/admin/pets/import-burned', {
+        rows: preview.rows.map((r) => ({
+          nfc_id: r.nfc_id,
+          batch: r.batch,
+          device: r.device,
+        })),
+        skipBurned,
+      });
+      setResult(res.data);
+      if (res.data?.success && res.data.imported > 0) onImported?.();
+    } catch (e: any) {
+      setResult({
+        success: false,
+        error: e?.response?.data?.error || e?.message || '请求失败',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const reset = () => {
+    setResult(null);
+    setFile(null);
+    setPreview({ rows: [], errors: [] });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">📤 导入烧录清单</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        </div>
+
+        {!result ? (
+          <>
+            <div className="mb-3 text-sm text-gray-600 bg-purple-50 border border-purple-200 rounded p-3">
+              <div className="font-medium text-purple-800 mb-1">📋 CSV 格式 (3 列, batch/device 可选)</div>
+              <code className="text-xs">nfc_id,batch,device</code>
+              <div className="mt-1 text-xs text-purple-700">
+                示例: <code>110001,BATCH-20260730-A,DEV01</code>
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                💡 工厂烧完 NFC 后, 把第 6 列认领 URL 那张表, 删除前 5 列保留 nfc_id/batch/device 即可
+              </div>
+            </div>
+
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => onFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm border rounded p-2 cursor-pointer"
+            />
+
+            {parsing && <div className="mt-3 text-sm text-gray-500">⏳ 解析中...</div>}
+
+            {preview.rows.length > 0 && (
+              <div className="mt-4">
+                <div className="text-sm text-gray-700 mb-2">
+                  ✅ 解析成功, 共 <b>{preview.rows.length}</b> 行, 预览前 5 行:
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="border p-1">行</th>
+                        <th className="border p-1">nfc_id</th>
+                        <th className="border p-1">batch</th>
+                        <th className="border p-1">device</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.rows.slice(0, 5).map((r, i) => (
+                        <tr key={i}>
+                          <td className="border p-1">{r._row}</td>
+                          <td className="border p-1 font-mono">{r.nfc_id}</td>
+                          <td className="border p-1">{r.batch || '-'}</td>
+                          <td className="border p-1">{r.device || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <label className="flex items-center gap-2 mt-3 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={skipBurned}
+                    onChange={(e) => setSkipBurned(e.target.checked)}
+                  />
+                  跳过已烧录的 (推荐, 防止误覆盖早期烧录记录)
+                </label>
+              </div>
+            )}
+
+            {preview.errors.length > 0 && (
+              <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                ⚠️ {preview.errors.join('; ')}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 mt-5 pt-3 border-t">
+              <button
+                onClick={onClose}
+                className="px-4 py-1.5 border rounded-lg text-sm hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={submit}
+                disabled={preview.rows.length === 0 || submitting}
+                className="px-4 py-1.5 bg-purple-500 text-white rounded-lg text-sm hover:bg-purple-600 disabled:opacity-50"
+              >
+                {submitting ? '提交中...' : `🚀 提交 ${preview.rows.length} 行`}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div>
+            {result.success ? (
+              <>
+                <div className="mb-3 text-sm bg-green-50 border border-green-200 rounded p-3">
+                  <div className="font-medium text-green-800">✅ 导入完成 {file ? <span className="text-xs text-gray-500 font-normal">({file.name})</span> : null}</div>
+                  <div className="mt-1 grid grid-cols-2 gap-1 text-xs">
+                    <div>导入成功: <b className="text-green-700">{result.imported}</b></div>
+                    <div>跳过 (已烧): <b className="text-gray-600">{result.skipped}</b></div>
+                    <div>未找到: <b className="text-red-600">{result.notFound}</b></div>
+                    <div>非法格式: <b className="text-red-600">{result.invalid}</b></div>
+                  </div>
+                </div>
+
+                {result.errors?.length > 0 && (
+                  <div>
+                    <div className="text-sm text-gray-700 mb-1">⚠️ 详细 (前 200 条):</div>
+                    <div className="max-h-60 overflow-y-auto text-xs border rounded">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="border p-1 text-left">行</th>
+                            <th className="border p-1 text-left">nfc_id</th>
+                            <th className="border p-1 text-left">原因</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.errors.map((e: any, i: number) => (
+                            <tr key={i}>
+                              <td className="border p-1">{e.row}</td>
+                              <td className="border p-1 font-mono">{e.nfc_id}</td>
+                              <td className="border p-1 text-red-600">{e.reason}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">
+                ❌ {result.error || '导入失败'}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4 pt-3 border-t">
+              <button
+                onClick={onClose}
+                className="px-4 py-1.5 border rounded-lg text-sm hover:bg-gray-50"
+              >
+                关闭
+              </button>
+              <button
+                onClick={reset}
+                className="px-4 py-1.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600"
+              >
+                📤 再传一份
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
