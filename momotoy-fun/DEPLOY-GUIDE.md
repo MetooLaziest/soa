@@ -1,6 +1,8 @@
 # momotoy.fun 上线操作指南 (4 步)
 
-> **前置条件**: Plan C 着陆页已部署到源服 (curl 47.98.103.151 返回 10702 bytes ✓)
+> **前置条件**:
+> - Plan C 着陆页已部署到源服 (47.98.103.151) + 备案服务器 (124.221.197.31) (curl 两者都返回 10702 bytes ✓)
+> - 详见 [[22-beian-server]] 关于 124.221.197.31 的凭据 + SSH 链
 > **预计总时长**: 3-10 个工作日 (其中 备案 是 7-20 天审核期)
 
 ---
@@ -11,10 +13,12 @@
 
 | 主机记录 | 记录类型 | 记录值 | TTL |
 |---------|---------|-------|-----|
-| `@`     | A       | `47.98.103.151` | 600 |
-| `www`   | A       | `47.98.103.151` | 600 |
-| `dw`    | A       | `47.98.103.151` | 600 |
+| `@`     | A       | `124.221.197.31` | 600 |
+| `www`   | A       | `124.221.197.31` | 600 |
+| `dw`    | A       | `124.221.197.31` | 600 |
 
+> ⚠️ **2026-07-28 重要变更**: 之前计划 DNS 指源服 47.98.103.151, 但源服**实名认证有问题不能作为备案主体**, 改指新购的腾讯云 Lighthouse `124.221.197.31` (`lhkp-k9r02wei`). 备案号必须挂在备案服务器, 所以 DNS 跟着主体走.
+>
 > 备案期未通过也能解析, 解析 ≠ 备案. 备案前访问 80 端口不会 80→443 重定向, 浏览器地址栏会显示"不安全".
 
 ### 验证 (DNS 生效后)
@@ -22,7 +26,7 @@
 dig +short momotoy.fun A
 dig +short www.momotoy.fun A
 dig +short dw.momotoy.fun A
-# 期望: 三条都返回 47.98.103.151
+# 期望: 三条都返回 124.221.197.31
 ```
 
 国内 DNS 生效通常 10-30 分钟, 海外 5 分钟.
@@ -42,7 +46,7 @@ dig +short dw.momotoy.fun A
 - 主体: 个人 (身份证正反面 + 人脸核验) 或 企业 (营业执照 + 法人身份证)
 - 域名证书: 注册商处下载 PDF (.fun 注册商 Namesilo 的证书获取路径: Account → My Domains → momotoy.fun → 证书)
 - 网站用途说明: "个人作品展示 / 品牌官网 / 游戏产品宣传" (通用措辞, 别写游戏运营/支付/交易, 避免触发额外审批)
-- 备案服务号: 源服 47.98.103.151 是腾讯云轻量应用服务器, 在控制台 "备案管理" 申请服务号
+- 备案服务号: 在新购备案服务器 `124.221.197.31` 的腾讯云控制台 "备案管理" 申请服务号 (注意: 是 124.221.197.31 这台, 不是源服 47.98.103.151)
 
 ### 2.3 提交 + 审核
 - 提交后 1-2 天腾讯云初审, 通过后短信核验
@@ -64,7 +68,8 @@ dig +short dw.momotoy.fun A
 备案通过后, 用 certbot 一次性签 3 域 SAN 证书:
 
 ```bash
-# 在源服 47.98.103.151 上
+# 在 124.221.197.31 上 (从源服 ssh 过去, 私钥 -i /root/.ssh/id_beian)
+ssh -i /root/.ssh/id_beian root@124.221.197.31
 certbot --nginx \
   -d momotoy.fun \
   -d www.momotoy.fun \
@@ -119,11 +124,18 @@ git push origin main
 git tag -a "v2026-XX-XX-momotoy-fun-https-active" -m "momotoy.fun 备案后 HTTPS 启用"
 ```
 
-然后 bridge 同步到源服:
+然后把新 conf 推到备案服 (124.221.197.31, 不是源服):
 ```bash
-# 把新 conf 推到源服
-bridge "cat > /etc/nginx/sites-available/momotoy-fun.conf" < momotoy-fun.conf
-bridge "nginx -t && systemctl reload nginx"
+# 1) 本地 source → 源服
+git add momotoy-fun/nginx/momotoy-fun.conf
+git commit -m "切 server_name 备案后真实值 + 启用 80→443"
+git push origin main
+git tag -a "v2026-XX-XX-momotoy-fun-https-active" -m "momotoy.fun 备案后 HTTPS 启用"
+git push origin main --tags
+
+# 2) 源服 → 备案服 (经 ed25519 私钥)
+scp -i /root/.ssh/id_beian momotoy-fun.conf root@124.221.197.31:/etc/nginx/sites-available/
+ssh -i /root/.ssh/id_beian root@124.221.197.31 "nginx -t && systemctl reload nginx"
 ```
 
 ### 最终验收
@@ -171,14 +183,15 @@ curl -I http://www.momotoy.fun        # 301 → https
 
 ## 验收清单 (备案 + HTTPS 全部完成后打勾)
 
-- [ ] `dig +short www.momotoy.fun` → 47.98.103.151
+- [ ] `dig +short www.momotoy.fun` → 124.221.197.31
 - [ ] `curl -I https://www.momotoy.fun` → 200, issuer=Let's Encrypt
 - [ ] 浏览器输 www.momotoy.fun 自动 https + 锁图标
 - [ ] footer 出现 "粤ICP备XXXXXXXX号-X" + 链到 beian.miit.gov.cn
 - [ ] `certbot renew --dry-run` → success
 - [ ] `https://soa.laziestlife.com` → 200 (确认没改坏 soa)
-- [ ] `http://47.98.103.151` IP 直访 → 仍是 Plan C 着陆页 (或 301 到 https)
+- [ ] `http://124.221.197.31` IP 直访 → 仍是 Plan C 着陆页 (或 301 到 https)
+- [ ] `http://47.98.103.151` IP 直访 → 源服 Plan C 镜像 (灾备用)
 
 ---
 
-**注**: 上面所有命令都假定源服 = 47.98.103.151, 系统 = Ubuntu/Debian nginx 1.18+. 如系统或 nginx 路径不同, 自行调整.
+**注**: 上面所有命令都假定备案服 = 124.221.197.31 (主, 跟 DNS + 备案号挂靠), 源服 = 47.98.103.151 (灾备镜像). 系统都是 Ubuntu 22.04 nginx 1.18+. 源服→备案服 scp/ssh 必须显式带 `-i /root/.ssh/id_beian`, 否则 permission denied. 详见 [[22-beian-server]].
