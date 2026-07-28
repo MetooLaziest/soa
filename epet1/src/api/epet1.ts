@@ -118,13 +118,14 @@ export interface GameType {
 
 /** 构造认证相关请求参数（Bearer token 或 demo bypass） */
 function authParams(): { headers: Record<string, string>; query: string } {
-  // Demo 模式：后端 jwtAuth 中间件检查 ?demo=9527
-  if (localStorage.getItem('epet1_demo')) {
-    return { headers: {}, query: '?demo=9527' };
-  }
+  // Token 优先：真实账号路径，无视 demo 残留标记（后端 jwtAuth 已 token 优先）
   const token = localStorage.getItem('epet1_token');
   if (token) {
     return { headers: { Authorization: `Bearer ${token}` }, query: '' };
+  }
+  // 无 token 时，demo 仅作为开发回退（需 initAuth 走 demoToken 分支设置标记）
+  if (localStorage.getItem('epet1_demo')) {
+    return { headers: {}, query: '?demo=9527' };
   }
   return { headers: {}, query: '' };
 }
