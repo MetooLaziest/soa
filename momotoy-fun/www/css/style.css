@@ -399,6 +399,9 @@ ul { list-style: none; }
   font-size: 13px;
 }
 .footer__small { margin-top: 8px; opacity: 0.6; }
+.footer__beian { margin-top: 8px; opacity: 0.6; }
+.footer__beian a { color: inherit; text-decoration: none; }
+.footer__beian a:hover { text-decoration: underline; }
 
 /* ============ A11Y ============ */
 @media (prefers-reduced-motion: reduce) {
