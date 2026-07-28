@@ -27,11 +27,20 @@ const ITEM_CATEGORIES: Record<string, string> = {
 };
 
 // 固定素材 key 定义
-const FIXED_ASSET_KEYS = [
+// 视频类素材 (isVideo=true): 渲染 <video controls> 预览, 限制 ≤5MB
+const FIXED_ASSET_KEYS: { key: string; label: string; desc: string; isVideo?: boolean }[] = [
   { key: 'bg', label: '🖼️ 背景', desc: '地图背景图' },
   { key: 'avatar', label: '👤 角色头像', desc: '钓鱼角色头像' },
   { key: 'cast_gif', label: '🎣 抛竿动画', desc: '抛竿 GIF 动画（优先使用）' },
   { key: 'pull_gif', label: '💪 拉杆动画', desc: '拉杆 GIF 动画' },
+  // === v2 UI 全新素材 (2026-07-28) ===
+  { key: 'bg_v2', label: '🌅 v2 背景', desc: 'v2 UI 草地+池塘背景 (建议 1080x1920)' },
+  { key: 'btn_rod_v2', label: '🟢 拉杆按钮', desc: '底部中央"拉杆"绿色按钮图' },
+  { key: 'btn_back_v2', label: '↩️ 返回按钮', desc: '左上角"返回"按钮图' },
+  { key: 'bubble_v2', label: '💬 结果气泡', desc: '结果弹窗里装角色的气泡图' },
+  { key: 'btn_collect_v2', label: '🎀 收下按钮', desc: '结果弹窗"开心收下"粉色按钮' },
+  { key: 'cast_video_v2', label: '🎬 抛竿视频', desc: 'v2 抛竿全屏视频 (≤5MB, mp4) — 未传则静默跳过', isVideo: true },
+  { key: 'pull_video_v2', label: '🎬 拉杆视频', desc: 'v2 拉杆全屏视频 (≤5MB, mp4) — 未传则静默跳过', isVideo: true },
 ];
 
 interface FishItem {
@@ -135,7 +144,13 @@ export default function FishingAdmin() {
   };
 
   // 素材专用上传 → 上传文件后直接保存到 fishing_assets
+  // 视频类素材硬限 ≤5MB (mobile 流量 + base64 编码后接近上限), 超限直接拒绝
   const uploadAsset = async (file: File, assetKey: string) => {
+    const meta = FIXED_ASSET_KEYS.find(k => k.key === assetKey);
+    if (meta?.isVideo && file.size > 5 * 1024 * 1024) {
+      alert(`视频太大 (${(file.size / 1024 / 1024).toFixed(1)}MB), 最大 5MB. 请压缩后重试.`);
+      return;
+    }
     setUploadingAsset(assetKey);
     try {
       const form = new FormData();
@@ -434,7 +449,7 @@ export default function FishingAdmin() {
               {/* 固定素材 */}
               <h3 className="mb-3 text-sm font-semibold text-gray-300">📦 基础素材</h3>
               <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {FIXED_ASSET_KEYS.map(({ key, label, desc }) => {
+                {FIXED_ASSET_KEYS.map(({ key, label, desc, isVideo }) => {
                   const existing = assetMap[key];
                   return (
                     <div key={key} className="rounded-xl border border-white/10 bg-white/5 p-3">
@@ -442,11 +457,15 @@ export default function FishingAdmin() {
                       <div className="mb-2 text-xs text-gray-600">{desc}</div>
                       {existing ? (
                         <div className="mb-2 overflow-hidden rounded-lg border border-white/20">
-                          <img src={existing.asset_url} alt={key} className="h-20 w-full object-cover" />
+                          {isVideo ? (
+                            <video src={existing.asset_url} className="h-20 w-full object-cover" controls muted playsInline />
+                          ) : (
+                            <img src={existing.asset_url} alt={key} className="h-20 w-full object-cover" />
+                          )}
                         </div>
                       ) : (
                         <div className="mb-2 flex h-20 items-center justify-center rounded-lg border border-dashed border-white/20 text-xs text-gray-600">
-                          未上传
+                          未上传{isVideo ? ' (静默跳过)' : ''}
                         </div>
                       )}
                       <div className="flex gap-2">

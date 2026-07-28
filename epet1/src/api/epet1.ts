@@ -767,7 +767,16 @@ export interface FishMap {
 }
 
 export interface FishingAssets {
-  [key: string]: string; // asset_key → url
+  // 索引签名: 后端 SELECT asset_key, asset_url 返回任意 key → url
+  [key: string]: string;
+  // v2 UI 命名空间 (2026-07-28): 草地池塘背景 / 按钮 / 气泡 / 视频
+  bg_v2?: string;          // 🌅 草地+池塘背景
+  btn_rod_v2?: string;     // 🟢 底部"拉杆"按钮
+  btn_back_v2?: string;    // ↩️ 左上"返回"按钮
+  bubble_v2?: string;      // 💬 结果气泡
+  btn_collect_v2?: string; // 🎀 结果"收下"按钮
+  cast_video_v2?: string;  // 🎬 抛竿全屏视频 (未传则静默跳过)
+  pull_video_v2?: string;  // 🎬 拉杆全屏视频 (未传则静默跳过)
 }
 
 export interface FishingMapConfig {

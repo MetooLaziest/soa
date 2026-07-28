@@ -9,6 +9,9 @@ import {
   type FishingMapConfig,
 } from '../api/epet1';
 import { useGameStore } from '../store/gameStore';
+import FishingProgressBar from '../components/FishingProgressBar';
+import FishingResultModal from '../components/FishingResultModal';
+import FishingVideoOverlay from '../components/FishingVideoOverlay';
 
 /**
  * 钓鱼游戏 V2 — 8状态机 + 5层渲染 + CSS湖面动画
@@ -43,7 +46,7 @@ const RARITY_NAMES: Record<string, string> = {
 };
 
 // ─── 类型 ────────────────────────────────────────────────
-type GameState = 'select-map' | 'idle' | 'casting' | 'waiting' | 'progress' | 'pulling' | 'judgment' | 'result';
+type GameState = 'select-map' | 'idle' | 'cast-video' | 'casting' | 'waiting' | 'progress' | 'pull-video' | 'pulling' | 'judgment' | 'result';
 
 interface CaughtFish {
   id: number;
@@ -162,12 +165,21 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
     if (userId) loadDailyStatus();
   };
 
-  // 抛竿 → casting
+  // 抛竿 → cast-video (如有) → casting
   const startCasting = () => {
-    setGameState('casting');
-    setCurrentFrame(0);
     setCaughtFish(null);
     setJudgmentResult(null);
+    if (castVideoV2Url) {
+      setGameState('cast-video');
+    } else {
+      doCasting();
+    }
+  };
+
+  // 真正的抛竿动画 (cast-video 结束或无视频时进入)
+  const doCasting = () => {
+    setGameState('casting');
+    setCurrentFrame(0);
 
     const duration = config.cast_duration_ms;
 
@@ -222,12 +234,20 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
     }, 30);
   };
 
-  // 拉杆 → pulling
+  // 拉杆 → pull-video (如有) → pulling
   const pullRod = () => {
     if (gameState !== 'progress') return;
     if (intervalRef.current) clearInterval(intervalRef.current);
-    const finalProgress = progress;
 
+    if (pullVideoV2Url) {
+      setGameState('pull-video');
+    } else {
+      doPulling(progress);
+    }
+  };
+
+  // 真正的拉杆动画 (pull-video 结束或无视频时进入)
+  const doPulling = (finalProgress: number) => {
     setGameState('pulling');
 
     timerRef.current = setTimeout(() => {
@@ -264,6 +284,15 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
   const avatarUrl = assets.avatar || '';
   const castGifUrl = assets.cast_gif || '';
   const pullGifUrl = assets.pull_gif || '';
+
+  // v2 UI 素材 (2026-07-28): 缺省时回退到 emoji/CSS, 不阻断游戏
+  const bgV2Url = assets.bg_v2 || '';
+  const btnRodV2Url = assets.btn_rod_v2 || '';
+  const btnBackV2Url = assets.btn_back_v2 || '';
+  const bubbleV2Url = assets.bubble_v2 || '';
+  const btnCollectV2Url = assets.btn_collect_v2 || '';
+  const castVideoV2Url = assets.cast_video_v2 || '';
+  const pullVideoV2Url = assets.pull_video_v2 || '';
 
   const getCastFrameUrl = () => {
     if (castGifUrl) return castGifUrl;
@@ -330,11 +359,11 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
   return (
     <div style={{
       position: 'relative', width: '100%', height: '100%', overflow: 'hidden',
-      background: bgUrl ? 'none' : 'linear-gradient(180deg, #1a3a5c 0%, #0d2137 60%, #0a1628 100%)',
+      background: (bgV2Url || bgUrl) ? 'none' : 'linear-gradient(180deg, #1a3a5c 0%, #0d2137 60%, #0a1628 100%)',
     }}>
-      {/* ─── L1 背景图 ─── */}
-      {bgUrl && (
-        <img src={bgUrl} alt="" style={{
+      {/* ─── L1 背景图 (v2 优先) ─── */}
+      {(bgV2Url || bgUrl) && (
+        <img src={bgV2Url || bgUrl} alt="" style={{
           position: 'absolute', inset: 0, width: '100%', height: '100%',
           objectFit: 'cover', objectPosition: 'center', zIndex: 1,
         }} />
@@ -425,50 +454,77 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
           </span>
         </div>
 
-        {/* ── idle: 抛竿按钮 ── */}
+        {/* ── idle: 拉杆按钮 (v2 优先用 btn_rod_v2 图) ── */}
         {gameState === 'idle' && (
-          <div style={{
-            position: 'absolute', bottom: '8%', left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-          }}>
-            {dailyStatus.remaining > 0 ? (
-              <>
-                <button onClick={startCasting} style={{
-                  padding: '16px 48px', fontSize: 20,
-                  background: 'linear-gradient(180deg, #4facfe 0%, #0090d9 100%)',
-                  border: '3px solid #FFD700', borderRadius: 16, color: '#fff', fontWeight: 800,
-                  cursor: 'pointer', textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-                  boxShadow: '0 4px 16px rgba(79, 172, 254, 0.6), inset 0 2px 0 rgba(255,255,255,0.3)',
-                  letterSpacing: 4, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
-                }}>
-                  抛竿
-                </button>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
-                  剩余 {dailyStatus.remaining} 次
+          <>
+            {/* 左上角返回 (v2 优先用 btn_back_v2 图) */}
+            <button
+              onClick={onClose}
+              aria-label="返回"
+              style={{
+                position: 'absolute', top: 12, left: 12, zIndex: 12,
+                padding: 0, background: 'transparent', border: 'none', cursor: 'pointer',
+                WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+              }}
+            >
+              {btnBackV2Url ? (
+                <img src={btnBackV2Url} alt="返回" style={{
+                  height: 44, width: 'auto', maxWidth: 110,
+                  filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
+                }} />
+              ) : (
+                <div style={{
+                  padding: '8px 16px',
+                  background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 600,
+                  backdropFilter: 'blur(2px)',
+                }}>← 返回</div>
+              )}
+            </button>
+
+            <div style={{
+              position: 'absolute', bottom: '8%', left: '50%', transform: 'translateX(-50%)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+            }}>
+              {dailyStatus.remaining > 0 ? (
+                <>
+                  <button onClick={startCasting} style={{
+                    padding: 0, background: 'transparent', border: 'none', cursor: 'pointer',
+                    WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+                  }}>
+                    {btnRodV2Url ? (
+                      <img src={btnRodV2Url} alt="拉杆" style={{
+                        height: 72, width: 'auto', maxWidth: 220,
+                        filter: 'drop-shadow(0 6px 16px rgba(76,175,80,0.5))',
+                        animation: 'fpbBtnBob 1.2s ease-in-out infinite',
+                      }} />
+                    ) : (
+                      <div style={{
+                        padding: '16px 48px', fontSize: 20,
+                        background: 'linear-gradient(180deg, #66bb6a 0%, #43a047 100%)',
+                        border: '3px solid #FFD700', borderRadius: 16, color: '#fff', fontWeight: 800,
+                        cursor: 'pointer', textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                        boxShadow: '0 4px 16px rgba(76, 175, 80, 0.6), inset 0 2px 0 rgba(255,255,255,0.3)',
+                        letterSpacing: 4,
+                      }}>🎣 拉杆</div>
+                    )}
+                  </button>
+                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                    剩余 {dailyStatus.remaining} 次
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: '#FF6B6B', fontSize: 16, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
+                  🌙 今日钓鱼次数已用完
                 </div>
-              </>
-            ) : (
-              <div style={{ color: '#FF6B6B', fontSize: 16, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
-                🌙 今日钓鱼次数已用完
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 12 }}>
+              )}
               <button onClick={() => setGameState('select-map')} style={{
                 padding: '8px 20px', background: 'rgba(255,255,255,0.15)',
                 border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
                 color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 12,
-              }}>
-                换地图
-              </button>
-              <button onClick={onClose} style={{
-                padding: '8px 20px', background: 'rgba(255,255,255,0.15)',
-                border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
-                color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 12,
-              }}>
-                返回
-              </button>
+              }}>换地图</button>
             </div>
-          </div>
+          </>
         )}
 
         {/* ── waiting: 浮漂 ── */}
@@ -488,46 +544,16 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* ── progress: 判定条 + 拉杆 ── */}
+        {/* ── progress: 顶部进度条 + 拉杆 (v2) ── */}
         {gameState === 'progress' && (
-          <div style={{
-            position: 'absolute', bottom: '8%', left: '50%', transform: 'translateX(-50%)',
-            width: '80%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-          }}>
-            <div style={{
-              color: '#FFD700', fontSize: 16, fontWeight: 700,
-              textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-              animation: 'fishingPulse 0.8s ease-in-out infinite',
-            }}>
-              快拉杆！
-            </div>
-            <div style={{
-              width: '100%', height: 24, background: 'rgba(0,0,0,0.6)', borderRadius: 12,
-              overflow: 'hidden', position: 'relative', border: '2px solid rgba(255,255,255,0.3)',
-            }}>
-              <div style={{
-                position: 'absolute', left: `${greenStart}%`, width: `${greenEnd - greenStart}%`,
-                height: '100%', background: 'rgba(76, 175, 80, 0.5)',
-                borderLeft: '2px solid rgba(76, 175, 80, 0.9)',
-                borderRight: '2px solid rgba(76, 175, 80, 0.9)',
-              }} />
-              <div style={{
-                width: 16, height: '100%', background: '#fff', borderRadius: 8,
-                marginLeft: `calc(${progress}% - 8px)`, transition: 'margin-left 0.03s linear',
-                boxShadow: '0 0 10px rgba(255,255,255,0.9)',
-              }} />
-            </div>
-            <button onClick={pullRod} style={{
-              padding: '16px 48px', fontSize: 20,
-              background: 'linear-gradient(180deg, #FF6B35 0%, #E84E0E 100%)',
-              border: '3px solid #FFD700', borderRadius: 16, color: '#fff', fontWeight: 800,
-              cursor: 'pointer', textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-              boxShadow: '0 4px 16px rgba(232, 78, 14, 0.6), inset 0 2px 0 rgba(255,255,255,0.3)',
-              letterSpacing: 4, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
-            }}>
-              拉杆！
-            </button>
-          </div>
+          <FishingProgressBar
+            progress={progress}
+            greenStart={greenStart}
+            greenEnd={greenEnd}
+            onPull={pullRod}
+            pullBtnUrl={btnRodV2Url}
+            hint="快拉杆!"
+          />
         )}
 
         {/* ── judgment: GREAT / FAIL ── */}
@@ -555,112 +581,17 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* ── result: 结算页 ── */}
+        {/* ── result: v2 弹窗 (含 ✨ 粒子 + 气泡 + 开心收下) ── */}
         {gameState === 'result' && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.5)',
-            animation: 'resultFadeIn 0.4s ease-out',
-          }}>
-            {judgmentResult === 'GREAT' && caughtFish ? (
-              <div style={{
-                textAlign: 'center', padding: 24, maxWidth: 320, position: 'relative',
-                background: 'rgba(0,0,0,0.6)', borderRadius: 24,
-                border: `2px solid ${RARITY_COLORS[caughtFish.rarity] || '#fff'}44`,
-                animation: 'resultCardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              }}>
-                <div style={{
-                  position: 'absolute', top: '50%', left: '50%',
-                  width: 260, height: 260,
-                  transform: 'translate(-50%, -50%)',
-                  background: `radial-gradient(circle, ${RARITY_COLORS[caughtFish.rarity] || '#fff'}33 0%, transparent 70%)`,
-                  borderRadius: '50%', animation: 'fishingPulse 2s ease-in-out infinite',
-                }} />
-                <div style={{ position: 'relative', zIndex: 1 }}>
-                  {caughtFish.image_url ? (
-                    <img src={caughtFish.image_url} style={{
-                      width: 120, height: 120, objectFit: 'contain',
-                      borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                    }} />
-                  ) : (
-                    <div style={{ fontSize: 72 }}>🐟</div>
-                  )}
-                </div>
-                <div style={{
-                  position: 'relative', zIndex: 1,
-                  color: RARITY_COLORS[caughtFish.rarity] || '#fff',
-                  fontSize: 22, fontWeight: 700, marginTop: 12,
-                  textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-                }}>
-                  {caughtFish.name}
-                </div>
-                <div style={{
-                  display: 'inline-block', position: 'relative', zIndex: 1,
-                  padding: '2px 12px', borderRadius: 10, fontSize: 12,
-                  background: `${RARITY_COLORS[caughtFish.rarity] || '#fff'}33`,
-                  color: RARITY_COLORS[caughtFish.rarity] || '#fff',
-                  border: `1px solid ${RARITY_COLORS[caughtFish.rarity] || '#fff'}66`,
-                  marginTop: 6,
-                }}>
-                  {RARITY_NAMES[caughtFish.rarity] || caughtFish.rarity}
-                </div>
-                {caughtFish.description && (
-                  <div style={{
-                    position: 'relative', zIndex: 1,
-                    color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 8,
-                  }}>
-                    {caughtFish.description}
-                  </div>
-                )}
-                <div style={{
-                  position: 'relative', zIndex: 1,
-                  color: '#FFD700', fontSize: 14, marginTop: 8,
-                }}>
-                  ✅ 已加入背包
-                </div>
-              </div>
-            ) : (
-              <div style={{
-                textAlign: 'center', padding: 32,
-                background: 'rgba(0,0,0,0.6)', borderRadius: 24,
-                animation: 'resultCardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              }}>
-                <div style={{ fontSize: 48 }}>💨</div>
-                <div style={{
-                  color: '#FF6B6B', fontSize: 20, fontWeight: 600, marginTop: 12,
-                  textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-                }}>
-                  鱼跑掉了...
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 8 }}>
-                  下次再试试吧
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 16, marginTop: 24 }}>
-              {dailyStatus.remaining > 0 ? (
-                <button onClick={playAgain} style={{
-                  padding: '14px 36px', fontSize: 18,
-                  background: 'linear-gradient(180deg, #4facfe 0%, #0090d9 100%)',
-                  border: '2px solid #FFD700', borderRadius: 14, color: '#fff', fontWeight: 700,
-                  cursor: 'pointer', boxShadow: '0 4px 16px rgba(79,172,254,0.4)',
-                }}>
-                  再来一次
-                </button>
-              ) : null}
-              <button onClick={onClose} style={{
-                padding: '14px 36px', fontSize: 18,
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.3)', borderRadius: 14,
-                color: 'rgba(255,255,255,0.7)', cursor: 'pointer',
-              }}>
-                返回
-              </button>
-            </div>
-          </div>
+          <FishingResultModal
+            fish={judgmentResult === 'GREAT' ? caughtFish : null}
+            bubbleUrl={bubbleV2Url}
+            avatarUrl={avatarUrl}
+            collectBtnUrl={btnCollectV2Url}
+            fishDesc={caughtFish?.description}
+            onCollect={playAgain}
+            onClose={onClose}
+          />
         )}
 
       </div>
@@ -702,6 +633,24 @@ export default function Fishing({ onClose }: { onClose: () => void }) {
           100% { transform: scale(1); opacity: 1; }
         }
       `}</style>
+
+      {/* ─── v2 抛竿视频 (cast_video_v2 缺省则组件内自动跳过) ─── */}
+      {gameState === 'cast-video' && (
+        <FishingVideoOverlay
+          videoUrl={castVideoV2Url}
+          hint="🎣 抛竿中..."
+          onDone={doCasting}
+        />
+      )}
+
+      {/* ─── v2 拉杆视频 (pull_video_v2 缺省则组件内自动跳过) ─── */}
+      {gameState === 'pull-video' && (
+        <FishingVideoOverlay
+          videoUrl={pullVideoV2Url}
+          hint="💪 拉杆中..."
+          onDone={() => doPulling(progress)}
+        />
+      )}
     </div>
   );
 }
