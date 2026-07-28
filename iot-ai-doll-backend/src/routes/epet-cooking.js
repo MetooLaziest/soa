@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/methods', async (_req, res) => {
   try {
     const { rows } = await poolEpet1.query(
-      `SELECT id, name, description, kitchen_bg_url, page_bg_url, cook_btn_url,
+      `SELECT id, name, description, kitchen_bg_url, page_bg_url, cook_btn_url, cook_btn_char,
               img_empty, img_loaded, img_0, img_1, img_2, img_3, img_4, img_5,
               sort_order
        FROM cooking_methods
@@ -219,7 +219,73 @@ router.get('/ingredients', async (_req, res) => {
   }
 });
 
+// GET /api/epet1/cooking/config - C 端获取全局 UI 配置 (singleton, id=1)
+router.get('/config', async (_req, res) => {
+  try {
+    const { rows } = await poolEpet1.query('SELECT * FROM cooking_config WHERE id = 1');
+    if (rows.length === 0) {
+      // 未配置 → 返回空对象,前端 fallback
+      return res.json({ ok: true, config: null });
+    }
+    res.json({ ok: true, config: rows[0] });
+  } catch (err) {
+    console.error('[cooking] config error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Admin 接口 ──────────────────────────────────────
+
+// ===== 全局 UI 配置 (singleton) =====
+
+// GET /api/epet1/cooking/admin/config
+router.get('/admin/config', async (_req, res) => {
+  try {
+    const { rows } = await poolEpet1.query('SELECT * FROM cooking_config WHERE id = 1');
+    res.json({ ok: true, config: rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/epet1/cooking/admin/config
+router.put('/admin/config', async (req, res) => {
+  try {
+    const fields = [
+      'default_bg_url', 'progress_track_color', 'progress_fill_from', 'progress_fill_to',
+      'progress_height', 'button_color', 'button_text_color', 'button_size'
+    ];
+    const sets = [];
+    const vals = [];
+    let idx = 1;
+    for (const f of fields) {
+      if (req.body[f] !== undefined) {
+        sets.push(`"${f}" = $${idx++}`);
+        vals.push(req.body[f]);
+      }
+    }
+    if (sets.length === 0) return res.status(400).json({ error: '无更新字段' });
+    vals.push(1); // singleton id
+    const { rows: updated } = await poolEpet1.query(
+      `UPDATE cooking_config SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      vals
+    );
+    if (!updated.length) {
+      // 第一次 PUT, 表为空 → INSERT
+      const insertFields = ['id', ...fields.filter(f => req.body[f] !== undefined)];
+      const insertPlaceholders = insertFields.map((_, i) => `$${i + 1}`).join(', ');
+      const insertVals = [1, ...fields.filter(f => req.body[f] !== undefined).map(f => req.body[f])];
+      const { rows: inserted } = await poolEpet1.query(
+        `INSERT INTO cooking_config (${insertFields.join(', ')}) VALUES (${insertPlaceholders}) RETURNING *`,
+        insertVals
+      );
+      return res.json({ ok: true, config: inserted[0] });
+    }
+    res.json({ ok: true, config: updated[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ===== 烹饪方式 CRUD =====
 
@@ -238,14 +304,14 @@ router.get('/admin/methods', async (_req, res) => {
 // POST /api/epet1/cooking/admin/methods
 router.post('/admin/methods', async (req, res) => {
   try {
-    const { name, description, kitchen_bg_url, page_bg_url, cook_btn_url, img_empty, img_loaded,
+    const { name, description, kitchen_bg_url, page_bg_url, cook_btn_url, cook_btn_char, img_empty, img_loaded,
             img_0, img_1, img_2, img_3, img_4, img_5, sort_order } = req.body;
     if (!name) return res.status(400).json({ error: '缺少名称' });
     const { rows: inserted } = await poolEpet1.query(
-      `INSERT INTO cooking_methods (name, description, kitchen_bg_url, page_bg_url, cook_btn_url,
+      `INSERT INTO cooking_methods (name, description, kitchen_bg_url, page_bg_url, cook_btn_url, cook_btn_char,
         img_empty, img_loaded, img_0, img_1, img_2, img_3, img_4, img_5, sort_order)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-      [name, description || '', kitchen_bg_url || '', page_bg_url || '', cook_btn_url || '',
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [name, description || '', kitchen_bg_url || '', page_bg_url || '', cook_btn_url || '', cook_btn_char || '煮',
        img_empty || '', img_loaded || '',
        img_0 || '', img_1 || '', img_2 || '', img_3 || '', img_4 || '', img_5 || '',
        sort_order || 0]
@@ -260,7 +326,7 @@ router.post('/admin/methods', async (req, res) => {
 router.put('/admin/methods/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const fields = ['name', 'description', 'kitchen_bg_url', 'page_bg_url', 'cook_btn_url', 'img_empty', 'img_loaded',
+    const fields = ['name', 'description', 'kitchen_bg_url', 'page_bg_url', 'cook_btn_url', 'cook_btn_char', 'img_empty', 'img_loaded',
       'img_0', 'img_1', 'img_2', 'img_3', 'img_4', 'img_5', 'sort_order', 'is_active'];
     const sets = [];
     const vals = [];

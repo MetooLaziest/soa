@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   fetchCookingMethods,
   fetchCookingIngredients,
+  fetchCookingConfig,
   cookDish,
   authFetch,
   type CookingMethod,
   type CookingIngredient,
   type CookingDish,
+  type CookingConfig,
 } from '../api/epet1';
 import { useGameStore } from '../store/gameStore';
 
@@ -39,6 +41,14 @@ export default function Cooking({ onClose, onPageBgChange }: { onClose: () => vo
   // 数据
   const [methods, setMethods] = useState<CookingMethod[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<CookingMethod | null>(null);
+  const [cookingConfig, setCookingConfig] = useState<CookingConfig | null>(null);
+
+  // 加载全局 UI 配置 (默认背景 / 进度条 / 按钮)
+  useEffect(() => {
+    fetchCookingConfig()
+      .then(cfg => setCookingConfig(cfg))
+      .catch(() => setCookingConfig(null));
+  }, []);
 
   // 通知父组件全页背景变化
   useEffect(() => {
@@ -444,41 +454,51 @@ export default function Cooking({ onClose, onPageBgChange }: { onClose: () => vo
                 )}
               </div>
 
-              {/* 进度条 */}
+              {/* 进度条 - CSS 模式,颜色高度全部可配 */}
               {currentStage >= 0 && (
                 <div style={{ width: '100%', marginBottom: 20 }}>
                   <div style={{
                     display: 'flex', justifyContent: 'space-between',
-                    marginBottom: 4, fontSize: 11, color: '#666',
+                    marginBottom: 6, fontSize: 11, color: '#999',
                   }}>
                     {STAGE_LABELS.map((_, idx) => (
                       <span key={idx} style={{
-                        color: idx === currentStage ? '#FFD700' : '#444',
+                        color: idx === currentStage ? (cookingConfig?.progress_fill_to || '#ffb300') : '#555',
                         fontWeight: idx === currentStage ? 700 : 400,
                       }}>{idx + 1}</span>
                     ))}
                   </div>
+                  {/* 外层 track */}
                   <div style={{
-                    height: 8, background: '#333', borderRadius: 4,
+                    height: cookingConfig?.progress_height || 12,
+                    background: cookingConfig?.progress_track_color || '#e0e0e0',
+                    borderRadius: (cookingConfig?.progress_height || 12) / 2,
                     overflow: 'hidden', position: 'relative',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.15)',
                   }}>
+                    {/* 完美位置标记 (居中红色 indicator) */}
                     <div style={{
-                      position: 'absolute', left: '50%', width: '16.7%', height: '100%',
-                      background: 'rgba(255,215,0,0.25)',
+                      position: 'absolute',
+                      left: `${(3.5 / 6) * 100}%`,
+                      top: 0, bottom: 0, width: 3,
+                      background: '#f44336',
+                      transform: 'translateX(-50%)',
+                      zIndex: 2,
+                      boxShadow: '0 0 6px rgba(244,67,54,0.6)',
                     }} />
+                    {/* 进度填充 */}
                     <div style={{
                       width: `${Math.min(((currentStage + 1) / 6) * 100, 100)}%`,
                       height: '100%',
-                      background: currentStage <= 3
-                        ? 'linear-gradient(90deg, #4CAF50, #FFC107)'
-                        : 'linear-gradient(90deg, #FFC107, #f44)',
-                      borderRadius: 4, transition: 'width 0.3s',
+                      background: `linear-gradient(90deg, ${cookingConfig?.progress_fill_from || '#9ccc65'}, ${cookingConfig?.progress_fill_to || '#ffb300'})`,
+                      borderRadius: (cookingConfig?.progress_height || 12) / 2,
+                      transition: 'width 0.3s',
                     }} />
                   </div>
                 </div>
               )}
 
-              {/* 起锅按钮 */}
+              {/* 起锅按钮 - 优先 PNG (向后兼容), 否则大圆 + per-method 字符 */}
               {selectedMethod.cook_btn_url ? (
                 <button
                   onClick={serveDish}
@@ -501,28 +521,45 @@ export default function Cooking({ onClose, onPageBgChange }: { onClose: () => vo
                     }}
                   />
                 </button>
-              ) : (
-                <button
-                  onClick={serveDish}
-                  disabled={currentStage < 0 || submitting}
-                  style={{
-                    width: '100%', padding: '16px 0',
-                    background: currentStage >= 0
-                      ? (currentStage === 3
-                        ? 'linear-gradient(135deg, #FFD700, #FFA000)'
-                        : 'linear-gradient(135deg, #FF6B35, #FF9800)')
-                      : '#333',
-                    border: 'none', borderRadius: 14,
-                    color: currentStage >= 0 ? '#fff' : '#666',
-                    fontSize: 22, fontWeight: 700,
-                    cursor: currentStage >= 0 && !submitting ? 'pointer' : 'not-allowed',
-                    boxShadow: currentStage === 3 ? '0 0 24px rgba(255,215,0,0.5)' : 'none',
-                    transition: 'all 0.3s',
-                  }}
-                >
-                  {submitting ? '料理中…' : currentStage < 0 ? '等待开火…' : '🍳 起锅！'}
-                </button>
-              )}
+              ) : (() => {
+                // 按钮尺寸映射
+                const sizeMap = { s: 64, m: 80, l: 96 } as const;
+                const sizePx = sizeMap[cookingConfig?.button_size || 'l'];
+                const isPerfect = currentStage === 3;
+                const enabled = currentStage >= 0 && !submitting;
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
+                    <button
+                      onClick={serveDish}
+                      disabled={!enabled}
+                      aria-label="起锅"
+                      style={{
+                        width: sizePx, height: sizePx,
+                        borderRadius: '50%',
+                        background: enabled
+                          ? (isPerfect
+                            ? 'linear-gradient(135deg, #FFD700, #FFA000)'
+                            : cookingConfig?.button_color || '#7cb342')
+                          : '#999',
+                        border: isPerfect ? '3px solid #FFD700' : 'none',
+                        color: cookingConfig?.button_text_color || '#fff',
+                        fontSize: sizePx * 0.42,
+                        fontWeight: 900,
+                        cursor: enabled ? 'pointer' : 'not-allowed',
+                        boxShadow: isPerfect
+                          ? '0 0 24px rgba(255,215,0,0.6), inset 0 -4px 8px rgba(0,0,0,0.15)'
+                          : '0 6px 16px rgba(0,0,0,0.25), inset 0 -4px 8px rgba(0,0,0,0.15)',
+                        transition: 'all 0.3s',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: '"PingFang SC", "Microsoft YaHei", sans-serif',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {submitting ? '…' : (selectedMethod.cook_btn_char || '起')}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

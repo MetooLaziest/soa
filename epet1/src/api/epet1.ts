@@ -471,6 +471,7 @@ export interface CookingMethod {
   kitchen_bg_url: string;
   page_bg_url: string;
   cook_btn_url: string;
+  cook_btn_char: string;       // 按钮字符 (炖/煮/炒/煎), 无 PNG 时显示
   img_empty: string;
   img_loaded: string;
   img_0: string;
@@ -480,6 +481,18 @@ export interface CookingMethod {
   img_4: string;
   img_5: string;
   sort_order: number;
+}
+
+export interface CookingConfig {
+  id: number;
+  default_bg_url: string;
+  progress_track_color: string;   // 进度条轨道色
+  progress_fill_from: string;     // 进度条渐变起色 (低阶段)
+  progress_fill_to: string;       // 进度条渐变终色 (高阶段)
+  progress_height: number;        // 进度条高度 px
+  button_color: string;           // 起锅按钮底色
+  button_text_color: string;      // 起锅按钮字色
+  button_size: 's' | 'm' | 'l';   // 起锅按钮尺寸
 }
 
 export interface CookingDish {
@@ -502,6 +515,12 @@ export interface CookingIngredient {
 export async function fetchCookingMethods(): Promise<CookingMethod[]> {
   const res = await get<any>('/cooking/methods');
   return res.methods || [];
+}
+
+/** 获取料理全局 UI 配置 (默认背景 / 进度条 / 按钮) */
+export async function fetchCookingConfig(): Promise<CookingConfig | null> {
+  const res = await get<any>('/cooking/config');
+  return res.config || null;
 }
 
 /** 获取可作为食材的 shop_items */

@@ -65,7 +65,7 @@ const STAGE_IMAGES = [
 ];
 
 export default function CookingAdmin() {
-  const [activeTab, setActiveTab] = useState<'methods' | 'recipes'>('methods');
+  const [activeTab, setActiveTab] = useState<'methods' | 'recipes' | 'config'>('methods');
   const [loading, setLoading] = useState(true);
 
   // 烹饪方式
@@ -83,6 +83,10 @@ export default function CookingAdmin() {
 
   // 图片上传状态
   const [uploading, setUploading] = useState<string | null>(null);
+
+  // 全局 UI 配置
+  const [config, setConfig] = useState<CookingConfig | null>(null);
+  const [configSaving, setConfigSaving] = useState(false);
 
   // ─── 加载 ────────────────────────────────────────
 
@@ -113,10 +117,19 @@ export default function CookingAdmin() {
     }
   };
 
+  const loadConfig = async () => {
+    try {
+      const res = await client.get('/epet1/cooking/admin/config');
+      setConfig(res.data?.config || null);
+    } catch (e) {
+      console.error('load config error', e);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([loadMethods(), loadRecipes(), loadFoodItems()]);
+      await Promise.all([loadMethods(), loadRecipes(), loadFoodItems(), loadConfig()]);
       setLoading(false);
     })();
   }, []);
@@ -199,6 +212,21 @@ export default function CookingAdmin() {
     }
   };
 
+  // ─── 全局配置 ─────────────────────────────────────
+
+  const saveConfig = async (cfg: Partial<CookingConfig>) => {
+    setConfigSaving(true);
+    try {
+      const res = await client.put('/epet1/cooking/admin/config', cfg);
+      setConfig(res.data?.config || null);
+      alert('配置已保存');
+    } catch (e: any) {
+      alert('保存失败: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>加载中…</div>;
 
   return (
@@ -207,7 +235,7 @@ export default function CookingAdmin() {
 
       {/* Tab */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {(['methods', 'recipes'] as const).map(tab => (
+        {(['methods', 'recipes', 'config'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -221,7 +249,7 @@ export default function CookingAdmin() {
               color: activeTab === tab ? '#fff' : '#333',
             }}
           >
-            {tab === 'methods' ? '🔥 烹饪方式' : '📖 菜谱'}
+            {tab === 'methods' ? '🔥 烹饪方式' : tab === 'recipes' ? '📖 菜谱' : '⚙️ 全局配置'}
           </button>
         ))}
       </div>
@@ -300,6 +328,16 @@ export default function CookingAdmin() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* ═══ 全局配置 ═══ */}
+      {activeTab === 'config' && (
+        <ConfigForm
+          config={config}
+          saving={configSaving}
+          onSave={saveConfig}
+          onUpload={uploadImage}
+        />
       )}
 
       {/* ═══ 菜谱 ═══ */}
@@ -661,6 +699,158 @@ function RecipeForm({
           background: '#fff', cursor: 'pointer',
         }}>
           取消
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── 全局配置表单 ─────────────────────────────────
+
+interface CookingConfig {
+  id: number;
+  default_bg_url: string;
+  progress_track_color: string;
+  progress_fill_from: string;
+  progress_fill_to: string;
+  progress_height: number;
+  button_color: string;
+  button_text_color: string;
+  button_size: 's' | 'm' | 'l';
+}
+
+function ConfigForm({
+  config, saving, onSave, onUpload,
+}: {
+  config: CookingConfig | null;
+  saving: boolean;
+  onSave: (cfg: Partial<CookingConfig>) => void;
+  onUpload: (file: File) => Promise<string>;
+}) {
+  const [form, setForm] = useState<Partial<CookingConfig>>(config || {
+    default_bg_url: '',
+    progress_track_color: '#e0e0e0',
+    progress_fill_from: '#9ccc65',
+    progress_fill_to: '#ffb300',
+    progress_height: 12,
+    button_color: '#7cb342',
+    button_text_color: '#ffffff',
+    button_size: 'l',
+  });
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (config) setForm(config);
+  }, [config]);
+
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const url = await onUpload(file);
+      setForm(prev => ({ ...prev, default_bg_url: url }));
+    } catch (e: any) {
+      alert('上传失败: ' + (e?.message || ''));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 720 }}>
+      <h3 style={{ marginBottom: 20 }}>⚙️ 料理全局 UI 配置</h3>
+      <p style={{ color: '#666', fontSize: 13, marginBottom: 24 }}>
+        这些资源作用于所有用户进入料理页时的默认效果。空值时 C 端会 fallback 到硬编码默认值。
+      </p>
+
+      {/* 默认背景 */}
+      <div style={{ marginBottom: 24 }}>
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>默认全屏背景</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          {form.default_bg_url ? (
+            <img src={form.default_bg_url} alt="bg" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }} />
+          ) : (
+            <div style={{ width: 120, height: 80, background: '#1a1a2e', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: 12 }}>未设置</div>
+          )}
+          <input type="file" accept="image/*" onChange={e => {
+            const f = e.target.files?.[0];
+            if (f) handleImageUpload(f);
+          }} disabled={uploading} />
+        </div>
+        <input
+          value={form.default_bg_url || ''}
+          onChange={e => setForm(prev => ({ ...prev, default_bg_url: e.target.value }))}
+          placeholder="或直接输入图片 URL"
+          style={inputStyle}
+        />
+      </div>
+
+      {/* 进度条样式 */}
+      <div style={{ marginBottom: 24, padding: 16, background: '#fafafa', borderRadius: 8 }}>
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: 12 }}>进度条样式</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>轨道色</div>
+            <input type="color" value={form.progress_track_color || '#e0e0e0'}
+              onChange={e => setForm(prev => ({ ...prev, progress_track_color: e.target.value }))}
+              style={{ width: '100%', height: 36, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>渐变起色 (低阶段)</div>
+            <input type="color" value={form.progress_fill_from || '#9ccc65'}
+              onChange={e => setForm(prev => ({ ...prev, progress_fill_from: e.target.value }))}
+              style={{ width: '100%', height: 36, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>渐变终色 (高阶段)</div>
+            <input type="color" value={form.progress_fill_to || '#ffb300'}
+              onChange={e => setForm(prev => ({ ...prev, progress_fill_to: e.target.value }))}
+              style={{ width: '100%', height: 36, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>高度 (px): {form.progress_height}</div>
+          <input type="range" min={6} max={24} value={form.progress_height || 12}
+            onChange={e => setForm(prev => ({ ...prev, progress_height: Number(e.target.value) }))}
+            style={{ width: '100%' }} />
+        </div>
+      </div>
+
+      {/* 按钮样式 */}
+      <div style={{ marginBottom: 24, padding: 16, background: '#fafafa', borderRadius: 8 }}>
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: 12 }}>起锅按钮样式</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>底色</div>
+            <input type="color" value={form.button_color || '#7cb342'}
+              onChange={e => setForm(prev => ({ ...prev, button_color: e.target.value }))}
+              style={{ width: '100%', height: 36, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>字色</div>
+            <input type="color" value={form.button_text_color || '#ffffff'}
+              onChange={e => setForm(prev => ({ ...prev, button_text_color: e.target.value }))}
+              style={{ width: '100%', height: 36, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>尺寸</div>
+            <select value={form.button_size || 'l'}
+              onChange={e => setForm(prev => ({ ...prev, button_size: e.target.value as 's' | 'm' | 'l' }))}
+              style={{ width: '100%', height: 36, border: '1px solid #ddd', borderRadius: 6, padding: '0 8px' }}>
+              <option value="s">小 (64px)</option>
+              <option value="m">中 (80px)</option>
+              <option value="l">大 (96px)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => onSave(form)} disabled={saving} style={{
+          padding: '10px 24px', borderRadius: 8, border: 'none',
+          background: saving ? '#ccc' : '#FF9800', color: '#fff', fontWeight: 600,
+          cursor: saving ? 'not-allowed' : 'pointer',
+        }}>
+          {saving ? '保存中…' : '保存配置'}
         </button>
       </div>
     </div>

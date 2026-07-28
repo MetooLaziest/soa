@@ -36,6 +36,7 @@ import {
   authFetch,
   fetchPetModels,
   fetchEmotionPoints,
+  fetchCookingConfig,
 } from './api/epet1';
 import type { PetInstance, Postcard, DriftBottle, ShopItem, YardFurniture, PetSeries, SeriesDetail, UnlockConfig } from './api/epet1';
 import { gameInstance, type PlacingFurnitureInfo } from './game/Game';
@@ -1667,11 +1668,23 @@ function GameModal({ onClose }: { onClose: () => void }) {
   const { userId } = useGameStore();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
+  const [cookingDefaultBg, setCookingDefaultBg] = useState<string>('');
   const [games] = useState([
     { id: 'fishing', name: '钓鱼', icon: '🎣', desc: '静待鱼儿上钩', status: 'ready' },
     { id: 'cooking', name: '料理', icon: '🍳', desc: '把食材变成料理', status: 'ready' },
     { id: 'spot', name: '找不同', icon: '🔍', desc: '找出两图的不同之处', status: 'ready' },
   ]);
+
+  // 进入料理时拉全局默认背景
+  useEffect(() => {
+    if (selectedGame === 'cooking') {
+      fetchCookingConfig()
+        .then(cfg => setCookingDefaultBg(cfg?.default_bg_url || ''))
+        .catch(() => setCookingDefaultBg(''));
+    } else {
+      setCookingDefaultBg('');
+    }
+  }, [selectedGame]);
 
   const handleGameScore = async (gameId: string, s: number) => {
     if (userId) {
@@ -1695,12 +1708,13 @@ function GameModal({ onClose }: { onClose: () => void }) {
 
   // 料理游戏全屏独立渲染
   if (selectedGame === 'cooking') {
+    const activeBg = cookingPageBg || cookingDefaultBg;
     const fallbackBg = 'linear-gradient(180deg, #1a1a2e 0%, #2a1a0e 100%)';
     return (
       <div style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: cookingPageBg ? undefined : fallbackBg,
-        backgroundImage: cookingPageBg ? `url(${cookingPageBg})` : undefined,
+        background: activeBg ? undefined : fallbackBg,
+        backgroundImage: activeBg ? `url(${activeBg})` : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}>
