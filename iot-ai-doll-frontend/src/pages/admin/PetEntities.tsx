@@ -17,9 +17,10 @@ import client from '../../api/client';
 
 // 认领 URL 前缀 (H5 入口)
 // 切换域名改 .env.production 里 VITE_CLAIM_URL_BASE 这一行即可
+// query 参数: ?code=<activation_code> (2026-07-28 起由 id 改为 code, 避免跟 demo/pets 等 id 含义冲突)
 const CLAIM_URL_BASE =
   (import.meta.env.VITE_CLAIM_URL_BASE as string) ||
-  'https://soa.laziestlife.com/epet/?id=';
+  'https://soa.laziestlife.com/epet/?code=';
 
 interface PetInstance {
   id: string;

@@ -2329,21 +2329,22 @@ export default function App() {
     return () => clearInterval(iv);
   }, [isAuthenticated, authUserId, activeTravel]);
 
-  // ① 认证初始化 — 检测 ?id=9527 演示免登录 / ?id=<激活码> / 恢复已存 token
+  // ① 认证初始化 — 检测 ?demo=9527 演示免登录 / ?code=<激活码> / 恢复已存 token
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const idParam = params.get('id');
-    if (idParam === '9527') {
+    // 演示免登录: ?demo=9527 (注意是 demo 标记, 跟激活码 ?code= 是两个独立 query)
+    if (params.get('demo') === '9527') {
       initAuth('demo');
-    } else {
-      // 非 9527 的 ?id= 值视为激活码，暂存 localStorage 等认证后认领
-      if (idParam) {
-        localStorage.setItem('epet_pending_activation_code', idParam);
-        // 清理 URL，避免刷新重复触发
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-      initAuth();
+      return;
     }
+    // 激活码认领: ?code=<20位 base64url>
+    const codeParam = params.get('code');
+    if (codeParam) {
+      localStorage.setItem('epet_pending_activation_code', codeParam);
+      // 清理 URL，避免刷新重复触发
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    initAuth();
   }, []);
 
   // ② 认证通过后加载数据

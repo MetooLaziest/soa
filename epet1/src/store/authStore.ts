@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: true,
 
   initAuth: async (demoToken?: string) => {
-    // Demo 模式：URL 带 ?id=9527 → 不需要真实 token
+    // Demo 模式：URL 带 ?demo=9527 → 不需要真实 token
     if (demoToken) {
       localStorage.setItem(DEMO_KEY, '1');
       set({ isDemo: true, userId: 2, isAuthenticated: true, loading: false });

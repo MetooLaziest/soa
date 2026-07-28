@@ -1,7 +1,7 @@
 /**
  * LoginOverlay — 全屏登录/注册遮罩
  * 未认证时覆盖整个 App，认证通过后自动消失
- * 支持 ?id=9527 演示免登录
+ * 支持 ?demo=9527 演示免登录
  */
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
