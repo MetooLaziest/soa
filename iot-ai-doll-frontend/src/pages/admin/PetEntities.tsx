@@ -5,16 +5,21 @@
  * 数据源: /api/admin/pets (后端改读 epet1 schema)
  * 布局: 按 model 分组 — 每个 model 卡片下挂该 model 的全部实体
  *
- * 设计原则 (2026-06-19):
- * - model (机伴) = 种类, 性格/提示词/展示图跟随机伴
- * - entity (实体) = 具体一只, nfc_id 唯一, 对话记忆/成长跟实体
- * - 一个用户每个 model 最多 1 只实体
- * - 庭院最多展示 2 只实体, 派遣中的不能展示
+ * 导出功能 (2026-07-28):
+ * - 工具栏「📥 导出全部」「📥 导出未认领」按钮, 生成 UTF-8 BOM CSV
+ * - URL 前缀从 VITE_CLAIM_URL_BASE 读 (默认 soa.laziestlife.com)
+ * - 迁移到 dw.momotoys.tech 后, 只改 .env.production 一行
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import client from '../../api/client';
+
+// 认领 URL 前缀 (H5 入口)
+// 切换域名改 .env.production 里 VITE_CLAIM_URL_BASE 这一行即可
+const CLAIM_URL_BASE =
+  (import.meta.env.VITE_CLAIM_URL_BASE as string) ||
+  'https://soa.laziestlife.com/epet/?id=';
 
 interface PetInstance {
   id: string;
@@ -210,6 +215,70 @@ export default function PetEntities() {
     );
   };
 
+  // ─── 导出 CSV ─────────────────────────────────
+  // 用 BOM 头 (﻿) 让 Excel 正确识别 UTF-8 中文, 不然乱码
+  // 文件后缀 .csv (不是 .xlsx), 供应商电脑没装 Office 也能用 WPS / 记事本打开
+  const exportToCsv = (
+    rows: PetInstance[],
+    filename: string,
+    filterFn: (i: PetInstance) => boolean
+  ) => {
+    const filtered = rows.filter(filterFn);
+    if (filtered.length === 0) {
+      alert('没有符合条件的实体可导出');
+      return;
+    }
+    const statusLabel = (s: string) =>
+      s === 'claimed' ? '已认领' : s === 'unclaimed' ? '未认领' : s || '未知';
+    const headers = [
+      'nfc_id',
+      'activation_code',
+      '机伴名',
+      '稀有度',
+      '状态',
+      '完整认领URL',
+      '所属用户',
+      '创建时间',
+    ];
+    const csvRows = [headers];
+    for (const inst of filtered) {
+      const url = inst.activation_code
+        ? `${CLAIM_URL_BASE}${inst.activation_code}`
+        : '';
+      csvRows.push([
+        inst.nfc_id,
+        inst.activation_code || '',
+        inst.model_name,
+        (inst as any).model_rarity || '',
+        statusLabel(inst.status),
+        url,
+        inst.user_nickname ? `${inst.user_nickname}(id=${inst.user_id})` : '',
+        new Date(inst.created_at).toLocaleString('zh-CN'),
+      ]);
+    }
+    // CSV 字段内含逗号/引号/换行的需要双引号包裹 + 引号转义
+    const escape = (v: string) => {
+      if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+      return v;
+    };
+    const csvContent =
+      '﻿' +
+      csvRows.map((row) => row.map((c) => escape(String(c ?? ''))).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    // 用 a 标签触发下载
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    alert(`✅ 已导出 ${filtered.length} 条记录到 ${filename}`);
+  };
+
+  // 收集所有 instance (扁平, 跨 model 卡片)
+  const allInstances = models.flatMap((g) => g.instances);
+
   const filteredModels = models
     .map((g) => ({
       ...g,
@@ -248,6 +317,30 @@ export default function PetEntities() {
             className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600"
           >
             🔄 刷新
+          </button>
+          <button
+            onClick={() => {
+              const ts = new Date().toISOString().slice(0, 10);
+              exportToCsv(allInstances, `epet-pets-all-${ts}.csv`, () => true);
+            }}
+            className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-sm hover:bg-emerald-600"
+            title="导出全部实体为 CSV (含认领 URL, 供应商可对照印刷)"
+          >
+            📥 导出全部
+          </button>
+          <button
+            onClick={() => {
+              const ts = new Date().toISOString().slice(0, 10);
+              exportToCsv(
+                allInstances,
+                `epet-pets-unclaimed-${ts}.csv`,
+                (i) => i.status === 'unclaimed'
+              );
+            }}
+            className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600"
+            title="只导未认领实体 (适合工厂分批印刷)"
+          >
+            📥 导出未认领
           </button>
         </div>
       </div>
@@ -648,8 +741,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
-
-const CLAIM_URL_BASE = 'https://soa.laziestlife.com/epet/?id=';
 
 function QRCodesModal({
   codes,
