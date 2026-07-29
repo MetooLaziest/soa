@@ -1982,10 +1982,13 @@ function HomePanel() {
         </div>
       )}
 
-      {/* 右上角：其他 + 商店 */}
+      {/* 右上角：商店 + 设置 (2026-07-30 加设置) */}
       <div className="top-right-area">
-        <button className="top-right-btn" onClick={() => setActiveModal('shop')}>
+        <button className="top-right-btn" onClick={() => setActiveModal('shop')} aria-label="商店">
           <IconImg iconKey="icon-shop" fallback="🛍️" />
+        </button>
+        <button className="top-right-btn" onClick={() => setActiveModal('settings')} aria-label="设置">
+          <IconImg iconKey="icon-settings" fallback="⚙️" />
         </button>
       </div>
 
@@ -2615,7 +2618,7 @@ export default function App() {
   }, [claimResult]);
 
   // 处理打开模态框
-  const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'fishing' | 'cooking') => {
+  const handleOpenModal = useCallback((modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'game' | 'inventory' | 'collection' | 'fishing' | 'cooking' | 'settings') => {
     setActiveModal(modal);
   }, [setActiveModal]);
 
@@ -2749,6 +2752,7 @@ export default function App() {
       {activeModal === 'travel' && <TravelModal onClose={() => setActiveModal(null)} preselectedPetId={chatPetId ?? undefined} />}
       {activeModal === 'drift' && <DriftModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'shop' && <ShopModal onClose={() => setActiveModal(null)} />}
+      {activeModal === 'settings' && <SettingsModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'inventory' && <InventoryModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'game' && <GameModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'fishing' && (

@@ -106,7 +106,6 @@ const navGroups: NavGroup[] = [
     items: [
       { key: 'sys-config', label: '系统配置', icon: '⚙️', path: '/admin/sys-config' },
       { key: 'site-config', label: '首页配置', icon: '🏠', path: '/admin/site-config' },
-      { key: 'pwa-icon', label: 'PWA 图标', icon: '🖼', path: '/admin/pwa-icon' },
     ],
   },
 ];

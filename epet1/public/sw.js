@@ -4,7 +4,7 @@
 // Stage A 改动:
 //   - SHELL_ASSETS 改用 /epet/ 前缀 (vite base 决定)
 //   - fetch handler 跳过 /admin/ (防御: PWA scope=/ 不要碰内部)
-const CACHE_NAME = 'epet-shell-v2';
+const CACHE_NAME = 'epet-shell-v3';
 const SHELL_ASSETS = [
   '/epet/favicon.svg',
   '/epet/icons.svg',

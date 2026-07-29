@@ -41,6 +41,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initAuth: async (demoToken?: string) => {
     // Demo 模式：URL 带 ?demo=9527 → 不需要真实 token
     if (demoToken) {
+      // 2026-07-30: 防御性清掉残留的 epet1_token。
+      // 之前不清 → 切回 / 路由重 mount → initAuth() 无参 → getMe(旧 token) 成功
+      //   → 覆盖 demo 状态成 userId=10 → 9527 宠物查不到 → "出错"
+      localStorage.removeItem(TOKEN_KEY);
       localStorage.setItem(DEMO_KEY, '1');
       set({ isDemo: true, userId: 2, isAuthenticated: true, loading: false });
       return;

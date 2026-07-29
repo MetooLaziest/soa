@@ -19,7 +19,7 @@ import { IconImg } from './IconImg';
 // ─── 主组件 ───
 
 interface LivePageProps {
-  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'inventory' | 'collection' | 'fishing' | 'cooking') => void;
+  onOpenModal: (modal: 'postcard' | 'travel' | 'drift' | 'shop' | 'inventory' | 'collection' | 'fishing' | 'cooking' | 'settings') => void;
 }
 
 export function LivePage({ onOpenModal }: LivePageProps) {
@@ -227,11 +227,14 @@ export function LivePage({ onOpenModal }: LivePageProps) {
 // ─── 子组件 ───
 
 // 右上角菜单 - 商店
-function TopRightMenu({ onOpenModal }: { onOpenModal: (modal: 'shop') => void }) {
+function TopRightMenu({ onOpenModal }: { onOpenModal: (modal: 'shop' | 'settings') => void }) {
   return (
     <div className="live-page-top-right-menu">
-      <button className="live-page-top-btn" onClick={() => onOpenModal('shop')}>
+      <button className="live-page-top-btn" onClick={() => onOpenModal('shop')} aria-label="商店">
         <IconImg iconKey="icon-shop" fallback="🏪" />
+      </button>
+      <button className="live-page-top-btn" onClick={() => onOpenModal('settings')} aria-label="设置">
+        <IconImg iconKey="icon-settings" fallback="⚙️" />
       </button>
     </div>
   );
