@@ -722,10 +722,10 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* 顶栏 */}
+      {/* 顶栏 — PWA safe area 适配 (var(--safe-top) 避免 iOS 状态栏遮挡 ✕ 关闭按钮) */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 16px', color: '#fff',
+        padding: 'max(12px, var(--safe-top)) 16px 12px', minHeight: 56, color: '#fff',
         ...(bgUrl ? { background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } : {}),
       }}>
         <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>💌 明信片</h3>
