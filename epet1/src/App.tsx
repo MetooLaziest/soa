@@ -2400,8 +2400,13 @@ export default function App() {
   // window.visualViewport.height 反映"用户实际可见区域"(不含 Safari 工具栏)
   useEffect(() => {
     const setAppHeight = () => {
-      // 优先用 visualViewport (iOS Safari 16+ 支持, 反映真实可视高度)
-      const h = window.visualViewport?.height ?? window.innerHeight;
+      // PWA standalone: home indicator 是系统覆盖层, 内容应该填满整个屏幕, 用 innerHeight
+      // 浏览器模式: iOS Safari 底部工具栏浮在 viewport 之上, 用 visualViewport (反映真实可视高度, 排除工具栏)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+        || (navigator as any).standalone === true;
+      const h = isStandalone
+        ? window.innerHeight
+        : (window.visualViewport?.height ?? window.innerHeight);
       document.documentElement.style.setProperty('--app-height', `${h}px`);
     };
     setAppHeight();
