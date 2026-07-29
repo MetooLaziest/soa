@@ -24,7 +24,6 @@
  * - 单实例「重发激活码」
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 
 const CLAIM_URL_BASE =
@@ -78,7 +77,6 @@ const STATUS_LABEL: Record<string, { label: string; color: string; icon: string 
 };
 
 export default function WavesAdmin() {
-  const navigate = useNavigate();
   const [waves, setWaves] = useState<Wave[]>([]);
   const [models, setModels] = useState<PetModel[]>([]);
   const [loading, setLoading] = useState(true);
