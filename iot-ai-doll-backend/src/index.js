@@ -46,10 +46,14 @@ import { poolEpet1 } from './lib/db.js';
 import { jwtAuth } from './middleware/auth.js';
 
 
-dotenv.config();
+// dotenv 加载 .env. 用绝对路径避免被 PM2 --cwd 切换工作目录影响
+// (上一版用默认 cwd, 改成绝对路径后无论从哪里启动都能拿到 JWT_SECRET)
+const __filenameBoot = fileURLToPath(import.meta.url);
+const __dirnameBoot = dirname(__filenameBoot);
+dotenv.config({ path: join(__dirnameBoot, '..', '.env') });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __filename = __filenameBoot;
+const __dirname = __dirnameBoot;
 
 const app = express();
 const PORT = process.env.PORT || 3000;

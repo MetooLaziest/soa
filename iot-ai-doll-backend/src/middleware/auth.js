@@ -7,7 +7,10 @@
  */
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+// ⚠️ 必须 lazy 读 process.env.JWT_SECRET!
+// ES Module 静态 import 是 hoisted, 此模块在 import 阶段就被加载,
+// 早于 index.js 的 dotenv.config(), 所以模块顶层读 JWT_SECRET 还是 undefined.
+// 改成函数内 lazy 读, 每次请求时 dotenv 已加载完, 拿到真 secret.
 const DEMO_KEY = process.env.DEMO_KEY || '9527';
 
 export function jwtAuth(req, res, next) {
@@ -15,6 +18,8 @@ export function jwtAuth(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
+    // lazy 读, 拿到 dotenv 加载后的真 secret
+    const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = { userId: decoded.userId, username: decoded.username, phone: decoded.phone, isDemo: false };
