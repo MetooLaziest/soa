@@ -22,6 +22,8 @@ import {
   buyItem,
   activatePet,
   claimPet,
+  previewActivationCode,
+  type WavePreviewResult,
   recordGameScore,
   sendChatMessage,
   placeFurniture,
@@ -2250,6 +2252,127 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── 量产波段: 未上市视图 (扫码显示, 拦截登录, 不展示品牌引导) ───────
+function NotLaunchedView({ wavePreview, onClose }: { wavePreview: WavePreviewResult; onClose: () => void }) {
+  const model = wavePreview.model;
+  const status = wavePreview.wave?.status;
+  const statusLabel: Record<string, string> = {
+    factory_burned: '工厂已烧录',
+    in_qc: '工厂 QC 中',
+    published: '已上市',
+    claimed: '已认领',
+    archived: '已归档',
+  };
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.95)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 9999, padding: 20,
+    }}>
+      <div style={{
+        background: '#1e293b', borderRadius: 16, padding: 32, maxWidth: 380, width: '100%',
+        textAlign: 'center', color: '#e2e8f0', boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>📦</div>
+        <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px', color: '#fbbf24' }}>
+          这只宠物还没有上市
+        </h2>
+        {model && (
+          <p style={{ fontSize: 15, color: '#cbd5e1', margin: '0 0 4px' }}>
+            型号: <strong style={{ color: '#fff' }}>{model.name}</strong>
+          </p>
+        )}
+        {wavePreview.wave?.batch_code && (
+          <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 4px' }}>
+            批次: {wavePreview.wave.batch_code}
+          </p>
+        )}
+        {status && (
+          <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 20px' }}>
+            当前状态: {statusLabel[status] || status}
+          </p>
+        )}
+        <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 24px' }}>
+          工厂已烧录, 等待上市后才能认领。<br />
+          请关注官方公告或联系客服。
+        </p>
+        <button
+          onClick={onClose}
+          style={{
+            background: '#475569', color: '#fff', border: 'none',
+            padding: '10px 28px', borderRadius: 8, fontSize: 14,
+            cursor: 'pointer', fontWeight: 500,
+          }}
+        >关闭</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── 量产波段: 已认领视图 (扫码显示, 拦截登录, 告知已被认领) ───────
+function AlreadyClaimedView({ wavePreview, onClose, onGoLogin }: {
+  wavePreview: WavePreviewResult;
+  onClose: () => void;
+  onGoLogin: () => void;
+}) {
+  const model = wavePreview.model;
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.95)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 9999, padding: 20,
+    }}>
+      <div style={{
+        background: '#1e293b', borderRadius: 16, padding: 32, maxWidth: 380, width: '100%',
+        textAlign: 'center', color: '#e2e8f0', boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      }}>
+        {model?.image_url && (
+          <img
+            src={model.image_url}
+            alt={model.name}
+            style={{ width: 96, height: 96, objectFit: 'contain', marginBottom: 12 }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        )}
+        <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
+        <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px', color: '#4ade80' }}>
+          这只宠物已被认领
+        </h2>
+        {model && (
+          <p style={{ fontSize: 15, color: '#cbd5e1', margin: '0 0 4px' }}>
+            型号: <strong style={{ color: '#fff' }}>{model.name}</strong>
+          </p>
+        )}
+        {wavePreview.wave?.batch_code && (
+          <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 20px' }}>
+            批次: {wavePreview.wave.batch_code}
+          </p>
+        )}
+        <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 24px' }}>
+          这只宠物已经属于某位玩家, 无法重复认领。<br />
+          如果你已认领过此宠物, 请直接登录查看。
+        </p>
+        <button
+          onClick={onClose}
+          style={{
+            background: '#475569', color: '#fff', border: 'none',
+            padding: '10px 28px', borderRadius: 8, fontSize: 14,
+            cursor: 'pointer', fontWeight: 500, marginRight: 8,
+          }}
+        >关闭</button>
+        <button
+          onClick={onGoLogin}
+          style={{
+            background: '#2563eb', color: '#fff', border: 'none',
+            padding: '10px 28px', borderRadius: 8, fontSize: 14,
+            cursor: 'pointer', fontWeight: 500,
+          }}
+        >去登录</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── App 根组件 ──────────────────────────────────────────────
 export default function App() {
   const { setUser, setYardPets, setAllPets, setActiveTravel, setLoading, loading, activeModal, setActiveModal,
@@ -2263,6 +2386,8 @@ export default function App() {
 
   const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [wavePreview, setWavePreview] = useState<WavePreviewResult | null>(null);
+  const [wavePreviewLoading, setWavePreviewLoading] = useState(false);
   const [levelUpAnim, setLevelUpAnim] = useState<{ oldLevel: number; newLevel: number; petName: string; petModelId?: number } | null>(null);
 
   /** 触发升级动画的全局方法 */
@@ -2345,11 +2470,29 @@ export default function App() {
       return;
     }
     // 激活码认领: ?code=<20位 base64url>
+    // ── 量产波段状态机: 先调 /wave/preview 决定是直接认领 / 显示「未上市」/ 显示「已认领」
+    // 见 memory #波段特性. invalid 或 launchable 才走登录认领流
     const codeParam = params.get('code');
     if (codeParam) {
       localStorage.setItem('epet_pending_activation_code', codeParam);
       // 清理 URL，避免刷新重复触发
       window.history.replaceState({}, '', window.location.pathname);
+      // 异步调预览接口, 结果存 wavePreview state 用于决定渲染分支
+      setWavePreviewLoading(true);
+      previewActivationCode(codeParam)
+        .then((res) => {
+          // invalid / launchable → 让登录/认领流继续; not_launched / already_claimed → 拦截
+          if (res.state === 'invalid' || res.state === 'launchable') {
+            setWavePreview(null);
+          } else {
+            setWavePreview(res);
+          }
+        })
+        .catch((e) => {
+          console.warn('[wave preview] failed, fall through to login flow', e);
+          setWavePreview(null);
+        })
+        .finally(() => setWavePreviewLoading(false));
     }
     initAuth();
   }, []);
@@ -2484,6 +2627,33 @@ export default function App() {
       <div className="app-loading">
         <div className="app-loading-spinner">🌀</div>
         <div>认证中...</div>
+      </div>
+    );
+  }
+
+  // ─── 量产波段: 未上市 → 拦截登录, 直接展示「未上市」视图 ───
+  // 不展示品牌引导 (产品决策: 未上市的不需要做品牌引导)
+  if (wavePreview?.state === 'not_launched') {
+    return <NotLaunchedView wavePreview={wavePreview} onClose={() => { setWavePreview(null); localStorage.removeItem('epet_pending_activation_code'); window.history.replaceState({}, '', '/'); }} />;
+  }
+
+  // ─── 量产波段: 已认领 → 拦截登录, 直接展示「已认领」视图 ───
+  if (wavePreview?.state === 'already_claimed') {
+    return (
+      <AlreadyClaimedView
+        wavePreview={wavePreview}
+        onClose={() => { setWavePreview(null); localStorage.removeItem('epet_pending_activation_code'); window.history.replaceState({}, '', '/'); }}
+        onGoLogin={() => { setWavePreview(null); /* fall through to LoginOverlay */ }}
+      />
+    );
+  }
+
+  // 量产波段: 加载预览中 (扫码后第一次进入, 还在请求 /wave/preview)
+  if (wavePreviewLoading) {
+    return (
+      <div className="app-loading">
+        <div className="app-loading-spinner">🌀</div>
+        <div>激活码校验中...</div>
       </div>
     );
   }

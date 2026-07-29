@@ -23,6 +23,7 @@ import Users from './pages/admin/Users';
 import SystemConfig from './pages/admin/SystemConfig';
 import MiniGameAssets from './pages/admin/MiniGameAssets';
 import PetEntities from './pages/admin/PetEntities';
+import WavesAdmin from './pages/admin/WavesAdmin';
 import CompanionEdit from './pages/admin/CompanionEdit';
 import YardSceneEditor from './pages/admin/YardSceneEditor';
 import ZoneManager from './pages/admin/ZoneManager';
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="sys-config" element={<SystemConfig />} />
           <Route path="minigame-assets" element={<MiniGameAssets />} />
           <Route path="pets" element={<PetEntities />} />
+          <Route path="waves" element={<WavesAdmin />} />
           <Route path="companions/:id/edit" element={<CompanionEdit />} />
           <Route path="companions/:id/rag" element={<CompanionRAG />} />
           <Route path="rag" element={<RAGList />} />

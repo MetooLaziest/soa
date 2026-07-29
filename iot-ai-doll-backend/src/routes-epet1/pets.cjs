@@ -151,15 +151,28 @@ module.exports = (pool) => {
 
       // 查找未认领的宠物实例（行锁防并发）
       const instanceRow = await client.query(
-        `SELECT id, pet_model_id FROM pet_instances
-         WHERE activation_code = $1 AND status = 'unclaimed'
-         FOR UPDATE`,
+        `SELECT pi.id, pi.pet_model_id, pi.wave_id, w.status AS wave_status
+         FROM pet_instances pi
+         LEFT JOIN production_waves w ON w.id = pi.wave_id
+         WHERE pi.activation_code = $1 AND pi.status = 'unclaimed'
+         FOR UPDATE OF pi`,
         [activation_code]
       );
 
       if (!instanceRow.rows[0]) {
         await client.query('ROLLBACK');
         return res.status(404).json({ success: false, error: '激活码无效或已被使用' });
+      }
+
+      // 量产波段守门: 如果 pet_instance 属于某个 wave, 必须 wave.status = 'published'
+      // 没有 wave_id 的历史 demo / 旧数据绕过此校验
+      if (instanceRow.rows[0].wave_id && instanceRow.rows[0].wave_status !== 'published') {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          success: false,
+          error: '该激活码所属波段尚未上市, 暂不能认领',
+          wave_status: instanceRow.rows[0].wave_status,
+        });
       }
 
       const pet_instance_id = instanceRow.rows[0].id;

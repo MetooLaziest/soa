@@ -16,6 +16,7 @@ const navItems = [
   { key: 'users', label: '用户列表', icon: '👥', path: '/admin/users' },
   { key: 'sys-config', label: '系统配置', icon: '⚙️', path: '/admin/sys-config' },
   { key: 'pets', label: '宠物实体管理', icon: '🐾', path: '/admin/pets' },
+  { key: 'waves', label: '量产波段', icon: '📦', path: '/admin/waves' },
   { key: 'rag', label: 'RAG 知识库管理', icon: '📚', path: '/admin/rag' },
   { key: 'minigame-assets', label: '美术素材', icon: '🎨', path: '/admin/minigame-assets' },
   { key: 'fishing', label: '钓鱼管理', icon: '🎣', path: '/admin/fishing' },

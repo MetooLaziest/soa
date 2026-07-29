@@ -218,6 +218,35 @@ export async function claimPet(activationCode: string): Promise<{ pet: PetInstan
   return { pet: res.pet, merged: res.merged, growth: res.growth };
 }
 
+/** 激活码波段状态机预览 (公开接口, 无需登录)
+ *  state: invalid | not_launched | launchable | already_claimed
+ *  用途: 用户扫码后第一次访问时, 决定是直接认领 / 显示「未上市」/ 显示「已认领」 */
+export type WavePreviewState = 'invalid' | 'not_launched' | 'launchable' | 'already_claimed';
+
+export interface WavePreviewResult {
+  state: WavePreviewState;
+  model?: {
+    id: number;
+    name: string;
+    image_url: string;
+    rarity: string;
+  };
+  pet_instance_id?: number;
+  wave?: {
+    batch_code: string;
+    status?: string;
+  };
+}
+
+export async function previewActivationCode(activationCode: string): Promise<WavePreviewResult> {
+  // 公开 endpoint, 直接 fetch, 不走 authFetch
+  const res = await fetch(`${BASE}/wave/preview?code=${encodeURIComponent(activationCode)}`);
+  if (!res.ok) {
+    return { state: 'invalid' };
+  }
+  return res.json();
+}
+
 /** 添加宠物到庭院 */
 export async function addToYard(userId: number, petId: number): Promise<void> {
   await post(`/pet/yard/add`, { user_id: userId, pet_instance_id: petId });

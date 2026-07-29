@@ -38,6 +38,7 @@ import adminPetSeriesRoutes from './routes/admin-pet-series.js';
 import adminOutfitsRoutes from './routes/admin-outfits.js';
 import landingPageRoutes from './routes/landing-page.js';
 import adminDemoTimeRoutes, { publicRouter as demoTimePublicRouter } from './routes/admin-demo-time.js';
+import adminWavesRoutes from './routes/admin-waves.js';
 
 // ========== EPET1 路由（合并自 epet1-backend，CommonJS）==========
 import { createRequire } from 'module';
@@ -102,12 +103,16 @@ app.use('/api/admin/epet-users', adminEpetUsersRoutes);
 app.use('/api/admin/epet-stats', adminEpetStatsRoutes);
 app.use('/api/admin/demo-time', adminDemoTimeRoutes);
 app.use('/api/epet1/demo-time', demoTimePublicRouter);
+app.use('/api/admin/waves', adminWavesRoutes);
 
 // ========== 着陆页 + 站点配置 (Plan C) ==========
 app.use('/api', landingPageRoutes);  // GET /api/landing, GET /api/site-config, POST /api/admin/site-config
 
 // ========== EPET1 认证路由（无需 Token）==========
 app.use('/api/epet1/auth',       requireCjs('./routes-epet1/auth.cjs')(poolEpet1));
+
+// ========== EPET1 公开接口（无需 Token，扫码可访问）==========
+app.use('/api/epet1/wave',       requireCjs('./routes-epet1/wave.cjs')(poolEpet1));
 
 // ========== EPET1 公开接口（无需admin权限，但需登录）==========
 app.use('/api/epet1/yard',        jwtAuth, requireCjs('./routes-epet1/yard-scene.cjs')(poolEpet1));
