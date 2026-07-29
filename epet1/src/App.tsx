@@ -6,7 +6,6 @@ import SpotDifference from './games/SpotDifference';
 import Fishing from './games/Fishing';
 import Cooking from './games/Cooking';
 import Match3Game from './games/Match3Game';
-import { SettingsModal } from './components/SettingsModal';
 import {
   fetchYardPets,
   fetchUserPets,
@@ -50,6 +49,7 @@ import { PetActionOverlay } from './components/PetActionOverlay';
 import { OutfitPanel } from './components/OutfitPanel';
 import LoginOverlay from './components/LoginOverlay';
 import PwaInstallHint from './components/PwaInstallHint';
+import { SettingsModal } from './components/SettingsModal';
 import { useAuthStore } from './store/authStore';
 import './App.css';
 import './components/LivePage.css';
@@ -2753,7 +2753,6 @@ export default function App() {
       {activeModal === 'travel' && <TravelModal onClose={() => setActiveModal(null)} preselectedPetId={chatPetId ?? undefined} />}
       {activeModal === 'drift' && <DriftModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'shop' && <ShopModal onClose={() => setActiveModal(null)} />}
-      {activeModal === 'settings' && <SettingsModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'inventory' && <InventoryModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'game' && <GameModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'fishing' && (
@@ -2934,6 +2933,11 @@ export default function App() {
           document.body
         );
       })()}
+
+      {/* 设置弹窗 (settings modal) */}
+      {activeModal === 'settings' && (
+        <SettingsModal onClose={() => setActiveModal(null)} />
+      )}
     </div>
   );
 }
