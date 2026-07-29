@@ -6,6 +6,7 @@ import SpotDifference from './games/SpotDifference';
 import Fishing from './games/Fishing';
 import Cooking from './games/Cooking';
 import Match3Game from './games/Match3Game';
+import { SettingsModal } from './components/SettingsModal';
 import {
   fetchYardPets,
   fetchUserPets,
