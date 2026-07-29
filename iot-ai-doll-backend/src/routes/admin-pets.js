@@ -33,6 +33,7 @@ router.get('/', async (_req, res) => {
     );
 
     // 2) 全部 instances JOIN user + travel status (含 NFC 烧录字段 · memory #24)
+    // 排除 status='merged' 的已合并实例 (合并后已 merge 到 merged_into_id, 不应再出现在列表/统计)
     const instRes = await poolEpet1.query(
       `SELECT pi.id, pi.user_id, pi.pet_model_id, pi.nfc_id, pi.nickname,
               pi.growth_level, pi.growth_exp, pi.total_interactions,
@@ -49,6 +50,7 @@ router.get('/', async (_req, res) => {
        LEFT JOIN users u ON u.id = pi.user_id
        LEFT JOIN yard_pets yp ON yp.pet_instance_id = pi.id AND yp.is_active = true
        LEFT JOIN travel_records tr ON tr.pet_instance_id = pi.id AND tr.status = 'traveling'
+       WHERE pi.status != 'merged'
        ORDER BY pi.user_id, pm.display_order, pi.id`
     );
 
@@ -87,7 +89,7 @@ router.get('/:id', async (req, res) => {
        JOIN pet_models pm ON pm.id = pi.pet_model_id
        LEFT JOIN users u ON u.id = pi.user_id
        LEFT JOIN yard_pets yp ON yp.pet_instance_id = pi.id AND yp.is_active = true
-       WHERE pi.id = $1`,
+       WHERE pi.id = $1 AND pi.status != 'merged'`,
       [id]
     );
     if (r.rowCount === 0) {
