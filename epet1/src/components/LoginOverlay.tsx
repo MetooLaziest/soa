@@ -81,12 +81,13 @@ export default function LoginOverlay() {
     setError('');
     setSubmitting(true);
     try {
-      const res = await login(phone, password);
+      // 防御: 强制 string + trim, 避免 number 类型 / 隐藏空格导致 401
+      const res = await login(String(phone).trim(), String(password));
       if (!res.ok) {
         setError(res.error || '登录失败');
       }
-    } catch {
-      setError('网络错误');
+    } catch (e) {
+      setError(`网络错误: ${(e as Error).message}`);
     } finally {
       setSubmitting(false);
     }
@@ -111,7 +112,7 @@ export default function LoginOverlay() {
       {/* 品牌区 */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ fontSize: 56, marginBottom: 8 }}>🏡</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#8B6914' }}>绒绒庭院</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: '#8B6914' }}>MoMo庭院</div>
         <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>E-Pet H5</div>
         {localStorage.getItem('epet_pending_activation_code') && (
           <div style={{ marginTop: 12, fontSize: 14, color: '#8B6914', fontWeight: 600 }}>

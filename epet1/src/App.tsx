@@ -2337,6 +2337,13 @@ export default function App() {
       initAuth('demo');
       return;
     }
+    // ─── 向后兼容: 一批已部署演示设备用老 URL ?id=9527 ───
+    // 召回设备烧录新 URL 不现实, 必须兼容. 见 memory #21
+    // 注意: 排除 ?id=<激活码> 误判 — 只有 id === '9527' 才当 demo
+    if (params.get('id') === '9527') {
+      initAuth('demo');
+      return;
+    }
     // 激活码认领: ?code=<20位 base64url>
     const codeParam = params.get('code');
     if (codeParam) {
