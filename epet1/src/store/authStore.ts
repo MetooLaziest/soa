@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: true,
 
   initAuth: async (demoToken?: string) => {
-    // Demo 模式：URL 带 ?demo=9527 → 不需要真实 token
+    // 路径 A: URL 带 ?demo=9527 / ?id=9527 → 直接进 demo
     if (demoToken) {
       // 2026-07-30: 防御性清掉残留的 epet1_token。
       // 之前不清 → 切回 / 路由重 mount → initAuth() 无参 → getMe(旧 token) 成功
@@ -50,9 +50,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
 
-    // 非演示模式：清除可能残留的 demo 标记，防止 authParams() 误走 demo bypass
-    localStorage.removeItem(DEMO_KEY);
+    // 路径 B (2026-07-30 加): iOS PWA standalone 从主屏幕启动会丢 query string
+    //   → 上次 ?id=9527 写入的 DEMO_KEY 还在 → 直接恢复 demo 模式
+    // 真实用户登出/登录在 _setAuth / logout 中已经清掉 DEMO_KEY, 不会误判
+    if (localStorage.getItem(DEMO_KEY) === '1') {
+      set({ isDemo: true, userId: 2, isAuthenticated: true, loading: false });
+      return;
+    }
 
+    // 路径 C: 真实用户 token 流程
     const saved = localStorage.getItem(TOKEN_KEY);
     if (!saved) {
       set({ loading: false });
