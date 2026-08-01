@@ -3,7 +3,7 @@ import { useGameStore } from '../game/GameState';
 import { fetchVisiblePets, toggleVisibility, transformMonsterItem } from '../api/epet';
 import type { Pet } from '../api/epet';
 
-import { useT } from './i18n/useT';
+import { useT } from '../i18n/useT';
 const t = useT();
 
 /** Get icon: uses uploaded image if available, otherwise falls back to emoji */
