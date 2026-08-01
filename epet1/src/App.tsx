@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, type ReactNode, type MouseEvent, type KeyboardEvent, type ChangeEvent, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { t } from './i18n/useT';
 import { useGameStore, type EmotionFloatItem } from './store/gameStore';
 import { useGameStore as usePixiGameStore } from './game/GameState';
 import SpotDifference from './games/SpotDifference';
@@ -121,7 +122,7 @@ function ExpBar({ level, exp, compact = false }: { level: number; exp: number; c
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#FFD700' }}>Lv.{level}</span>
         {isMax ? (
-          <span style={{ fontSize: 10, color: '#FFD700', fontWeight: 600 }}>✨ 已满级</span>
+          <span style={{ fontSize: 10, color: '#FFD700', fontWeight: 600 }}>{t('app.collection.maxLevel', '✨ 已满级')}</span>
         ) : (
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>{current}/{needed}</span>
         )}
@@ -317,7 +318,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
     if (!userId) return;
     // 旅行中的宠物不能放入庭院
     if (pet.isTraveling) {
-      setCollectionToast({ type: 'error', message: '宠物正在出游中，无法放入庭院' });
+      setCollectionToast({ type: 'error', message: t('app.collection.toast.traveling', '宠物正在出游中，无法放入庭院') });
       setTimeout(() => setCollectionToast(null), 2000);
       return;
     }
@@ -330,28 +331,28 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         const updatedYardPets = yardRes.pets || [];
         setYardPets(updatedYardPets);
         setGlobalYardPets(updatedYardPets);
-        setCollectionToast({ type: 'success', message: '已取消展示', petName: pet.modelName, petImage: pet.portraitImageUrl });
+        setCollectionToast({ type: 'success', message: t('app.collection.toast.unshow', '已取消展示'), petName: pet.modelName, petImage: pet.portraitImageUrl });
         setTimeout(() => setCollectionToast(null), 1500);
       } catch (e: any) {
-        setCollectionToast({ type: 'error', message: e.message || '操作失败' });
+        setCollectionToast({ type: 'error', message: (e.message || {t('app.collection.toast.opFailed', '操作失败')}) });
         setTimeout(() => setCollectionToast(null), 2000);
       }
     } else {
       if (yardPets.length >= 2) {
-        setCollectionToast({ type: 'error', message: '庭院最多展示 2 只机伴' });
+        setCollectionToast({ type: 'error', message: t('app.collection.toast.yardFull', '庭院最多展示 2 只机伴') });
         setTimeout(() => setCollectionToast(null), 2000);
         return;
       }
       try {
         const allPetsRes = await authFetch(`/api/epet1/pet/instances/${userId}`).then(r => r.json());
         if (!allPetsRes.success) {
-          setCollectionToast({ type: 'error', message: '获取宠物列表失败' });
+          setCollectionToast({ type: 'error', message: t('app.collection.toast.loadFailed', '获取宠物列表失败') });
           setTimeout(() => setCollectionToast(null), 2000);
           return;
         }
         const targetPet = allPetsRes.pets?.find((p: any) => Number(p.pet_model_id) === targetModelId);
         if (!targetPet) {
-          setCollectionToast({ type: 'error', message: '未找到该机伴' });
+          setCollectionToast({ type: 'error', message: t('app.collection.toast.notFound', '未找到该机伴') });
           setTimeout(() => setCollectionToast(null), 2000);
           return;
         }
@@ -360,10 +361,10 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         const updatedYardPets = yardRes.pets || [];
         setYardPets(updatedYardPets);
         setGlobalYardPets(updatedYardPets);
-        setCollectionToast({ type: 'success', message: '已展示在庭院', petName: pet.modelName, petImage: pet.portraitImageUrl });
+        setCollectionToast({ type: 'success', message: t('app.collection.toast.show', '已展示在庭院'), petName: pet.modelName, petImage: pet.portraitImageUrl });
         setTimeout(() => setCollectionToast(null), 1500);
       } catch (e: any) {
-        setCollectionToast({ type: 'error', message: e.message || '操作失败' });
+        setCollectionToast({ type: 'error', message: (e.message || {t('app.collection.toast.opFailed', '操作失败')}) });
         setTimeout(() => setCollectionToast(null), 2000);
       }
     }
@@ -376,7 +377,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         position: 'fixed', inset: 0, zIndex: 1000,
         background: '#F6F3EA', display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <div style={{ color: '#999' }}>加载中...</div>
+        <div style={{ color: '#999' }}>{t('app.collection.loading', '加载中...')}</div>
       </div>
     );
   }
@@ -401,7 +402,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>←</button>
         <span style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 600, color: '#333' }}>
-          藏品库
+          {t('app.collection.title', '藏品库')}
         </span>
         <button onClick={() => setActiveModal('nfc')} style={{
           width: 36, height: 36, borderRadius: '50%', border: 'none',
@@ -487,7 +488,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
                   fontSize: 18, color: 'rgba(255,255,255,0.9)', marginTop: 6,
                   textShadow: '0 1px 2px rgba(0,0,0,0.3)',
                 }}>
-                  进度: {seriesDetail.progress.collected}/{seriesDetail.progress.total}
+                  {t('app.collection.progress', '进度: {collected}/{total}', { collected: seriesDetail.progress.collected, total: seriesDetail.progress.total })}
                 </div>
               </div>
             </div>
@@ -551,7 +552,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
                       padding: '2px 12px', borderRadius: 20, whiteSpace: 'nowrap',
                       boxShadow: '0 2px 8px rgba(238,90,36,0.4)',
                       zIndex: 20,
-                    }}>✈️ 旅行中</div>
+                    }}>{t('app.collection.traveling', '✈️ 旅行中')}</div>
                   )}
                   {isInYard && (
                     <div style={{
@@ -627,12 +628,12 @@ function NFCDialog({ onClose, onConfirm }: { onClose: () => void; onConfirm: (id
       <div style={{
         background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 300,
       }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, textAlign: 'center' }}>📱 扫描 NFC 激活</div>
-        <input type="text" value={nfcId} onChange={e => setNfcId(e.target.value)} placeholder="输入 NFC 标签 ID"
+        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, textAlign: 'center' }}>{t('app.nfcDialog.title', '📱 扫描 NFC 激活')}</div>
+        <input type="text" value={nfcId} onChange={e => setNfcId(e.target.value)} placeholder={t("app.nfcDialog.placeholder", "输入 NFC 标签 ID")}
           style={{ width: '100%', height: 44, borderRadius: 12, border: '1px solid #ddd', padding: '0 12px', fontSize: 15, marginBottom: 16 }} />
         <button onClick={() => { onConfirm(nfcId); onClose(); }}
           style={{ width: '100%', height: 44, borderRadius: 22, border: 'none', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff', fontSize: 15, fontWeight: 600 }}>
-          激活
+          {t('app.nfcDialog.activate', '激活')}
         </button>
       </div>
     </div>
@@ -646,10 +647,10 @@ function TravelBanner({ travel, onClick }: { travel: any; onClick: () => void })
     if (!travel.expected_end_at) return;
     const tick = () => {
       const diff = new Date(travel.expected_end_at).getTime() - Date.now();
-      if (diff <= 0) { setCountdown('即将归来'); return; }
+      if (diff <= 0) { setCountdown(t('app.travelBanner.comingBack', '即将归来')); return; }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
-      setCountdown(`${h}时${m}分`);
+      setCountdown(t('app.travelBanner.countdown.hm', '{h}时{m}分', { h, m }));
     };
     tick();
     const iv = setInterval(tick, 30000);
@@ -658,7 +659,7 @@ function TravelBanner({ travel, onClick }: { travel: any; onClick: () => void })
 
   return (
     <div className="travel-banner" onClick={onClick}>
-      ✈️ {travel.pet_nickname} 旅行中 · {countdown || '...'}
+      {t('app.travelBanner.traveling', '✈️ {pet_nickname} 旅行中 · {countdown}', { pet_nickname: travel.pet_nickname, countdown: countdown || '...' })}
       {travel.dish_rating && <span style={{ marginLeft: 6 }}>{'⭐'.repeat(travel.dish_rating)}</span>}
     </div>
   );
@@ -729,10 +730,10 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
         padding: 'max(12px, var(--safe-top)) 16px 12px', minHeight: 56, color: '#fff',
         ...(bgUrl ? { background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } : {}),
       }}>
-        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>💌 明信片</h3>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>{t('app.postcard.title', '💌 明信片')}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 13, opacity: 0.7 }}>
-            {obtainedCards.length > 0 ? `${currentIndex + 1} / ${obtainedCards.length}` : '0 张'}
+            {obtainedCards.length > 0 ? `${currentIndex + 1} / ${obtainedCards.length}` : t('app.postcard.emptyCount', '0 张')}
           </span>
           <button onClick={onClose} style={{
             background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
@@ -748,12 +749,12 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
         padding: '0 16px', position: 'relative', overflow: 'hidden',
       }}>
         {loading ? (
-          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>加载中...</div>
+          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>{t('app.postcard.loading', '加载中...')}</div>
         ) : obtainedCards.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>💌</div>
-            <div style={{ fontSize: 14 }}>还没有明信片</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>送宠物去旅行吧</div>
+            <div style={{ fontSize: 14 }}>{t('app.postcard.empty', '还没有明信片')}</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>{t('app.postcard.emptyTip', '送宠物去旅行吧')}</div>
           </div>
         ) : currentPc ? (
           <>
@@ -815,7 +816,7 @@ function PostcardModal({ onClose }: { onClose: () => void }) {
                   <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>{currentPc.description}</div>
                 )}
                 {currentPc.video_url && (
-                  <div style={{ color: '#FF9800', fontSize: 12, marginTop: 6 }}>🎬 点击明信片播放旅行视频</div>
+                  <div style={{ color: '#FF9800', fontSize: 12, marginTop: 6 }}>{t('app.postcard.videoHint', '🎬 点击明信片播放旅行视频')}</div>
                 )}
               </div>
             </div>
@@ -878,11 +879,11 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
     if (!activeTravel?.expected_end_at) return;
     const tick = () => {
       const diff = new Date(activeTravel.expected_end_at!).getTime() - Date.now();
-      if (diff <= 0) { setCountdown('即将归来'); return; }
+      if (diff <= 0) { setCountdown(t('app.travelModal.comingBack', '即将归来')); return; }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      setCountdown(`${h}时${m}分${s}秒`);
+      setCountdown(t('app.travelModal.countdown.hms', '{h}时{m}分{s}秒', { h, m, s }));
     };
     tick();
     const iv = setInterval(tick, 1000);
@@ -898,40 +899,40 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
       setYardPets(yardPets.filter((p) => p.id !== selectedPet));
       onClose();
     } catch (e: any) {
-      alert(e.message || '出游失败');
+      alert(e.message || t('app.travelModal.failed', '出游失败'));
     } finally {
       setStarting(null);
     }
   };
 
-  const ratingLabel: Record<number, string> = { 1: '还行(12h)', 2: '不错(10h)', 3: '完美(8h)' };
+  const ratingLabel: Record<number, string> = { 1: t('app.travelModal.rating.1', '还行(12h)'), 2: t('app.travelModal.rating.2', '不错(10h)'), 3: t('app.travelModal.rating.3', '完美(8h)') };
 
   return (
     <ModalOverlay onClose={onClose}>
       <div className="modal-header">
-        <h3>✈️ 派遣旅行</h3>
+        <h3>{t('app.travelModal.title', '✈️ 派遣旅行')}</h3>
         <button className="modal-close" onClick={onClose}>×</button>
       </div>
 
       {activeTravel ? (
         <div className="travel-active">
-          <div className="travel-status">🛫 {activeTravel.pet_nickname} 正在旅行中...</div>
-          <div className="travel-timer">{countdown || '计算中...'}</div>
+          <div className="travel-status">{t('app.travelModal.active.traveling', '🛫 {pet_nickname} 正在旅行中...', { pet_nickname: activeTravel.pet_nickname })}</div>
+          <div className="travel-timer">{countdown || t('app.travelModal.calculating', '计算中...')}</div>
           {activeTravel.dish_rating && (
             <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>
-              料理评级: {'⭐'.repeat(activeTravel.dish_rating)}
+              {t('app.travelModal.dishRating', '料理评级: {stars}', { stars: '⭐'.repeat(activeTravel.dish_rating) })}
             </div>
           )}
-          <button className="btn-primary" disabled>归来时通知你</button>
+          <button className="btn-primary" disabled>{t('app.travelModal.active.notifyOnReturn', '归来时通知你')}</button>
         </div>
       ) : (
         <>
           {/* 步骤1: 选宠物 */}
           {step === 'selectPet' && (
             <>
-              <div className="modal-tip">选择一只宠物送它去旅行</div>
+              <div className="modal-tip">{t('app.travelModal.step1.tip', '选择一只宠物送它去旅行')}</div>
               {yardPets.length === 0 ? (
-                <div className="modal-empty">庭院没有宠物，先去藏品库添加宠物吧</div>
+                <div className="modal-empty">{t('app.travelModal.step1.empty', '庭院没有宠物，先去藏品库添加宠物吧')}</div>
               ) : (
                 <div className="travel-pet-list">
                   {yardPets.map((pet) => (
@@ -957,13 +958,13 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
             <>
               <div style={{ marginBottom: 8 }}>
                 <button style={{ background: 'none', border: 'none', color: '#FF9800', cursor: 'pointer', fontSize: 13 }}
-                  onClick={() => setStep('selectPet')}>← 返回选宠物</button>
+                  onClick={() => setStep('selectPet')}>{t('app.travelModal.step2.back', '← 返回选宠物')}</button>
               </div>
-              <div className="modal-tip">提供一份料理给宠物当旅行口粮</div>
+              <div className="modal-tip">{t('app.travelModal.step2.tip', '提供一份料理给宠物当旅行口粮')}</div>
               {dishes.length === 0 ? (
                 <div className="modal-empty">
-                  背包里没有可用的料理<br />
-                  <span style={{ fontSize: 12, color: '#999' }}>需要至少1星料理，去做菜吧！</span>
+                  {t('app.travelModal.step2.empty', '背包里没有可用的料理')}<br />
+                  <span style={{ fontSize: 12, color: '#999' }}>{t('app.travelModal.step2.emptyTip', '需要至少1星料理，去做菜吧！')}</span>
                 </div>
               ) : (
                 <div style={{ maxHeight: 300, overflowY: 'auto' }}>
@@ -1001,23 +1002,23 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
             <>
               <div style={{ marginBottom: 8 }}>
                 <button style={{ background: 'none', border: 'none', color: '#FF9800', cursor: 'pointer', fontSize: 13 }}
-                  onClick={() => setStep('selectDish')}>← 重选料理</button>
+                  onClick={() => setStep('selectDish')}>{t('app.travelModal.step3.back', '← 重选料理')}</button>
               </div>
               <div style={{
                 textAlign: 'center', padding: 16,
                 background: 'rgba(255,152,0,0.08)', borderRadius: 12, marginBottom: 16,
               }}>
                 <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
-                  🧳 旅行确认
+                  {t('app.travelModal.step3.confirm.title', '🧳 旅行确认')}
                 </div>
                 <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
-                  宠物: {yardPets.find(p => p.id === selectedPet)?.nickname}
+                  {t('app.travelModal.step3.confirm.pet', '宠物: {nickname}', { nickname: yardPets.find(p => p.id === selectedPet)?.nickname })}
                 </div>
                 <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
-                  料理: {selectedDish.name} {'⭐'.repeat(selectedDish.dish_rating)}
+                  {t('app.travelModal.step3.confirm.dish', '料理: {name} {stars}', { name: selectedDish.name, stars: '⭐'.repeat(selectedDish.dish_rating) })}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#FF9800' }}>
-                  旅行时间: {ratingLabel[selectedDish.dish_rating]}
+                  {t('app.travelModal.step3.confirm.duration', '旅行时间: {rating}', { rating: ratingLabel[selectedDish.dish_rating] })}
                 </div>
               </div>
               <button
@@ -1030,7 +1031,7 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
                   color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer',
                 }}
               >
-                {starting !== null ? '出发中...' : '✈️ 出发旅行！'}
+                {starting !== null ? t('app.travelModal.step3.confirm.starting', '出发中...') : t('app.travelModal.step3.confirm.go', '✈️ 出发旅行！')}
               </button>
             </>
           )}
@@ -1042,9 +1043,9 @@ function TravelModal({ onClose, preselectedPetId }: { onClose: () => void; prese
 
 // ─── 背包 Modal ────────────────────────────────────────────
 const INV_TABS = [
-  { id: 'food', name: '🥘 食材', empty: '还没有食材，去钓鱼或商店看看吧' },
-  { id: 'dish', name: '🍳 料理', empty: '还没有料理，去做菜吧' },
-  { id: 'furniture', name: '🪑 家具', empty: '还没有家具，去商店看看吧' },
+  { id: 'food', name: t('app.bag.tab.food', '🥘 食材'), empty: t('app.bag.food.empty', '还没有食材，去钓鱼或商店看看吧') },
+  { id: 'dish', name: t('app.bag.tab.dish', '🍳 料理'), empty: t('app.bag.dish.empty', '还没有料理，去做菜吧') },
+  { id: 'furniture', name: t('app.bag.tab.furniture', '🪑 家具'), empty: t('app.bag.furniture.empty', '还没有家具，去商店看看吧') },
 ];
 
 // 默认家具尺寸（视口比例）
@@ -1095,7 +1096,7 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
   const handlePlaceFurniture = (item: any) => {
     if (!userId) return;
     if (yardFurniture.length >= 8) {
-      alert('庭院最多放置 8 件家具！');
+      alert(t('app.bag.alert.furnitureMax', '庭院最多放置 8 件家具') + '！');
       return;
     }
     const defaultSize = FURNITURE_DEFAULT_SIZE[item.name] || { width: 0.08, height: 0.12 };
@@ -1127,7 +1128,7 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
         backdropFilter: hasBg ? 'blur(8px)' : undefined,
         WebkitBackdropFilter: hasBg ? 'blur(8px)' : undefined,
       }}>
-        <h3 style={{ color: hasBg ? '#fff' : '#8B6914', fontSize: 18, fontWeight: 700, margin: 0 }}>🎒 背包</h3>
+        <h3 style={{ color: hasBg ? '#fff' : '#8B6914', fontSize: 18, fontWeight: 700, margin: 0 }}>{t('app.bag.title', '🎒 背包')}</h3>
         <button onClick={onClose} style={{
           width: 32, height: 32, borderRadius: '50%', border: 'none', cursor: 'pointer',
           background: hasBg ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)',
@@ -1169,7 +1170,7 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
               color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
             }}
           >
-            🔄 回收家具
+            {t('app.bag.button.recycle', '🔄 回收家具')}
           </button>
         )}
         {items.length === 0 ? (
@@ -1270,17 +1271,17 @@ function DriftModal({ onClose }: { onClose: () => void }) {
 
   const handleSend = async () => {
     if (!userId) return;
-    if (emotionPoints < 5) { alert('情绪值不足，需要 5 点情绪值才能投放漂流瓶'); return; }
-    const msg = prompt('想说什么？（情绪值 5 点）');
+    if (emotionPoints < 5) { alert(t('app.driftBottle.alert.notEnough', '情绪值不足，需要 5 点情绪值才能投放漂流瓶')); return; }
+    const msg = prompt(t('app.driftBottle.prompt.message', '想说什么？（情绪值 5 点）'));
     if (!msg) return;
     setSending(true);
     try {
       await sendDriftBottle(userId, msg);
       setEmotionPoints(emotionPoints - 5);
       showEmotionFloat(-5);
-      alert('漂流瓶已投入大海 🌊');
+      alert(t('app.driftBottle.alert.sent', '漂流瓶已投入大海 🌊'));
     } catch (e: any) {
-      alert(e.message || '发送失败');
+      alert(e.message || t('app.driftBottle.alert.sendFailed', '发送失败'));
     } finally {
       setSending(false);
     }
@@ -1294,13 +1295,13 @@ function DriftModal({ onClose }: { onClose: () => void }) {
       if (bottle) {
         addEmotionPoints(bottle.reward_amount);
         showEmotionFloat(bottle.reward_amount);
-        alert(`🎁 捡到漂流瓶！来自 ${bottle.sender_nickname}：${bottle.message}\n获得 ${bottle.reward_name} ×${bottle.reward_amount}！`);
+        alert(t('app.driftBottle.alert.picked', '🎁 捡到漂流瓶！来自 {sender_nickname}：{message}\n获得 {reward_name} ×{reward_amount}！', { sender_nickname: bottle.sender_nickname, message: bottle.message, reward_name: bottle.reward_name, reward_amount: bottle.reward_amount }));
         load();
       } else {
-        alert('海面上没有漂流瓶...再等等吧 🌊');
+        alert(t('app.driftBottle.alert.empty', '海面上没有漂流瓶...再等等吧 🌊'));
       }
     } catch (e: any) {
-      alert(e.message || '捡瓶子失败');
+      alert(e.message || t('app.driftBottle.alert.pickFailed', '捡瓶子失败'));
     } finally {
       setPicking(false);
     }
@@ -1309,24 +1310,24 @@ function DriftModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalOverlay onClose={onClose}>
       <div className="modal-header">
-        <h3>🌊 漂流瓶</h3>
+        <h3>{t('app.driftBottle.title', '🌊 漂流瓶')}</h3>
         <button className="modal-close" onClick={onClose}>×</button>
       </div>
-      <div className="modal-tip">投放需 5 情绪值，捡瓶有概率获得奖励</div>
+      <div className="modal-tip">{t('app.driftBottle.tip', '投放需 5 情绪值，捡瓶有概率获得奖励')}</div>
       <div className="drift-actions">
         <button className="btn-drift-send" onClick={handleSend} disabled={sending}>
-          📜 投放漂流瓶
+          {t('app.driftBottle.tab.send', '📜 投放漂流瓶')}
         </button>
         <button className="btn-drift-pickup" onClick={handlePickup} disabled={picking}>
-          🏄 捡漂流瓶
+          {t('app.driftBottle.tab.pick', '🏄 捡漂流瓶')}
         </button>
       </div>
-      {loading ? <div className="modal-loading">加载中...</div> : (
+      {loading ? <div className="modal-loading">{t('app.driftBottle.loading', '加载中...')}</div> : (
         <div className="drift-list">
-          {bottles.length === 0 && <div className="modal-empty">还没有漂流瓶</div>}
+          {bottles.length === 0 && <div className="modal-empty">{t('app.driftBottle.empty', '还没有漂流瓶')}</div>}
           {bottles.map((b) => (
             <div key={b.id} className="drift-item">
-              <div className="drift-from">来自：{b.sender_nickname}</div>
+              <div className="drift-from">{t('app.driftBottle.from', '来自：{sender_nickname}', { sender_nickname: b.sender_nickname })}</div>
               <div className="drift-msg">{b.message}</div>
             </div>
           ))}
@@ -1351,11 +1352,11 @@ function ShopModal({ onClose }: { onClose: () => void }) {
   const [ownedPetModelIds, setOwnedPetModelIds] = useState<Set<number>>(new Set()); // 用户拥有的宠物模型ID
 
   const SHOP_TABS = [
-    { id: 'food', name: '🥘 食材' },
-    { id: 'furniture', name: '🪑 家具' },
-    { id: 'decoration', name: '✨ 装扮' },
-    { id: 'map', name: '🗺️ 地图' },
-    { id: 'toy', name: '🎨 潮玩' },
+    { id: 'food', name: t('app.shop.tab.food', '🥘 食材') },
+    { id: 'furniture', name: t('app.shop.tab.furniture', '🪑 家具') },
+    { id: 'decoration', name: t('app.shop.tab.decoration', '✨ 装扮') },
+    { id: 'map', name: t('app.shop.tab.map', '🗺️ 地图') },
+    { id: 'toy', name: t('app.shop.tab.toy', '🎨 潮玩') },
   ];
 
   useEffect(() => {
@@ -1426,10 +1427,10 @@ function ShopModal({ onClose }: { onClose: () => void }) {
     }
 
     if (emotionPoints < item.price_emotion) {
-      alert(`情绪值不足！需要 ${item.price_emotion}，你有 ${emotionPoints}`);
+      alert(t('app.shop.alert.notEnough', '情绪值不足！需要 {price}，你有 {current}', { price: item.price_emotion, current: emotionPoints }));
       return;
     }
-    if (item.stock === 0) { alert('该商品已售罄'); return; }
+    if (item.stock === 0) { alert(t('app.shop.alert.soldOut', '该商品已售罄')); return; }
     setBuying(item.id);
     try {
       const res = await buyItem(userId, item.id);
@@ -1442,7 +1443,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
       setSuccessToast(item);
       setTimeout(() => setSuccessToast(null), 3000); // 3秒自动关闭
     } catch (e: any) {
-      alert(e.message || '购买失败');
+      alert(e.message || t('app.shop.alert.purchaseFailed', '购买失败'));
     } finally {
       setBuying(null);
     }
@@ -1464,7 +1465,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
         padding: '12px 16px', paddingTop: 'max(12px, env(safe-area-inset-top))',
         background: 'rgba(255,248,240,0.9)', borderBottom: '1px solid rgba(0,0,0,0.08)',
       }}>
-        <h3 style={{ margin: 0, fontSize: 18, color: '#333' }}>🛍️ 商店</h3>
+        <h3 style={{ margin: 0, fontSize: 18, color: '#333' }}>{t('app.shop.title', '🛍️ 商店')}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 13, color: '#8B6914', fontWeight: 600 }}>💛 {emotionPoints}</span>
           <button onClick={onClose} style={{
@@ -1501,9 +1502,9 @@ function ShopModal({ onClose }: { onClose: () => void }) {
       {/* 商品网格 */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>加载中...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>{t('app.shop.loading', '加载中...')}</div>
         ) : items.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>暂无商品</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>{t('app.shop.empty', '暂无商品')}</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {items.map((item: any) => (
@@ -1531,7 +1532,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                       background: 'linear-gradient(135deg, #FF6B35, #FF4500)',
                       color: '#fff', fontWeight: 700,
                     }}>
-                      消消乐
+                      {t('app.shop.item.match3Badge', '消消乐')}
                     </span>
                   )}
                   {item.growth_level_required && item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required && (
@@ -1541,7 +1542,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                       background: 'linear-gradient(135deg, #9C27B0, #7B1FA2)',
                       color: '#fff', fontWeight: 700,
                     }}>
-                      🔒Lv.{item.growth_level_required}
+                      {t('app.shop.item.levelLockPrefix', '🔒Lv.{level}', { level: item.growth_level_required })}
                     </span>
                   )}
                   {item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required)) && (
@@ -1551,7 +1552,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                       background: 'linear-gradient(135deg, #E91E63, #C2185B)',
                       color: '#fff', fontWeight: 700,
                     }}>
-                      🔒限定
+                      {t('app.shop.item.limited', '🔒限定')}
                     </span>
                   )}
                 </div>
@@ -1571,7 +1572,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                     color: (buying === item.id || item.stock === 0 || (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) || (item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required) || (item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required)))) ? '#999' : '#fff',
                   }}
                 >
-                  {item.stock === 0 ? '售罄' : (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) ? '已购买' : buying === item.id ? '...' : item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required ? '🔒 等级不足' : item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required)) ? '🔒 限定' : item.match3_level_id && !match3Passed[item.id] ? '🎮 挑战解锁' : '购买'}
+                  {item.stock === 0 ? t('app.shop.item.soldOut', '售罄') : (item.item_category === 'furniture' && ownedFurnitureIds.has(item.id)) ? t('app.shop.item.purchased', '已购买') : buying === item.id ? t('app.shop.item.buying', '...') : item.growth_level_required > 1 && maxGrowthLevel < item.growth_level_required ? t('app.shop.item.levelLocked', '🔒 等级不足') : item.pet_model_id_required && !ownedPetModelIds.has(Number(item.pet_model_id_required)) ? t('app.shop.item.limited', '🔒 限定') : item.match3_level_id && !match3Passed[item.id] ? t('app.shop.item.challengeUnlock', '🎮 挑战解锁') : t('app.shop.item.buy', '购买')}
                 </button>
               </div>
             ))}
@@ -1616,7 +1617,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
 
               {/* 成功文字 */}
               <div style={{ fontSize: 18, fontWeight: 700, color: '#333', marginBottom: 8 }}>
-                购买成功！
+                {t('app.shop.success.title', '购买成功！')}
               </div>
 
               {/* 商品图片 */}
@@ -1639,7 +1640,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
 
               {/* 已扣减提示 */}
               <div style={{ fontSize: 12, color: '#999', marginBottom: 24 }}>
-                💛 已扣减 {successToast.price_emotion} 情绪值
+                {t('app.shop.success.deducted', '💛 已扣减 {price_emotion} 情绪值', { price_emotion: successToast.price_emotion })}
               </div>
 
               {/* 确认按钮 (icon-06 粉色按钮) */}
@@ -1656,7 +1657,7 @@ function ShopModal({ onClose }: { onClose: () => void }) {
                   position: 'absolute', inset: 0, width: '100%', height: '100%',
                   objectFit: 'cover', pointerEvents: 'none', borderRadius: 21,
                 }} />
-                <span style={{ position: 'relative', zIndex: 1 }}>好的</span>
+                <span style={{ position: 'relative', zIndex: 1 }}>{t('app.shop.success.ok', '好的')}</span>
               </button>
             </div>
           </div>
@@ -1673,9 +1674,9 @@ function GameModal({ onClose }: { onClose: () => void }) {
   const [cookingPageBg, setCookingPageBg] = useState<string | null>(null);
   const [cookingDefaultBg, setCookingDefaultBg] = useState<string>('');
   const [games] = useState([
-    { id: 'fishing', name: '钓鱼', icon: '🎣', desc: '静待鱼儿上钩', status: 'ready' },
-    { id: 'cooking', name: '料理', icon: '🍳', desc: '把食材变成料理', status: 'ready' },
-    { id: 'spot', name: '找不同', icon: '🔍', desc: '找出两图的不同之处', status: 'ready' },
+    { id: 'fishing', name: t('app.game.fishing.name', '钓鱼'), icon: '🎣', desc: t('app.game.fishing.desc', '静待鱼儿上钩'), status: 'ready' },
+    { id: 'cooking', name: t('app.game.cooking.name', '料理'), icon: '🍳', desc: t('app.game.cooking.desc', '把食材变成料理'), status: 'ready' },
+    { id: 'spot', name: t('app.game.spot.name', '找不同'), icon: '🔍', desc: t('app.game.spot.desc', '找出两图的不同之处'), status: 'ready' },
   ]);
 
   // 进入料理时拉全局默认背景
@@ -1736,7 +1737,7 @@ function GameModal({ onClose }: { onClose: () => void }) {
               &nbsp;{games.find(g => g.id === selectedGame)?.name || '游戏'}
             </>
           ) : (
-            '🎮 小游戏'
+            t('app.game.title', '🎮 小游戏')
           )}
         </h3>
         <button className="modal-close" onClick={onClose}>×</button>
@@ -1754,9 +1755,9 @@ function GameModal({ onClose }: { onClose: () => void }) {
                 <div className="game-desc">{g.desc}</div>
               </div>
               {g.status === 'coming' ? (
-                <span className="game-coming-label">开发中</span>
+                <span className="game-coming-label">{t('app.game.coming', '开发中')}</span>
               ) : (
-                <button className="btn-play">开始</button>
+                <button className="btn-play">{t('app.game.start', '开始')}</button>
               )}
             </div>
           ))}
@@ -1853,11 +1854,11 @@ function HomePanel() {
             };
             gameRef.current?.confirmPlacement(sceneObj);
             setPlacingFurniture(null);
-            setToast(`🪑 ${info.name} 已放置到庭院`);
+            setToast(t('app.yard.toast.placed', '🪑 {name} 已放置到庭院', { name: info.name }));
           })
           .catch((e: any) => {
             console.error('[App] placeFurniture error:', e);
-            alert(e.message || '放置失败');
+            alert(e.message || t('app.yard.alert.placeFailed', '放置失败'));
             gameRef.current?.cancelPlacing();
             setPlacingFurniture(null);
           })
@@ -1866,17 +1867,17 @@ function HomePanel() {
       onFurnitureRemove(furnitureId) {
         const currentUserId = useGameStore.getState().userId;
         if (!currentUserId) return;
-        if (!confirm('确定要将此家具收回背包吗？')) return;
+        if (!confirm(t('app.yard.confirm.recycle', '确定要将此家具收回背包吗？'))) return;
         removeFurniture(currentUserId, furnitureId)
           .then(() => {
             removeYardFurniture(furnitureId);
             gameRef.current?.removeFurnitureSprite(furnitureId);
-            setToast('🪑 家具已收回背包');
+            setToast(t('app.yard.toast.recycled', '🪑 家具已收回背包'));
             // Exit removing mode after one removal
             useGameStore.getState().setRemovingFurnitureMode(false);
           })
           .catch((e: any) => {
-            alert(e.message || '收回失败');
+            alert(e.message || t('app.yard.alert.recycleFailed', '收回失败'));
           });
       },
       onFurnitureCancel() {
@@ -1976,19 +1977,19 @@ function HomePanel() {
       {yardPets.length === 0 && (
         <div className="yard-empty-overlay">
           <div className="yard-empty-icon">🏡</div>
-          <div className="yard-empty-text">庭院空空如也</div>
+          <div className="yard-empty-text">{t('app.yard.empty.title', '庭院空空如也')}</div>
           <button className="btn-primary" onClick={() => setActiveModal('collection')}>
-            去藏品库添加宠物
+            {t('app.yard.empty.action', '去藏品库添加宠物')}
           </button>
         </div>
       )}
 
       {/* 右上角：商店 + 设置 (2026-07-30 加设置) */}
       <div className="top-right-area">
-        <button className="top-right-btn" onClick={() => setActiveModal('shop')} aria-label="商店">
+        <button className="top-right-btn" onClick={() => setActiveModal('shop')} aria-label={t('app.yard.aria.shop', '商店')}>
           <IconImg iconKey="icon-shop" fallback="🛍️" />
         </button>
-        <button className="top-right-btn" onClick={() => setActiveModal('settings')} aria-label="设置">
+        <button className="top-right-btn" onClick={() => setActiveModal('settings')} aria-label={t('app.yard.aria.settings', '设置')}>
           <IconImg iconKey="icon-settings" fallback="⚙️" />
         </button>
       </div>
@@ -1996,7 +1997,7 @@ function HomePanel() {
       {/* 家具布置模式提示栏 */}
       {placingFurniture && (
         <div className="placing-bar">
-          <span className="placing-hint">👆 点击庭院空地放置 {placingFurniture.name}</span>
+          <span className="placing-hint">{t('app.yard.placingHint', '👆 点击庭院空地放置 {name}', { name: placingFurniture.name })}</span>
           <button
             className="placing-cancel"
             onClick={() => {
@@ -2004,7 +2005,7 @@ function HomePanel() {
               setPlacingFurniture(null);
             }}
           >
-            取消
+            {t('app.yard.button.cancel', '取消')}
           </button>
         </div>
       )}
@@ -2012,12 +2013,12 @@ function HomePanel() {
       {/* 家具回收模式提示栏 */}
       {removingFurnitureMode && !placingFurniture && (
         <div className="placing-bar" style={{ background: 'rgba(192,57,43,0.9)' }}>
-          <span className="placing-hint">👆 点击家具上的 × 回收</span>
+          <span className="placing-hint">{t('app.yard.placingHintRemove', '👆 点击家具上的 × 回收')}</span>
           <button
             className="placing-cancel"
             onClick={() => setRemovingFurnitureMode(false)}
           >
-            取消
+            {t('app.yard.button.cancel', '取消')}
           </button>
         </div>
       )}
