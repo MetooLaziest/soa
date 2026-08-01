@@ -875,5 +875,8 @@
   "FishingResultModal.s002": "角色",
   "FishingResultModal.s003": "开心收下",
   "FishingResultModal.s004": "关闭",
-  "FishingResultModal.s005": "开心收下 💖"
+  "FishingResultModal.s005": "开心收下 💖",
+  "IntroVideoPlayer.s000": "点击播放开场视频",
+  "IntroVideoPlayer.s001": "视频加载失败，即将进入互动页...",
+  "IntroVideoPlayer.s002": "开场视频"
 }

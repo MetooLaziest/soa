@@ -5,6 +5,7 @@
  * 通过 React Portal 渲染到 document.body，脱离 App 层叠上下文。
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { t } from '../i18n/useT';
 
 interface IntroVideoData {
   id: number;
@@ -194,7 +195,7 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
             }}>
               ▶
             </div>
-            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>点击播放开场视频</span>
+            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>{t('IntroVideoPlayer.s000', '点击播放开场视频')}</span>
           </button>
         </div>
       )}
@@ -211,7 +212,7 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
-            <p style={{ fontSize: 13, color: '#999' }}>视频加载失败，即将进入互动页...</p>
+            <p style={{ fontSize: 13, color: '#999' }}>{t('IntroVideoPlayer.s001', '视频加载失败，即将进入互动页...')}</p>
           </div>
         </div>
       )}
@@ -226,7 +227,7 @@ export default function IntroVideoPlayer({ video, onComplete }: IntroVideoPlayer
         background: 'linear-gradient(transparent, rgba(0,0,0,0.6))',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{video.name || '开场视频'}</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{video.name || t('IntroVideoPlayer.s002', '开场视频')}</span>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{remaining}s</span>
         </div>
         <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.2)', overflow: 'hidden' }}>
