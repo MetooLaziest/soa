@@ -23,6 +23,9 @@ import {
 } from '../api/epet1';
 import { useGameStore } from '../store/gameStore';
 
+import { useT } from '../i18n/useT';
+const t = useT();
+
 interface OutfitPanelProps {
   petId: number;
   petModelId: number;
@@ -173,7 +176,7 @@ export function OutfitPanel({ petId, petModelId, petName, onClose }: OutfitPanel
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '12px 16px', borderBottom: '1px solid #eee',
         }}>
-          <span style={{ fontWeight: 600, fontSize: 16 }}>👔 {petName} 的装扮</span>
+          <span style={{ fontWeight: 600, fontSize: 16 }}>👔 {petName}{t('OutfitPanel.s006', '的装扮')}</span>
           <button onClick={handleClose} style={{
             border: 'none', background: '#f5f5f5', borderRadius: '50%',
             width: 28, height: 28, cursor: 'pointer', fontSize: 14,
@@ -216,7 +219,7 @@ export function OutfitPanel({ petId, petModelId, petName, onClose }: OutfitPanel
                 </div>
               ) : (
                 <div style={{ fontSize: 10, color: '#999', textAlign: 'center' }}>
-                  未穿戴装扮
+                  {t('OutfitPanel.s007', '未穿戴装扮')}
                 </div>
               )}
             </div>
@@ -224,7 +227,7 @@ export function OutfitPanel({ petId, petModelId, petName, onClose }: OutfitPanel
 
           {/* Right: Outfit list */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-            {loading && <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>加载中...</div>}
+            {loading && <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>{t('OutfitPanel.s000', '加载中...')}</div>}
 
             {!loading && (
               <div style={{
@@ -244,7 +247,7 @@ export function OutfitPanel({ petId, petModelId, petName, onClose }: OutfitPanel
                   <div style={{ width: 40, height: 40, lineHeight: '40px', fontSize: 18, margin: '0 auto' }}>
                     🚫
                   </div>
-                  <div style={{ fontSize: 10, marginTop: 2, color: '#999' }}>去除装扮</div>
+                  <div style={{ fontSize: 10, marginTop: 2, color: '#999' }}>{t('OutfitPanel.s001', '去除装扮')}</div>
                 </div>
 
                 {/* Outfit items */}
@@ -276,7 +279,7 @@ export function OutfitPanel({ petId, petModelId, petName, onClose }: OutfitPanel
                       }}>
                         {item.name}
                       </div>
-                      {isEquipped && <div style={{ fontSize: 9, color: '#4caf50' }}>已装备</div>}
+                      {isEquipped && <div style={{ fontSize: 9, color: '#4caf50' }}>{t('OutfitPanel.s002', '已装备')}</div>}
                     </div>
                   );
                 })}
@@ -285,7 +288,7 @@ export function OutfitPanel({ petId, petModelId, petName, onClose }: OutfitPanel
 
             {!loading && inventory.length === 0 && (
               <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>
-                暂无兼容装扮，去商店看看吧 🛍️
+                {t('OutfitPanel.s008', '暂无兼容装扮，去商店看看吧')} 🛍️
               </div>
             )}
           </div>
@@ -304,7 +307,7 @@ export function OutfitPanel({ petId, petModelId, petName, onClose }: OutfitPanel
                 background: 'white', fontSize: 14, cursor: 'pointer',
               }}
             >
-              取消
+              {t('OutfitPanel.s009', '取消')}
             </button>
             <button
               onClick={handleConfirm}
@@ -316,9 +319,9 @@ export function OutfitPanel({ petId, petModelId, petName, onClose }: OutfitPanel
                 opacity: confirming ? 0.7 : 1,
               }}
             >
-              {confirming ? '确认中...' : selectedItem === 'remove'
-                ? '确认去除装扮'
-                : `确认装备「${(selectedItem as OutfitItem).name}」`}
+              {confirming ? t('OutfitPanel.s003', '确认中...') : selectedItem === 'remove'
+                ? t('OutfitPanel.s004', '确认去除装扮')
+                : t('OutfitPanel.s005', '确认装备「{{name}}」', { name: (selectedItem as OutfitItem).name })}
             </button>
           </div>
         )}
