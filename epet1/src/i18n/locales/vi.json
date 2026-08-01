@@ -900,5 +900,18 @@
   "LoginOverlay.s018": "Đang xử lý...",
   "LoginOverlay.s019": "Đăng nhập",
   "LoginOverlay.s020": "Đăng ký",
-  "LoginOverlay.s021": "Mã xác minh môi trường dev: 123456"
+  "LoginOverlay.s021": "Mã xác minh môi trường dev: 123456",
+  "LivePage.s000": "Sân trống không",
+  "LivePage.s001": "Đến Bộ sưu tập thêm thú cưng, bắt đầu hành trình của bạn",
+  "LivePage.s002": "Đến Bộ sưu tập",
+  "LivePage.s003": "Đang tải...",
+  "LivePage.s004": "Chưa có cấu hình video",
+  "LivePage.s005": "↑↓ Vuốt để chuyển",
+  "LivePage.s006": "Cửa hàng",
+  "LivePage.s007": "Cài đặt",
+  "LivePage.s008": "Trò chơi",
+  "LivePage.s009": "Phái cư thám hiểm",
+  "LivePage.s010": "Câu cá",
+  "LivePage.s011": "Nấu ăn",
+  "LivePage.s012": "Đóng"
 }

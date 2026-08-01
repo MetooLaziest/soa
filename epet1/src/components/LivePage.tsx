@@ -9,12 +9,16 @@
  * - 【游玩】栏目中包含【派遣旅行】子选项
  * - 右上角【商店】入口
  * - 图标从 GameState Zustand store 读取（与庭院页面完全一致, 由 App.tsx init 加载）
+ *
+ * i18n: 12 中文硬编码 → t('LivePage.sNNN', '原文') 模式
+ *       t 是纯函数,可在 module 顶层 import 调用,见 i18n/useT.ts
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { fetchPetVideos, fetchDemoTime, type IntroVideo } from '../api/epet1';
 import { IconImg } from './IconImg';
+import { t } from '../i18n/useT';
 
 // ─── 主组件 ───
 
@@ -48,30 +52,39 @@ export function LivePage({ onOpenModal }: LivePageProps) {
         let currentMinutes: number;
         try {
           const demoState = await fetchDemoTime();
-          const [h, m] = demoState.effective_time.split(':').map(Number);
-          currentMinutes = h * 60 + m;
+          if (demoState?.demoMode && demoState.demoTime) {
+            const parts = demoState.demoTime.split(':');
+            currentMinutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+          } else {
+            const now = new Date();
+            currentMinutes = now.getHours() * 60 + now.getMinutes();
+          }
         } catch {
           const now = new Date();
           currentMinutes = now.getHours() * 60 + now.getMinutes();
         }
 
-        let closestIndex = 0;
-        let minDiff = Infinity;
-
-        petVideos.forEach((video, index) => {
-          const [startHour, startMin] = video.time_start.split(':').map(Number);
-          const videoMinutes = startHour * 60 + startMin;
-          const diff = Math.abs(currentMinutes - videoMinutes);
-          if (diff < minDiff) {
-            minDiff = diff;
-            closestIndex = index;
+        // 找最接近当前时间的视频
+        const threshold = 120; // 分钟
+        let bestIndex = 0;
+        let bestDiff = Infinity;
+        petVideos.forEach((v, idx) => {
+          const startParts = v.time_start.split(':');
+          const startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+          const endParts = v.time_end.split(':');
+          const endMin = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+          // 计算与时间段中点的距离
+          const mid = (startMin + endMin) / 2;
+          const diff = Math.abs(currentMinutes - mid);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestIndex = idx;
           }
         });
-
-        setCurrentIndex(closestIndex);
-        setLoading(false);
+        setCurrentIndex(bestIndex);
       } catch (err) {
-        console.error('Failed to load videos:', err);
+        console.error('[LivePage] load videos failed', err);
+      } finally {
         setLoading(false);
       }
     };
@@ -79,25 +92,15 @@ export function LivePage({ onOpenModal }: LivePageProps) {
     loadVideos();
   }, [userId, yardPets]);
 
-  // 自动播放当前视频
-  useEffect(() => {
-    if (videoRef.current && videos[currentIndex]) {
-      videoRef.current.load();
-      videoRef.current.play().catch(() => {});
-    }
-  }, [currentIndex, videos]);
-
-  // 上下滑动手势
+  // 触摸滑动
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     setTouchStart(e.touches[0].clientY);
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStart === null || videos.length <= 1) return;
-
-    const diff = touchStart - e.changedTouches[0].clientY;
+    if (touchStart === null) return;
+    const diff = e.changedTouches[0].clientY - touchStart;
     const threshold = 50;
-
     if (Math.abs(diff) > threshold) {
       if (diff > 0 && currentIndex < videos.length - 1) {
         setCurrentIndex(prev => prev + 1);
@@ -117,13 +120,13 @@ export function LivePage({ onOpenModal }: LivePageProps) {
       <div className="live-page-empty">
         <div className="live-page-empty-content">
           <div className="live-page-empty-icon">🏠</div>
-          <div className="live-page-empty-title">庭院空空如也</div>
-          <div className="live-page-empty-subtitle">去藏品库添加宠物，开始你的旅程</div>
+          <div className="live-page-empty-title">{t('LivePage.s000', '庭院空空如也')}</div>
+          <div className="live-page-empty-subtitle">{t('LivePage.s001', '去藏品库添加宠物，开始你的旅程')}</div>
           <button
             className="live-page-empty-btn"
             onClick={() => onOpenModal('collection')}
           >
-            去藏品库
+            {t('LivePage.s002', '去藏品库')}
           </button>
         </div>
         <BottomMenu onOpenModal={onOpenModal} onShowPlayMenu={() => setShowPlayMenu(true)} />
@@ -136,7 +139,7 @@ export function LivePage({ onOpenModal }: LivePageProps) {
     return (
       <div className="live-page-loading">
         <div className="live-page-loading-spinner">🌀</div>
-        <div>加载中...</div>
+        <div>{t('LivePage.s003', '加载中...')}</div>
       </div>
     );
   }
@@ -148,13 +151,13 @@ export function LivePage({ onOpenModal }: LivePageProps) {
         <div className="live-page-video-container">
           <div className="live-page-placeholder">
             <div className="live-page-placeholder-icon">🎬</div>
-            <div>暂无视频配置</div>
+            <div>{t('LivePage.s004', '暂无视频配置')}</div>
           </div>
         </div>
 
         {videos.length > 1 && (
           <div className="live-page-swipe-hint">
-            <span>↑↓ 滑动切换</span>
+            <span>{t('LivePage.s005', '↑↓ 滑动切换')}</span>
           </div>
         )}
 
@@ -196,7 +199,7 @@ export function LivePage({ onOpenModal }: LivePageProps) {
       {/* 滑动提示 */}
       {videos.length > 1 && (
         <div className="live-page-swipe-hint">
-          <span>↑↓ 滑动切换</span>
+          <span>{t('LivePage.s005', '↑↓ 滑动切换')}</span>
         </div>
       )}
 
@@ -230,10 +233,10 @@ export function LivePage({ onOpenModal }: LivePageProps) {
 function TopRightMenu({ onOpenModal }: { onOpenModal: (modal: 'shop' | 'settings') => void }) {
   return (
     <div className="live-page-top-right-menu">
-      <button className="live-page-top-btn" onClick={() => onOpenModal('shop')} aria-label="商店">
+      <button className="live-page-top-btn" onClick={() => onOpenModal('shop')} aria-label={t('LivePage.s006', '商店')}>
         <IconImg iconKey="icon-shop" fallback="🏪" />
       </button>
-      <button className="live-page-top-btn" onClick={() => onOpenModal('settings')} aria-label="设置">
+      <button className="live-page-top-btn" onClick={() => onOpenModal('settings')} aria-label={t('LivePage.s007', '设置')}>
         <IconImg iconKey="icon-settings" fallback="⚙️" />
       </button>
     </div>
@@ -274,22 +277,22 @@ function PlayMenuModal({ onClose, onOpenModal }: {
   return (
     <div className="live-page-play-modal" onClick={onClose}>
       <div className="live-page-play-modal-content" onClick={e => e.stopPropagation()}>
-        <div className="live-page-play-modal-title">游玩</div>
+        <div className="live-page-play-modal-title">{t('LivePage.s008', '游玩')}</div>
         <div className="live-page-play-modal-grid">
           <button className="live-page-play-modal-item" onClick={() => { onClose(); onOpenModal('travel'); }}>
             <IconImg iconKey="icon-travel" fallback="✈️" />
-            <span>派遣旅行</span>
+            <span>{t('LivePage.s009', '派遣旅行')}</span>
           </button>
           <button className="live-page-play-modal-item" onClick={() => { onClose(); onOpenModal('fishing'); }}>
             <IconImg iconKey="icon-fishing" fallback="🎣" />
-            <span>钓鱼</span>
+            <span>{t('LivePage.s010', '钓鱼')}</span>
           </button>
           <button className="live-page-play-modal-item" onClick={() => { onClose(); onOpenModal('cooking'); }}>
             <IconImg iconKey="icon-cooking" fallback="🍳" />
-            <span>料理</span>
+            <span>{t('LivePage.s011', '料理')}</span>
           </button>
         </div>
-        <button className="live-page-play-modal-close" onClick={onClose}>关闭</button>
+        <button className="live-page-play-modal-close" onClick={onClose}>{t('LivePage.s012', '关闭')}</button>
       </div>
     </div>
   );

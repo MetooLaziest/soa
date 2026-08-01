@@ -900,5 +900,18 @@
   "LoginOverlay.s018": "处理中...",
   "LoginOverlay.s019": "登 录",
   "LoginOverlay.s020": "注 册",
-  "LoginOverlay.s021": "开发环境验证码: 123456"
+  "LoginOverlay.s021": "开发环境验证码: 123456",
+  "LivePage.s000": "庭院空空如也",
+  "LivePage.s001": "去藏品库添加宠物，开始你的旅程",
+  "LivePage.s002": "去藏品库",
+  "LivePage.s003": "加载中...",
+  "LivePage.s004": "暂无视频配置",
+  "LivePage.s005": "↑↓ 滑动切换",
+  "LivePage.s006": "商店",
+  "LivePage.s007": "设置",
+  "LivePage.s008": "游玩",
+  "LivePage.s009": "派遣旅行",
+  "LivePage.s010": "钓鱼",
+  "LivePage.s011": "料理",
+  "LivePage.s012": "关闭"
 }
