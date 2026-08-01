@@ -3,6 +3,9 @@ import { useGameStore } from '../game/GameState';
 import { fetchVisiblePets, toggleVisibility, transformMonsterItem } from '../api/epet';
 import type { Pet } from '../api/epet';
 
+import { useT } from './i18n/useT';
+const t = useT();
+
 /** Get icon: uses uploaded image if available, otherwise falls back to emoji */
 function useIcon(iconKey: string, fallbackEmoji: string): string | React.ReactNode {
   const icons = useGameStore(s => s.icons);
@@ -71,9 +74,9 @@ export function HUD() {
   };
 
   const modelName = (modelId: string | number) => {
-    if (modelId == 1) return '团子糯糯';
-    if (modelId == 2) return '海浪沫沫';
-    return '糖心莓莓';
+    if (modelId == 1) return t('HUD.s000', '团子糯糯');
+    if (modelId == 2) return t('HUD.s001', '海浪沫沫');
+    return t('HUD.s002', '糖心莓莓');
   };
 
   const getPetImg = (monsterType: string) => {
@@ -86,7 +89,7 @@ export function HUD() {
   return (
     <>
       {/* 右上角藏品库按钮 */}
-      <button className="collection-btn" onClick={handleOpenCollection} title="藏品库">
+      <button className="collection-btn" onClick={handleOpenCollection} title={t('HUD.s003', '藏品库')}>
         🏠
       </button>
 
@@ -95,16 +98,16 @@ export function HUD() {
         <div className="collection-overlay" onClick={() => setShowCollection(false)}>
           <div className="collection-panel" onClick={(e) => e.stopPropagation()}>
             <div className="collection-header">
-              <h3>🏠 藏品库</h3>
+              <h3>{t('HUD.s004', '🏠 藏品库')}</h3>
               <button className="collection-close" onClick={() => setShowCollection(false)}>
                 ×
               </button>
             </div>
             {loadingCollection ? (
-              <div className="collection-loading">加载中...</div>
+              <div className="collection-loading">{t('HUD.s005', '加载中...')}</div>
             ) : (
               <>
-                <p className="collection-tip">选择要展示的宠物（最多2只）</p>
+                <p className="collection-tip">{t('HUD.s006', '选择要展示的宠物（最多2只）')}</p>
                 <div className="collection-grid">
                   {allPets.map((p) => (
                     <div
@@ -129,21 +132,21 @@ export function HUD() {
 
       {/* 底部 4 按钮栏 */}
       <div className="bottom-bar">
-        <button className="bottom-bar-btn" onClick={() => alert('功能开发中')}>
+        <button className="bottom-bar-btn" onClick={() => alert(t('HUD.s007', '功能开发中'))}>
           <IconOrEmoji iconKey="icon-miniprogram" fallback="📱" />
-          <span className="bottom-bar-label">打开小程序</span>
+          <span className="bottom-bar-label">{t('HUD.s008', '打开小程序')}</span>
         </button>
-        <button className="bottom-bar-btn" onClick={() => alert('功能开发中')}>
+        <button className="bottom-bar-btn" onClick={() => alert(t('HUD.s007', '功能开发中'))}>
           <IconOrEmoji iconKey="icon-smarthome" fallback="🏠" />
-          <span className="bottom-bar-label">绑定智能家居</span>
+          <span className="bottom-bar-label">{t('HUD.s009', '绑定智能家居')}</span>
         </button>
-        <button className="bottom-bar-btn" onClick={() => alert('功能开发中')}>
+        <button className="bottom-bar-btn" onClick={() => alert(t('HUD.s007', '功能开发中'))}>
           <IconOrEmoji iconKey="icon-postcard" fallback="✉️" />
-          <span className="bottom-bar-label">旅行明信片</span>
+          <span className="bottom-bar-label">{t('HUD.s010', '旅行明信片')}</span>
         </button>
-        <button className="bottom-bar-btn" onClick={() => alert('功能开发中')}>
+        <button className="bottom-bar-btn" onClick={() => alert(t('HUD.s007', '功能开发中'))}>
           <IconOrEmoji iconKey="icon-buy" fallback="🛍️" />
-          <span className="bottom-bar-label">购买新产品</span>
+          <span className="bottom-bar-label">{t('HUD.s011', '购买新产品')}</span>
         </button>
       </div>
 
