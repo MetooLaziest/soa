@@ -334,7 +334,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         setCollectionToast({ type: 'success', message: t('app.collection.toast.unshow', '已取消展示'), petName: pet.modelName, petImage: pet.portraitImageUrl });
         setTimeout(() => setCollectionToast(null), 1500);
       } catch (e: any) {
-        setCollectionToast({ type: 'error', message: (e.message || {t('app.collection.toast.opFailed', '操作失败')}) });
+        setCollectionToast({ type: 'error', message: (e.message || t('app.collection.toast.opFailed', '操作失败')) });
         setTimeout(() => setCollectionToast(null), 2000);
       }
     } else {
@@ -364,7 +364,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         setCollectionToast({ type: 'success', message: t('app.collection.toast.show', '已展示在庭院'), petName: pet.modelName, petImage: pet.portraitImageUrl });
         setTimeout(() => setCollectionToast(null), 1500);
       } catch (e: any) {
-        setCollectionToast({ type: 'error', message: (e.message || {t('app.collection.toast.opFailed', '操作失败')}) });
+        setCollectionToast({ type: 'error', message: (e.message || t('app.collection.toast.opFailed', '操作失败')) });
         setTimeout(() => setCollectionToast(null), 2000);
       }
     }
