@@ -23,8 +23,7 @@ import {
 } from '../api/epet1';
 import { useGameStore } from '../store/gameStore';
 
-import { useT } from '../i18n/useT';
-const t = useT();
+import { t } from '../i18n/useT';
 
 interface OutfitPanelProps {
   petId: number;

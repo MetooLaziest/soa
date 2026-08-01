@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import './PwaInstallHint.css';
 
-import { useT } from '../i18n/useT';
-const t = useT();
+import { t } from '../i18n/useT';
 
 /**
  * iOS Safari PWA 安装提示横幅

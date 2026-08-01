@@ -12,8 +12,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 
-import { useT } from '../i18n/useT';
-const t = useT();
+import { t } from '../i18n/useT';
 
 interface SettingsModalProps {
   onClose: () => void;

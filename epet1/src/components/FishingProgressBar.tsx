@@ -11,8 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 
-import { useT } from '../i18n/useT';
-const t = useT();
+import { t } from '../i18n/useT';
 
 interface Props {
   progress: number;

@@ -3,8 +3,7 @@ import { useGameStore } from '../game/GameState';
 import { fetchVisiblePets, toggleVisibility, transformMonsterItem } from '../api/epet';
 import type { Pet } from '../api/epet';
 
-import { useT } from '../i18n/useT';
-const t = useT();
+import { t } from '../i18n/useT';
 
 /** Get icon: uses uploaded image if available, otherwise falls back to emoji */
 function useIcon(iconKey: string, fallbackEmoji: string): string | React.ReactNode {

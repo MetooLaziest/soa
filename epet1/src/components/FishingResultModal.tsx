@@ -4,8 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 
-import { useT } from '../i18n/useT';
-const t = useT();
+import { t } from '../i18n/useT';
 
 const RARITY_COLORS: Record<string, string> = {
   common: '#b0b0b0', rare: '#4fc3f7', epic: '#ab47bc', legendary: '#ffd740',

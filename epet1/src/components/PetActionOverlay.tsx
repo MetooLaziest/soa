@@ -15,8 +15,7 @@
 import { useEffect, useRef } from 'react';
 import { IconImg } from './IconImg';
 
-import { useT } from '../i18n/useT';
-const t = useT();
+import { t } from '../i18n/useT';
 
 interface PetActionOverlayProps {
   petId: number;
