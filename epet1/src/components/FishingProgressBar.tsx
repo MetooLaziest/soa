@@ -11,6 +11,9 @@
  */
 import { useEffect, useState } from 'react';
 
+import { useT } from '../i18n/useT';
+const t = useT();
+
 interface Props {
   progress: number;
   greenStart: number;
@@ -26,7 +29,7 @@ export default function FishingProgressBar({
   greenEnd,
   onPull,
   pullBtnUrl,
-  hint = '快拉杆!',
+  hint = t('FishingProgressBar.s000', '快拉杆!'),
 }: Props) {
   // 触觉反馈: 进入绿区时短震 (mobile)
   const [inGreen, setInGreen] = useState(false);
@@ -52,7 +55,7 @@ export default function FishingProgressBar({
         textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 12px rgba(255,215,0,0.6)',
         animation: 'fpbHintPulse 0.8s ease-in-out infinite',
       }}>
-        {inGreen ? '✨ 现在拉! ✨' : hint}
+        {inGreen ? t('FishingProgressBar.s001', '✨ 现在拉! ✨') : hint}
       </div>
       <div style={{
         position: 'relative', width: '100%', height: 28,
@@ -101,7 +104,7 @@ export default function FishingProgressBar({
         WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
       }}>
         {pullBtnUrl ? (
-          <img src={pullBtnUrl} alt="拉杆" style={{
+          <img src={pullBtnUrl} alt={t('FishingProgressBar.s002', '拉杆')} style={{
             height: 56, width: 'auto', maxWidth: 200,
             filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))',
             animation: 'fpbBtnBob 1.2s ease-in-out infinite',
@@ -115,7 +118,7 @@ export default function FishingProgressBar({
             boxShadow: '0 4px 12px rgba(76,175,80,0.5), inset 0 2px 0 rgba(255,255,255,0.3)',
             letterSpacing: 2, animation: 'fpbBtnBob 1.2s ease-in-out infinite',
           }}>
-            🎣 拉杆
+            🎣 {t('FishingProgressBar.s003', '拉杆')}
           </div>
         )}
       </button>
