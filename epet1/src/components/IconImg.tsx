@@ -10,7 +10,7 @@
 
 import { useGameStore as usePixiGameStore } from '../game/GameState';
 
-import { useT } from './i18n/useT';
+import { useT } from '../i18n/useT';
 const t = useT();
 
 interface IconImgProps {
