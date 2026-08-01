@@ -4,6 +4,9 @@
  */
 import { useEffect, useState } from 'react';
 
+import { useT } from '../i18n/useT';
+const t = useT();
+
 const RARITY_COLORS: Record<string, string> = {
   common: '#b0b0b0', rare: '#4fc3f7', epic: '#ab47bc', legendary: '#ffd740',
 };
@@ -68,7 +71,7 @@ export default function FishingResultModal({
           textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 16px rgba(255,215,0,0.5)',
           letterSpacing: 2, textAlign: 'center',
         }}>
-          {fish ? `🎉 恭喜获得 ${fish.name}` : '🎣 没有鱼虾也好'}
+          {fish ? t('FishingResultModal.s001', '🎉 恭喜获得 {{name}}', { name: fish.name }) : t('FishingResultModal.s000', '🎣 没有鱼虾也好')}
         </div>
 
         <div style={{
@@ -100,7 +103,7 @@ export default function FishingResultModal({
                 animation: 'frmFloat 2.5s ease-in-out infinite',
               }} />
             ) : avatarUrl ? (
-              <img src={avatarUrl} alt="角色" style={{
+              <img src={avatarUrl} alt={t('FishingResultModal.s002', '角色')} style={{
                 width: '100%', height: '100%', objectFit: 'cover',
                 animation: 'frmFloat 2.5s ease-in-out infinite',
               }} />
@@ -136,7 +139,7 @@ export default function FishingResultModal({
           WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
         }}>
           {collectBtnUrl ? (
-            <img src={collectBtnUrl} alt="开心收下" style={{
+            <img src={collectBtnUrl} alt={t('FishingResultModal.s003', '开心收下')} style={{
               height: 60, width: 'auto', maxWidth: 220,
               filter: 'drop-shadow(0 4px 12px rgba(236,64,122,0.5))',
             }} />
@@ -149,13 +152,13 @@ export default function FishingResultModal({
               boxShadow: '0 6px 16px rgba(236,64,122,0.5), inset 0 2px 0 rgba(255,255,255,0.4)',
               letterSpacing: 2,
             }}>
-              开心收下 💖
+              {t('FishingResultModal.s005', '开心收下')} 💖
             </div>
           )}
         </button>
       </div>
 
-      <button onClick={onClose} aria-label="关闭" style={{
+      <button onClick={onClose} aria-label={t('FishingResultModal.s004', '关闭')} style={{
         position: 'absolute', top: 16, right: 16, zIndex: 23,
         width: 36, height: 36, borderRadius: '50%',
         background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.3)',
