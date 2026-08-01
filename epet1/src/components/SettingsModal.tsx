@@ -12,7 +12,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 
-import { useT } from './i18n/useT';
+import { useT } from '../i18n/useT';
 const t = useT();
 
 interface SettingsModalProps {
