@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './PwaInstallHint.css';
 
-import { useT } from './i18n/useT';
+import { useT } from '../i18n/useT';
 const t = useT();
 
 /**
