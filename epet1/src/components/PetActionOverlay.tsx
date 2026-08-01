@@ -15,6 +15,9 @@
 import { useEffect, useRef } from 'react';
 import { IconImg } from './IconImg';
 
+import { useT } from '../i18n/useT';
+const t = useT();
+
 interface PetActionOverlayProps {
   petId: number;
   petName: string;
@@ -119,7 +122,7 @@ export function PetActionOverlay({ petName, position, onOutfit, onTravel, onClos
         }}
       >
         <IconImg iconKey="icon-outfit" fallback="👔" className="bottom-bar-icon-img" />
-        <span>装扮</span>
+        <span>{t('PetActionOverlay.s000', '装扮')}</span>
       </button>
 
       <button
@@ -140,7 +143,7 @@ export function PetActionOverlay({ petName, position, onOutfit, onTravel, onClos
         }}
       >
         <IconImg iconKey="icon-travel-send" fallback="✈️" className="bottom-bar-icon-img" />
-        <span>派出旅行</span>
+        <span>{t('PetActionOverlay.s001', '派出旅行')}</span>
       </button>
     </div>
   );
