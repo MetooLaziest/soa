@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import './PwaInstallHint.css';
 
+import { useT } from './i18n/useT';
+const t = useT();
+
 /**
  * iOS Safari PWA 安装提示横幅
  *
@@ -62,8 +65,8 @@ export default function PwaInstallHint({ placement = 'main' }: PwaInstallHintPro
       // 登录页: 800ms, 让用户先看到表单
       // 主界面: 1500ms, 让首屏渲染完成
       const delay = placement === 'login' ? 800 : 1500;
-      const t = setTimeout(() => setShow(true), delay);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setShow(true), delay);
+      return () => clearTimeout(timer);
     }
   }, [placement]);
 
@@ -79,16 +82,16 @@ export default function PwaInstallHint({ placement = 'main' }: PwaInstallHintPro
       <div className="pwa-hint-content">
         <div className="pwa-hint-icon">📱</div>
         <div className="pwa-hint-text">
-          <div className="pwa-hint-title">获得最佳体验</div>
+          <div className="pwa-hint-title">{t('PwaInstallHint.s000', '获得最佳体验')}</div>
           <div className="pwa-hint-desc">
-            点击底部 <span className="pwa-hint-share-icon">⎙</span>「分享」→{' '}
-            <b>添加到主屏幕</b>, 全屏启动无遮挡
+            {t('PwaInstallHint.s001', '点击底部')} <span className="pwa-hint-share-icon">⎙</span>「分享」→{' '}
+            <b>{t('PwaInstallHint.s002', '添加到主屏幕')}</b>{t('PwaInstallHint.s003', ', 全屏启动无遮挡')}
           </div>
         </div>
         <button
           className="pwa-hint-close"
           onClick={handleDismiss}
-          aria-label="关闭"
+          aria-label={t('PwaInstallHint.s004', '关闭')}
         >
           ×
         </button>
