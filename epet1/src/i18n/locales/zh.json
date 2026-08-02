@@ -1184,5 +1184,18 @@
   "app.pet.defaultName": "宠物",
   "app.wave.claimed.tip2": "如果你已认领过此宠物, 请直接登录查看。",
   "app.wave.currentStatus": "当前状态: {status}",
-  "app.wave.notLaunched.tip2": "请关注官方公告或联系客服。"
+  "app.wave.notLaunched.tip2": "请关注官方公告或联系客服。",
+  "app.yard.place": "🏗️ 布置",
+  "app.yard.duplicate": "重复 ×{{count}}",
+  "app.game.fallback": "游戏",
+  "app.chat.selectPet": "请先在庭院中选择一只宠物",
+  "app.wave.status.factory_burned": "工厂已烧录",
+  "app.wave.status.in_qc": "工厂 QC 中",
+  "app.wave.status.published": "已上市",
+  "app.wave.status.claimed": "已认领",
+  "app.wave.status.archived": "已归档",
+  "app.wave.notLaunched.title": "这只宠物还没有上市",
+  "app.wave.notLaunched.tip1": "工厂已烧录, 等待上市后才能认领。",
+  "app.wave.batchPlain": "批次:",
+  "app.wave.claimed.tip1": "这只宠物已经属于某位玩家, 无法重复认领。"
 }

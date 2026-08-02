@@ -1184,5 +1184,18 @@
   "app.pet.defaultName": "Thú cưng",
   "app.wave.claimed.tip2": "Nếu bạn đã nhận nuôi thú cưng này, vui lòng đăng nhập để xem.",
   "app.wave.currentStatus": "Trạng thái hiện tại: {status}",
-  "app.wave.notLaunched.tip2": "Vui lòng theo dõi thông báo chính thức hoặc liên hệ hỗ trợ."
+  "app.wave.notLaunched.tip2": "Vui lòng theo dõi thông báo chính thức hoặc liên hệ hỗ trợ.",
+  "app.yard.place": "🏗️ Đặt",
+  "app.yard.duplicate": "Trùng ×{{count}}",
+  "app.game.fallback": "Trò chơi",
+  "app.chat.selectPet": "Vui lòng chọn một thú cưng trong sân trước",
+  "app.wave.status.factory_burned": "Đã ghi tại nhà máy",
+  "app.wave.status.in_qc": "Đang kiểm tra chất lượng",
+  "app.wave.status.published": "Đã phát hành",
+  "app.wave.status.claimed": "Đã nhận nuôi",
+  "app.wave.status.archived": "Đã lưu trữ",
+  "app.wave.notLaunched.title": "Thú cưng này chưa được phát hành",
+  "app.wave.notLaunched.tip1": "Đã ghi tại nhà máy, vui lòng đợi đến khi phát hành để nhận nuôi.",
+  "app.wave.batchPlain": "Lô:",
+  "app.wave.claimed.tip1": "Thú cưng này đã thuộc về một người chơi khác, không thể nhận nuôi lại."
 }

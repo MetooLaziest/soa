@@ -1225,7 +1225,7 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
                       color: hasBg ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.35)',
                       fontSize: 11, fontWeight: 500, textAlign: 'center',
                     }}>
-                      ✅ 已放置
+                      {t('app.yard.placed', '✅ 已放置')}
                     </div>
                   ) : (
                     <button
@@ -1238,12 +1238,12 @@ function InventoryModal({ onClose }: { onClose: () => void }) {
                         color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', width: '100%',
                       }}
                     >
-                      🏗️ 布置
+                      {t('app.yard.place', '🏗️ 布置')}
                     </button>
                   )
                 )}
                 {item.duplicate_count !== undefined && item.duplicate_count > 0 && (
-                  <div style={{ color: hasBg ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.45)', fontSize: 10 }}>重复 ×{item.duplicate_count}</div>
+                  <div style={{ color: hasBg ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.45)', fontSize: 10 }}>{t('app.yard.duplicate', '重复 ×{count}', { count: item.duplicate_count })}</div>
                 )}
               </div>
             ))}
@@ -1734,7 +1734,7 @@ function GameModal({ onClose }: { onClose: () => void }) {
           {selectedGame ? (
             <>
               <button className="btn-back" onClick={() => setSelectedGame(null)}>←</button>
-              &nbsp;{games.find(g => g.id === selectedGame)?.name || '游戏'}
+              &nbsp;{games.find(g => g.id === selectedGame)?.name || t('app.game.fallback', '游戏')}
             </>
           ) : (
             t('app.game.title', '🎮 小游戏')
@@ -2046,10 +2046,10 @@ function HomePanel() {
 
 // ─── 对话页（全屏）───────────────────────────────────────────
 const TOUCH_AREA_LABELS: Record<string, string> = {
-  head: '摸了摸头',
-  belly: '摸了摸肚子',
-  hands: '握了握手',
-  feet: '挠了挠脚底',
+  head: t('app.chat.touch.head', '摸了摸头'),
+  belly: t('app.chat.touch.belly', '摸了摸肚子'),
+  hands: t('app.chat.touch.hands', '握了握手'),
+  feet: t('app.chat.touch.feet', '挠了挠脚底'),
 };
 
 function ChatPage({ onClose }: { onClose: () => void }) {
@@ -2187,9 +2187,9 @@ function ChatPage({ onClose }: { onClose: () => void }) {
         style={chatBgUrl ? { backgroundImage: `url(${chatBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
       >
         <div className="chat-topbar">
-          <button className="chat-topbar-btn" onClick={onClose}>← 返回</button>
+          <button className="chat-topbar-btn" onClick={onClose}>{t('app.chat.back', '← 返回')}</button>
         </div>
-        <div className="chat-empty">请先在庭院中选择一只宠物</div>
+        <div className="chat-empty">{t('app.chat.selectPet', '请先在庭院中选择一只宠物')}</div>
       </div>
     );
   }
@@ -2201,7 +2201,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
     >
       {/* 顶部栏 — 始终可见，flex-shrink:0 */}
       <div className="chat-topbar">
-        <button className="chat-topbar-btn" onClick={onClose}>← 返回</button>
+        <button className="chat-topbar-btn" onClick={onClose}>{t('app.chat.back', '← 返回')}</button>
         <span className="chat-topbar-title">{pet.nickname}</span>
         <button
           className="chat-topbar-btn chat-topbar-travel"
@@ -2214,7 +2214,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
 
       {/* 宠物展示区 — flex:1，自动占据剩余空间 */}
       <div className={`chat-pet-area${petPulse ? ' pet-pulse' : ''}`}>
-        <div className="chat-pet-hint">👆 点击宠物不同部位互动</div>
+        <div className="chat-pet-hint">{t('app.chat.hint', '👆 点击宠物不同部位互动')}</div>
         <img
           className="chat-pet-img"
           src={getPetPortrait(pet)}
@@ -2229,9 +2229,9 @@ function ChatPage({ onClose }: { onClose: () => void }) {
         {lastAssistantMessage ? (
           <p className="chat-response-text">{lastAssistantMessage}</p>
         ) : sending ? (
-          <p className="chat-response-text typing">宠物正在思考</p>
+          <p className="chat-response-text typing">{t('app.chat.thinking', '宠物正在思考')}</p>
         ) : (
-          <p className="chat-response-text chat-response-empty">摸摸宠物或发消息开始对话吧~</p>
+          <p className="chat-response-text chat-response-empty">{t('app.chat.empty', '摸摸宠物或发消息开始对话吧~')}</p>
         )}
       </div>
 
@@ -2262,11 +2262,11 @@ function NotLaunchedView({ wavePreview, onClose }: { wavePreview: WavePreviewRes
   const model = wavePreview.model;
   const status = wavePreview.wave?.status;
   const statusLabel: Record<string, string> = {
-    factory_burned: '工厂已烧录',
-    in_qc: '工厂 QC 中',
-    published: '已上市',
-    claimed: '已认领',
-    archived: '已归档',
+    factory_burned: t('app.wave.status.factory_burned', '工厂已烧录'),
+    in_qc: t('app.wave.status.in_qc', '工厂 QC 中'),
+    published: t('app.wave.status.published', '已上市'),
+    claimed: t('app.wave.status.claimed', '已认领'),
+    archived: t('app.wave.status.archived', '已归档'),
   };
   return (
     <div style={{
@@ -2280,11 +2280,11 @@ function NotLaunchedView({ wavePreview, onClose }: { wavePreview: WavePreviewRes
       }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>📦</div>
         <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px', color: '#fbbf24' }}>
-          这只宠物还没有上市
+          {t('app.wave.notLaunched.title', '这只宠物还没有上市')}
         </h2>
         {model && (
           <p style={{ fontSize: 15, color: '#cbd5e1', margin: '0 0 4px' }}>
-            型号: <strong style={{ color: '#fff' }}>{model.name}</strong>
+            {t('app.wave.model', '型号:')} <strong style={{ color: '#fff' }}>{model.name}</strong>
           </p>
         )}
         {wavePreview.wave?.batch_code && (
@@ -2298,7 +2298,7 @@ function NotLaunchedView({ wavePreview, onClose }: { wavePreview: WavePreviewRes
           </p>
         )}
         <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 24px' }}>
-          工厂已烧录, 等待上市后才能认领。<br />
+          {t('app.wave.notLaunched.tip1', '工厂已烧录, 等待上市后才能认领。')}<br />
           {t('app.wave.notLaunched.tip2', '请关注官方公告或联系客服。')}
         </p>
         <button
@@ -2308,7 +2308,7 @@ function NotLaunchedView({ wavePreview, onClose }: { wavePreview: WavePreviewRes
             padding: '10px 28px', borderRadius: 8, fontSize: 14,
             cursor: 'pointer', fontWeight: 500,
           }}
-        >关闭</button>
+        >{t('app.wave.close', '关闭')}</button>
       </div>
     </div>
   );
@@ -2341,20 +2341,20 @@ function AlreadyClaimedView({ wavePreview, onClose, onGoLogin }: {
         )}
         <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
         <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px', color: '#4ade80' }}>
-          这只宠物已被认领
+          {t('app.wave.claimed.title', '这只宠物已被认领')}
         </h2>
         {model && (
           <p style={{ fontSize: 15, color: '#cbd5e1', margin: '0 0 4px' }}>
-            型号: <strong style={{ color: '#fff' }}>{model.name}</strong>
+            {t('app.wave.model', '型号:')} <strong style={{ color: '#fff' }}>{model.name}</strong>
           </p>
         )}
         {wavePreview.wave?.batch_code && (
           <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 20px' }}>
-            批次: {wavePreview.wave.batch_code}
+            {t('app.wave.batchPlain', '批次:')} {wavePreview.wave.batch_code}
           </p>
         )}
         <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 24px' }}>
-          这只宠物已经属于某位玩家, 无法重复认领。<br />
+          {t('app.wave.claimed.tip1', '这只宠物已经属于某位玩家, 无法重复认领。')}<br />
           {t('app.wave.claimed.tip2', '如果你已认领过此宠物, 请直接登录查看。')}
         </p>
         <button
@@ -2364,7 +2364,7 @@ function AlreadyClaimedView({ wavePreview, onClose, onGoLogin }: {
             padding: '10px 28px', borderRadius: 8, fontSize: 14,
             cursor: 'pointer', fontWeight: 500, marginRight: 8,
           }}
-        >关闭</button>
+        >{t('app.wave.close', '关闭')}</button>
         <button
           onClick={onGoLogin}
           style={{
@@ -2372,7 +2372,7 @@ function AlreadyClaimedView({ wavePreview, onClose, onGoLogin }: {
             padding: '10px 28px', borderRadius: 8, fontSize: 14,
             cursor: 'pointer', fontWeight: 500,
           }}
-        >去登录</button>
+        >{t('app.wave.goLogin', '去登录')}</button>
       </div>
     </div>
   );
