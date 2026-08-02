@@ -334,7 +334,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         setCollectionToast({ type: 'success', message: t('app.collection.toast.unshow', '已取消展示'), petName: pet.modelName, petImage: pet.portraitImageUrl });
         setTimeout(() => setCollectionToast(null), 1500);
       } catch (e: any) {
-        setCollectionToast({ type: 'error', message: (e.message || t('app.collection.toast.opFailed', '操作失败')) });
+        setCollectionToast({ type: 'error', message: (e.message || {t('app.collection.toast.opFailed', '操作失败')}) });
         setTimeout(() => setCollectionToast(null), 2000);
       }
     } else {
@@ -364,7 +364,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
         setCollectionToast({ type: 'success', message: t('app.collection.toast.show', '已展示在庭院'), petName: pet.modelName, petImage: pet.portraitImageUrl });
         setTimeout(() => setCollectionToast(null), 1500);
       } catch (e: any) {
-        setCollectionToast({ type: 'error', message: (e.message || t('app.collection.toast.opFailed', '操作失败')) });
+        setCollectionToast({ type: 'error', message: (e.message || {t('app.collection.toast.opFailed', '操作失败')}) });
         setTimeout(() => setCollectionToast(null), 2000);
       }
     }
@@ -2112,7 +2112,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
     // 点击立绘时, 客户端组装"用户视角"消息 (不带 [系统] 前缀)
     let userBubble = '';
     if (touchArea) {
-      userBubble = `🤚 ${TOUCH_AREA_LABELS[touchArea] || t('app.chat.touch.fallback', '摸了摸')}`;
+      userBubble = `🤚 ${TOUCH_AREA_LABELS[touchArea] || '摸了摸'}`;
       // 点击反馈
       setPetPulse(true);
       setTimeout(() => setPetPulse(false), 500);
@@ -2127,14 +2127,14 @@ function ChatPage({ onClose }: { onClose: () => void }) {
     try {
       const { reply } = await sendChatMessage(userId, pet.id, message, touchArea);
       // 防御性: 剥离 LLM 偶尔回传的 [系统] 前缀
-      const cleanReply = (reply || '').replace(/\[系统\][^\n]*\n?/g, '').trim() || t('app.chat.empty', '...');
+      const cleanReply = (reply || '').replace(/\[系统\][^\n]*\n?/g, '').trim() || '...';
       setMessages((m) => [...m, { role: 'assistant', content: cleanReply }]);
       addEmotionPoints(1);
       showEmotionFloat(1);
     } catch (e: any) {
       setMessages((m) => [...m, {
         role: 'assistant',
-        content: e.message?.includes('503') ? t('app.chat.error.noAI', '（AI 服务未配置，对话功能暂不可用）') : t('app.chat.error.network', '（网络出错了...）'),
+        content: e.message?.includes('503') ? '（AI 服务未配置，对话功能暂不可用）' : '（网络出错了...）',
       }]);
     } finally {
       setSending(false);
@@ -2172,7 +2172,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
   const handleTravel = async () => {
     if (!userId || !pet || traveling) return;
     if (!yardPets.some((p) => p.id === pet.id)) {
-      alert(t('app.chat.alert.traveling', '宠物正在旅行中，无法再次派遣'));
+      alert('宠物正在旅行中，无法再次派遣');
       return;
     }
     // 跳转到旅行 Modal（带预选宠物）
@@ -2208,7 +2208,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
           onClick={handleTravel}
           disabled={traveling}
         >
-          {t('app.chat.button.travel', '✈️ 派遣旅行')}
+          ✈️ 派遣旅行
         </button>
       </div>
 
@@ -2242,7 +2242,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleTextSend()}
-          placeholder={t('app.chat.placeholder', '和宠物说点什么...')}
+          placeholder="和宠物说点什么..."
           disabled={sending}
         />
         <button
@@ -2250,7 +2250,7 @@ function ChatPage({ onClose }: { onClose: () => void }) {
           onClick={handleTextSend}
           disabled={sending || !input.trim()}
         >
-          {t('app.chat.button.send', '发送')}
+          发送
         </button>
       </div>
     </div>
@@ -2289,17 +2289,17 @@ function NotLaunchedView({ wavePreview, onClose }: { wavePreview: WavePreviewRes
         )}
         {wavePreview.wave?.batch_code && (
           <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 4px' }}>
-            {t('app.wave.batch', '批次: {code}', { code: wavePreview.wave.batch_code })}
+            批次: {wavePreview.wave.batch_code}
           </p>
         )}
         {status && (
           <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 20px' }}>
-            {t('app.wave.currentStatus', '当前状态: {status}', { status: statusLabel[status] || status })}
+            当前状态: {statusLabel[status] || status}
           </p>
         )}
         <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 24px' }}>
           工厂已烧录, 等待上市后才能认领。<br />
-          {t('app.wave.notLaunched.tip2', '请关注官方公告或联系客服。')}
+          请关注官方公告或联系客服。
         </p>
         <button
           onClick={onClose}
@@ -2355,7 +2355,7 @@ function AlreadyClaimedView({ wavePreview, onClose, onGoLogin }: {
         )}
         <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 24px' }}>
           这只宠物已经属于某位玩家, 无法重复认领。<br />
-          {t('app.wave.claimed.tip2', '如果你已认领过此宠物, 请直接登录查看。')}
+          如果你已认领过此宠物, 请直接登录查看。
         </p>
         <button
           onClick={onClose}
@@ -2453,7 +2453,7 @@ export default function App() {
           const oldLevel = prevTravelRef.current.growth_level || 1;
           const returnedPet = allPets.find((p: any) => p.id === returnedPetId);
           if (returnedPet && returnedPet.growth_level > oldLevel) {
-            showLevelUp(oldLevel, returnedPet.growth_level, returnedPet.nickname || t('app.pet.defaultName', '宠物'), returnedPet.pet_model_id);
+            showLevelUp(oldLevel, returnedPet.growth_level, returnedPet.nickname || '宠物', returnedPet.pet_model_id);
           }
           prevTravelRef.current = null;
         }
@@ -2592,12 +2592,12 @@ export default function App() {
         const result = await claimPet(pendingCode);
         const pet = result.pet;
         if (result.merged && result.growth?.leveled_up) {
-          showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || t('app.pet.defaultName', '宠物'), pet.pet_model_id);
-          setClaimResult({ ok: true, msg: t('app.collection.toast.mergedLevelUp', '🔄 重复宠物，已合并喂经验 +100！升级了！') });
+          showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || '宠物', pet.pet_model_id);
+          setClaimResult({ ok: true, msg: `🔄 重复宠物，已合并喂经验 +100！升级了！` });
         } else if (result.merged) {
-          setClaimResult({ ok: true, msg: t('app.collection.toast.merged', '🔄 重复宠物，已合并喂经验 +100') });
+          setClaimResult({ ok: true, msg: `🔄 重复宠物，已合并喂经验 +100` });
         } else {
-          setClaimResult({ ok: true, msg: t('app.collection.toast.claimed', '🎉 成功认领 {nickname}！', { nickname: pet.nickname || t('app.pet.defaultName', '宠物') }) });
+          setClaimResult({ ok: true, msg: `🎉 成功认领 ${pet.nickname || '宠物'}！` });
         }
         // 刷新宠物列表
         const uid = authUserId;
@@ -2605,7 +2605,7 @@ export default function App() {
         setYardPets(yardPets);
         setAllPets(allPets);
       } catch (err: any) {
-        const msg = err?.response?.data?.error || err?.message || t('app.collection.toast.claimFailed', '认领失败');
+        const msg = err?.response?.data?.error || err?.message || '认领失败';
         setClaimResult({ ok: false, msg });
       }
     };
@@ -2636,7 +2636,7 @@ export default function App() {
     return (
       <div className="app-loading">
         <div className="app-loading-spinner">🌀</div>
-        <div>{t('app.nfcDialog.authenticating', '认证中...')}</div>
+        <div>认证中...</div>
       </div>
     );
   }
@@ -2663,7 +2663,7 @@ export default function App() {
     return (
       <div className="app-loading">
         <div className="app-loading-spinner">🌀</div>
-        <div>{t('app.nfcDialog.codeVerifying', '激活码校验中...')}</div>
+        <div>激活码校验中...</div>
       </div>
     );
   }
@@ -2678,7 +2678,7 @@ export default function App() {
     return (
       <div className="app-loading">
         <div className="app-loading-spinner">🌀</div>
-        <div>{t('app.nfcDialog.loading', '加载中...')}</div>
+        <div>加载中...</div>
       </div>
     );
   }
@@ -2706,13 +2706,13 @@ export default function App() {
         <button
           className={`mode-switch-btn${homeMode === 'yard' ? ' active' : ''}`}
           onClick={() => handleSwitchHomeMode('yard')}
-        >{t('app.mode.yard', '🏡 庭院')}</button>
+        >🏡 庭院</button>
         <button
           className={`mode-switch-btn${homeMode === 'live' ? ' active' : ''}`}
           onClick={() => handleSwitchHomeMode('live')}
-        >{t('app.mode.live', '📺 Live')}</button>
+        >📺 Live</button>
         {homeMode === 'yard' && (
-          <span className="mode-switch-emotion">{t('app.mode.emotionPoints', '💛 {points}', { points: emotionPoints })}</span>
+          <span className="mode-switch-emotion">💛 {emotionPoints}</span>
         )}
       </div>
 
@@ -2739,12 +2739,12 @@ export default function App() {
               const result = await activatePet(userId, nfcId.trim());
               const pet = result.pet;
               if (result.merged && result.growth?.leveled_up) {
-                showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || t('app.pet.defaultName', '宠物'), pet.pet_model_id);
+                showLevelUp(result.growth.growth_level - 1, result.growth.new_level, pet.nickname || '宠物', pet.pet_model_id);
               }
-              alert(result.merged ? t('app.nfcDialog.toast.merged', '🔄 重复宠物，已合并喂经验！') : t('app.nfcDialog.toast.activated', '🎉 激活成功！{nickname} 加入藏品库！', { nickname: pet.nickname }));
+              alert(result.merged ? `🔄 重复宠物，已合并喂经验！` : `🎉 激活成功！${pet.nickname} 加入藏品库！`);
               setActiveModal('collection');
             } catch (e: any) {
-              alert(e.message || t('app.nfcDialog.toast.activateFailed', '激活失败'));
+              alert(e.message || '激活失败');
             }
           }}
         />
@@ -2783,9 +2783,9 @@ export default function App() {
               buyItem(userId, shopItemId)
                 .then(res => {
                   useGameStore.getState().setEmotionPoints(res.remaining_emotion);
-                  alert(t('app.match3.toast.passedAndBought', '🎉 通关！购买成功！'));
+                  alert(`🎉 通关！购买成功！`);
                 })
-                .catch(e => alert(e.message || t('app.shop.alert.purchaseFailed', '购买失败')));
+                .catch(e => alert(e.message || '购买失败'));
             }
             useGameStore.getState().setMatch3LevelId(null);
             setActiveModal(null);
@@ -2871,7 +2871,7 @@ export default function App() {
           }}>
             <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#333', marginBottom: 4 }}>
-              {t('app.levelUp.unlockTitle', '{name} 升级解锁!', { name: unlockPromptData.petName })}
+              {unlockPromptData.petName} 升级解锁!
             </div>
             <div style={{ fontSize: 14, color: '#888', marginBottom: 16 }}>
               Lv.{unlockPromptData.level}
@@ -2879,13 +2879,13 @@ export default function App() {
             </div>
             <div style={{ textAlign: 'left', fontSize: 14, color: '#555', lineHeight: 2 }}>
               {unlockPromptData.config.shop_items && unlockPromptData.config.shop_items.length > 0 && (
-                <div>{t('app.levelUp.unlock.shop', '🛒 解锁新商品 {count} 件', { count: unlockPromptData.config.shop_items.length })}</div>
+                <div>🛒 解锁新商品 {unlockPromptData.config.shop_items.length} 件</div>
               )}
               {unlockPromptData.config.dialog_topics && unlockPromptData.config.dialog_topics.length > 0 && (
-                <div>{t('app.levelUp.unlock.topic', '💬 解锁新话题 {count} 个', { count: unlockPromptData.config.dialog_topics.length })}</div>
+                <div>💬 解锁新话题 {unlockPromptData.config.dialog_topics.length} 个</div>
               )}
               {unlockPromptData.config.videos && unlockPromptData.config.videos.length > 0 && (
-                <div>{t('app.levelUp.unlock.video', '🎬 解锁新视频 {count} 个', { count: unlockPromptData.config.videos.length })}</div>
+                <div>🎬 解锁新视频 {unlockPromptData.config.videos.length} 个</div>
               )}
             </div>
             <button onClick={() => setUnlockPromptData(null)} style={{
@@ -2893,7 +2893,7 @@ export default function App() {
               background: 'linear-gradient(135deg, #FFD700, #FFA500)', color: '#fff',
               fontSize: 16, fontWeight: 700, cursor: 'pointer',
             }}>
-              {t('app.levelUp.awesome', '太棒了!')}
+              太棒了!
             </button>
           </div>
         </div>
@@ -2905,7 +2905,7 @@ export default function App() {
         return createPortal(
           <PetActionOverlay
             petId={pet.id}
-            petName={pet.nickname || pet.name || t('app.pet.defaultName', '宠物')}
+            petName={pet.nickname || pet.name}
             position={tappedPetPos}
             onOutfit={() => {
               setShowPetActionOverlay(false);
@@ -2928,7 +2928,7 @@ export default function App() {
           <OutfitPanel
             petId={pet.id}
             petModelId={pet.pet_model_id}
-            petName={pet.nickname || pet.name || t('app.pet.defaultName', '宠物')}
+            petName={pet.nickname || pet.name}
             onClose={() => setActiveModal(null)}
           />,
           document.body
