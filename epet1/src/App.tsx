@@ -2479,6 +2479,13 @@ export default function App() {
       initAuth('demo');
       return;
     }
+    // ─── vn 域演示 (越南销售用): ?code=9527 ───
+    // VITE_DEMO_BY_CODE 仅在 VITE_LOCALE=vi build 时为 'true', soa build 跳过此分支
+    // 跟 soa 的 ?id=9527 等价 (initAuth('demo') → userId=2 demo 模式)
+    if (import.meta.env.VITE_DEMO_BY_CODE && params.get('code') === '9527') {
+      initAuth('demo');
+      return;
+    }
     // 激活码认领: ?code=<20位 base64url>
     // ── 量产波段状态机: 先调 /wave/preview 决定是直接认领 / 显示「未上市」/ 显示「已认领」
     // 见 memory #波段特性. invalid 或 launchable 才走登录认领流
