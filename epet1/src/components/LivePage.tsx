@@ -19,6 +19,7 @@ import { useGameStore } from '../store/gameStore';
 import { fetchPetVideos, fetchDemoTime, type IntroVideo } from '../api/epet1';
 import { IconImg } from './IconImg';
 import { t } from '../i18n/useT';
+import { localize } from '../i18n/localize';
 
 // ─── 主组件 ───
 
@@ -162,7 +163,7 @@ export function LivePage({ onOpenModal }: LivePageProps) {
         )}
 
         <div className="live-page-info">
-          <div className="live-page-info-name">{yardPets[0].nickname || yardPets[0].model_name}</div>
+          <div className="live-page-info-name">{yardPets[0].nickname || localize('pet_model', yardPets[0].pet_model_id, yardPets[0].model_name)}</div>
           <div className="live-page-info-time">
             {currentIndex + 1} / {videos.length}
           </div>
@@ -205,7 +206,7 @@ export function LivePage({ onOpenModal }: LivePageProps) {
 
       {/* 视频信息 */}
       <div className="live-page-info">
-        <div className="live-page-info-name">{currentVideo.name}</div>
+        <div className="live-page-info-name">{localize('intro_video', currentVideo.id, currentVideo.name)}</div>
         <div className="live-page-info-time">
           {currentVideo.time_start} - {currentVideo.time_end}
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef, type ReactNode, type MouseEvent, type KeyboardEvent, type ChangeEvent, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from './i18n/useT';
+import { localize } from './i18n/localize';
 import { useGameStore, type EmotionFloatItem } from './store/gameStore';
 import { useGameStore as usePixiGameStore } from './game/GameState';
 import SpotDifference from './games/SpotDifference';
@@ -482,7 +483,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
                   fontSize: 32, fontWeight: 700, color: '#fff',
                   textShadow: '0 1px 3px rgba(0,0,0,0.5)',
                 }}>
-                  {currentSeries.name}
+                  {localize('pet_series', currentSeries.id, currentSeries.name)}
                 </div>
                 <div style={{
                   fontSize: 18, color: 'rgba(255,255,255,0.9)', marginTop: 6,
@@ -537,7 +538,7 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
                     background: 'rgba(0,0,0,0.6)', borderRadius: 12,
                     fontSize: 42, color: pet.isCollected ? '#fff' : '#999', whiteSpace: 'nowrap',
                   }}>
-                    {pet.isCollected ? pet.modelName : '???'}
+                    {pet.isCollected ? localize('pet_model', pet.modelId, pet.modelName) : '???'}
                   </div>
                   {pet.isCollected && pet.growthLevel > 0 && (
                     <div style={{ padding: '0 8px', marginTop: 4 }}>
