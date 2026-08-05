@@ -55,6 +55,7 @@ const navGroups: NavGroup[] = [
       { key: 'stories', label: '主剧情框架', icon: '📖', path: '/admin/stories' },
       { key: 'ai-personality', label: '对话风格设定', icon: '💬', path: '/admin/ai-personality' },
       { key: 'ai-models', label: 'AI模型配置', icon: '🤖', path: '/admin/ai-models' },
+      { key: 'ai-resources', label: 'AI资源监控', icon: '📊', path: '/admin/ai-resources' },
       { key: 'rag', label: 'RAG 知识库管理', icon: '📚', path: '/admin/rag' },
     ],
   },

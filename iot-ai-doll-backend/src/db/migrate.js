@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 async function migrate() {
   console.log('Starting database migration...');
 
-  const migrationsDir = path.join(__dirname, '../../sql');
+  const migrationsDir = path.join(__dirname, '../../migrations');
   const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
 
   for (const file of files) {

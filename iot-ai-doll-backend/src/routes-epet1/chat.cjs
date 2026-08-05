@@ -3,6 +3,7 @@
  * POST /api/epet1/chat  - 发送对话（支持 message / touch_area）
  */
 const axios = require('axios');
+const { logTokenUsage } = require('../lib/token-logger');
 
 const DASHSCOPE_BASE_URL = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const API_KEY = process.env.DASHSCOPE_API_KEY || '';
@@ -221,6 +222,18 @@ module.exports = (pool) => {
         );
       } catch (e) { /* non-critical */ }
 
+      // 记录 token 使用量 (异步，不阻塞响应)
+      logTokenUsage(pool, {
+        userId: user_id,
+        petInstanceId: pet_instance_id,
+        model: 'qwen-plus',
+        provider: 'dashscope',
+        usage: response.data.usage,
+        endpoint: '/api/epet1/chat',
+        status: 'success',
+        metadata: { touch_area: touch_area || null, rag_enabled: !!ragContent, prompt_version: useV2 ? 2 : 1 },
+      }).catch(() => {}); // 日志失败不影响主流程
+
       res.json({
         success: true,
         reply,
@@ -229,6 +242,22 @@ module.exports = (pool) => {
       });
     } catch (err) {
       console.error('chat error:', err?.response?.data || err.message);
+
+      // 记录错误日志
+      const user_id = req.user?.userId;
+      const pet_instance_id = req.body?.pet_instance_id;
+      logTokenUsage(pool, {
+        userId: user_id,
+        petInstanceId: pet_instance_id,
+        model: 'qwen-plus',
+        provider: 'dashscope',
+        usage: {},
+        endpoint: '/api/epet1/chat',
+        status: 'error',
+        errorMessage: err?.response?.data?.error?.message || err.message,
+        metadata: { touch_area: req.body?.touch_area || null },
+      }).catch(() => {});
+
       res.status(500).json({
         success: false,
         error: err?.response?.data?.error?.message || err.message,

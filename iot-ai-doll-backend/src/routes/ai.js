@@ -1,6 +1,8 @@
 import express from 'express';
 import ky from 'ky';
 import { createParser } from 'eventsource-parser';
+import { logTokenUsage } from '../lib/token-logger.js';
+import db from '../lib/db.js';
 
 const router = express.Router();
 
@@ -291,9 +293,31 @@ router.post('/chat-sync', async (req, res) => {
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
 
-    res.json({ content });
+    // 记录 token 使用量 (异步，不阻塞响应)
+    logTokenUsage(db, {
+      userId: req.user?.userId || null,
+      model: DASHSCOPE_MODEL,
+      provider: 'dashscope',
+      usage: data.usage || {},
+      endpoint: '/api/ai/chat-sync',
+      status: 'success',
+    }).catch(() => {});
+
+    res.json({ content, usage: data.usage });
   } catch (error) {
     console.error('Chat sync error:', error);
+
+    // 记录错误日志
+    logTokenUsage(db, {
+      userId: req.user?.userId || null,
+      model: DASHSCOPE_MODEL,
+      provider: 'dashscope',
+      usage: {},
+      endpoint: '/api/ai/chat-sync',
+      status: 'error',
+      errorMessage: error.message,
+    }).catch(() => {});
+
     res.status(500).json({ error: error.message });
   }
 });

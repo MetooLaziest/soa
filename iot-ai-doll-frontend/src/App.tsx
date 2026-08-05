@@ -17,6 +17,7 @@ import Locations from './pages/admin/Locations';
 import Items from './pages/admin/Items';
 import CGGallery from './pages/admin/CGGallery';
 import AIModels from './pages/admin/AIModels';
+import AIResources from './pages/admin/AIResources';
 import AIPersonality from './pages/admin/AIPersonality';
 import DeviceSN from './pages/admin/DeviceSN';
 import Users from './pages/admin/Users';
@@ -94,6 +95,7 @@ export default function App() {
           <Route path="items" element={<Items />} />
           <Route path="cgs" element={<CGGallery />} />
           <Route path="ai-models" element={<AIModels />} />
+          <Route path="ai-resources" element={<AIResources />} />
           <Route path="ai-personality" element={<AIPersonality />} />
           <Route path="devices" element={<DeviceSN />} />
           <Route path="users" element={<Users />} />

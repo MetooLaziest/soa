@@ -1,5 +1,6 @@
 import express from 'express';
 import { Pool } from 'pg';
+import { logTokenUsage } from '../lib/token-logger.js';
 
 const router = express.Router();
 const pool = new Pool({
@@ -555,9 +556,19 @@ router.post('/:id/chat', async (req, res) => {
           
           const judgeData = await judgeResponse.json();
           const judgeAnswer = judgeData.choices?.[0]?.message?.content?.trim().toUpperCase();
-          
+
           console.log(`[RAG] AI 判断结果：${judgeAnswer}`);
-          
+
+          // 记录 RAG 判断器的 token 使用量
+          logTokenUsage(pool, {
+            model: 'qwen-turbo',
+            provider: 'dashscope',
+            usage: judgeData.usage || {},
+            endpoint: '/api/epet/chat-rag-judge',
+            status: 'success',
+            metadata: { type: 'rag_judge', max_tokens: 10 },
+          }).catch(() => {});
+
           if (judgeAnswer === 'YES') {
             needsRAG = true;
           }
@@ -618,10 +629,33 @@ router.post('/:id/chat', async (req, res) => {
     const data = await response.json();
     const reply = data.choices && data.choices[0] && data.choices[0].message
       ? data.choices[0].message.content : '...';
-    
-    res.json({ success: true, reply });
+
+    // 记录 token 使用量
+    logTokenUsage(pool, {
+      userId: req.user?.userId || null,
+      model: 'qwen-turbo',
+      provider: 'dashscope',
+      usage: data.usage || {},
+      endpoint: '/api/epet/chat',
+      status: 'success',
+      metadata: { temperature, rag_used: needsRAG },
+    }).catch(() => {});
+
+    res.json({ success: true, reply, usage: data.usage });
   } catch(e) {
     console.error('Chat error:', e);
+
+    // 记录错误日志
+    logTokenUsage(pool, {
+      userId: req.user?.userId || null,
+      model: 'qwen-turbo',
+      provider: 'dashscope',
+      usage: {},
+      endpoint: '/api/epet/chat',
+      status: 'error',
+      errorMessage: e.message,
+    }).catch(() => {});
+
     res.json({ success: false, error: e.message });
   }
 });
