@@ -6,7 +6,7 @@
  * GET  /admin/ai-usage/models   - 按模型统计
  */
 import express from 'express';
-import db from '../lib/db.js';
+import { poolIot as db } from '../lib/db.js';
 import { getUsageSummary, getUsageLogs } from '../lib/token-logger.js';
 
 const router = express.Router();

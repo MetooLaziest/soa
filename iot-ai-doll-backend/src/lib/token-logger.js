@@ -206,10 +206,4 @@ async function getUsageLogs(pool, options = {}) {
   };
 }
 
-module.exports = {
-  logTokenUsage,
-  getUsageSummary,
-  getUsageLogs,
-  calculateCost,
-  MODEL_COSTS,
-};
+export { logTokenUsage, getUsageSummary, getUsageLogs, calculateCost, MODEL_COSTS };

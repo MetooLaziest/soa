@@ -3,7 +3,22 @@
  * POST /api/epet1/chat  - 发送对话（支持 message / touch_area）
  */
 const axios = require('axios');
-const { logTokenUsage } = require('../lib/token-logger');
+// Inline token logger (CJS-compatible, avoids ESM import issues)
+const MODEL_COSTS = { 'qwen-plus': { input: 0.0008, output: 0.002 }, 'qwen-turbo': { input: 0.0003, output: 0.0006 }, 'qwen-max': { input: 0.02, output: 0.06 } };
+async function logTokenUsage(pool, params) {
+  const { userId = null, petInstanceId = null, model, provider, usage = {}, endpoint = null, status = 'success', latencyMs = null, errorMessage = null, metadata = {} } = params;
+  const inputTokens = usage.prompt_tokens || usage.input_tokens || 0;
+  const outputTokens = usage.completion_tokens || usage.output_tokens || 0;
+  const totalTokens = usage.total_tokens || (inputTokens + outputTokens);
+  const costs = MODEL_COSTS[model] || { input: 0, output: 0 };
+  const cost = Math.round(((inputTokens / 1000) * costs.input + (outputTokens / 1000) * costs.output) * 1000000) / 1000000;
+  try {
+    await pool.query(
+      `INSERT INTO ai_usage_logs (user_id, pet_instance_id, model, provider, input_tokens, output_tokens, total_tokens, cost, endpoint, status, latency_ms, error_message, metadata) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [userId, petInstanceId, model, provider, inputTokens, outputTokens, totalTokens, cost, endpoint, status, latencyMs, errorMessage, JSON.stringify(metadata)]
+    );
+  } catch (err) { console.error('[token-logger] failed:', err.message); }
+}
 
 const DASHSCOPE_BASE_URL = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const API_KEY = process.env.DASHSCOPE_API_KEY || '';

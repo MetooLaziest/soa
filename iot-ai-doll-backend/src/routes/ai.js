@@ -2,7 +2,7 @@ import express from 'express';
 import ky from 'ky';
 import { createParser } from 'eventsource-parser';
 import { logTokenUsage } from '../lib/token-logger.js';
-import db from '../lib/db.js';
+// db import removed - not used
 
 const router = express.Router();
 
