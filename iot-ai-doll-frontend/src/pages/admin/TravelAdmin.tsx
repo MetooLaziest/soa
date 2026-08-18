@@ -302,7 +302,7 @@ export default function TravelAdmin() {
                                 try {
                                   const url = await uploadFile(f, 'image');
                                   await handleUpdatePostcard(mp.postcard_id, { image_url: url });
-                                } catch (err) { alert('上传失败'); }
+                                } catch (err) { alert('上传失败: ' + (err?.response?.data?.error || err?.message || err)); }
                                 setUploading(null);
                               }}
                             />
@@ -321,7 +321,7 @@ export default function TravelAdmin() {
                                 try {
                                   const url = await uploadFile(f, 'video');
                                   await handleUpdatePostcard(mp.postcard_id, { video_url: url });
-                                } catch (err) { alert('上传失败'); }
+                                } catch (err) { alert('上传失败: ' + (err?.response?.data?.error || err?.message || err)); }
                                 setUploading(null);
                               }}
                             />
