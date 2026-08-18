@@ -171,8 +171,11 @@ module.exports = (pool) => {
   router.post('/force-start', async (req, res) => {
     const client = await pool.connect();
     try {
-      const user_id = req.user.userId;
+      // 2026-08-18 fix: 必须用 body 里的 user_id, 不能用 req.user.userId (admin 自己的 JWT UUID).
+      // epet1.travel_records.user_id 是 bigint, admin 来自 iot_doll.profiles.id 是 uuid, 类型不匹配 → 500.
+      const user_id = req.body.user_id;
       const { pet_instance_id, dish_rating, duration_minutes } = req.body;
+      if (!user_id) return res.status(400).json({ error: '缺少 user_id' });
       if (!pet_instance_id) return res.status(400).json({ error: '缺少 pet_instance_id' });
 
       const rating = dish_rating || 3;
