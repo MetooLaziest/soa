@@ -389,12 +389,12 @@ function CollectionPage({ onBack }: { onBack: () => void }) {
       background: currentSeries?.themeColor || '#F6F3EA',
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* 顶部导航 */}
+      {/* 顶部导航 — minHeight 用 calc 把 safe-area 算进 box 高度, 避免 box-sizing: border-box 把 padding-top 吞掉 content 区域
+          (PWA standalone: safe-area ≈ 47px; 浏览器: safe-area = 0) */}
       <div style={{
-        // padding-top 用 max(12px, safe-area-inset-top):
-        //  - 浏览器: safe-area = 47px, 状态栏覆盖顶 47px, 按钮不能被遮挡
-        //  - PWA standalone: safe-area = 0, 退回 12px (无状态栏)
-        height: 56, display: 'flex', alignItems: 'center', padding: 'max(12px, env(safe-area-inset-top)) 16px 0',
+        minHeight: 'calc(56px + env(safe-area-inset-top, 0px))',
+        display: 'flex', alignItems: 'center',
+        padding: 'env(safe-area-inset-top, 0px) 16px 12px',
         background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)',
       }}>
         <button onClick={onBack} style={{
