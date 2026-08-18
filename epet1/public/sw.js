@@ -5,7 +5,8 @@
 //   - SHELL_ASSETS 改用 /epet/ 前缀 (vite base 决定)
 //   - fetch handler 跳过 /admin/ (防御: PWA scope=/ 不要碰内部)
 // 2026-07-30: bump v3 → v4. 强制所有 PWA 客户端拉新版 (修 ?id=9527 demo 丢 query 问题)
-const CACHE_NAME = 'epet-shell-v4';
+// 2026-08-18: bump v4 → v5. 强制 PWA 客户端拉新 index-*.js (修 CollectionPage header 按钮被 status bar 遮挡)
+const CACHE_NAME = 'epet-shell-v5';
 const SHELL_ASSETS = [
   '/epet/favicon.svg',
   '/epet/icons.svg',
