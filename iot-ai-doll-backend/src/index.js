@@ -54,6 +54,18 @@ const __filenameBoot = fileURLToPath(import.meta.url);
 const __dirnameBoot = dirname(__filenameBoot);
 dotenv.config({ path: join(__dirnameBoot, '..', '.env') });
 
+// 全局异常防护 — 防止 event loop 冻结 (治本 iot-backend 永久 假活 per [[56]])
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[unhandledRejection at]', new Date().toISOString(), 'reason:', reason);
+  // 不 exit, 让进程继续; 只 log
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException at]', new Date().toISOString(), 'err:', err);
+  // 给 3s 缓冲让 in-flight 请求完成, 然后 pm2 重启
+  setTimeout(() => process.exit(1), 3000);
+});
+
+
 const __filename = __filenameBoot;
 const __dirname = __dirnameBoot;
 
